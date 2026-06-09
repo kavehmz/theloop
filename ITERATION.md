@@ -94,3 +94,10 @@ or edit any other file.
   before it blows". If your decision+settlement pair matches any kept core, the theme is
   irrelevant — it's a DUPLICATE. Redesign the LOOP, not the skin. (Recent rejects: a prism game
   that was really TOLLGATE+RIPTIDE; a fishing game that was really TOLLGATE+DEADLOCK.)
+- **A novel core is wasted on a SPARSE hero.** The Visual gate judges the static first frame,
+  not whether animation code exists. A hero of a few small objects floating on a near-empty
+  dark canvas fails "stunning, striking in its first viewport" even with per-object particles.
+  Fill the viewport with dense, layered, in-motion visual mass: a prominent live chart, real
+  background depth, and foreground action — so the first frame already looks alive and rich.
+  (A recent reject had a genuinely original core — parallel triage of many decaying objects —
+  but lost on a thin, empty hero composition.)
