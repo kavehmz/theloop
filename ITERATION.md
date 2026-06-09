@@ -83,3 +83,14 @@ or edit any other file.
   "a number/object climbs and you bank before it blows up," it will read as a Crash reskin and
   fail Originality — even with a fresh theme. Prefer a mechanic whose outcome is decided by
   *what the price does in space/shape/timing*, not by a scalar rising until a stop.
+- **A novel THEME is NOT a novel mechanic. Diff the skin-free core before you build.** As the
+  set fills, the failure mode is wrapping a beautiful new metaphor (optics, fishing, …) around
+  a player-decision + settlement loop that's already kept. Before writing your spec, state your
+  core in ONE skin-free sentence: "the player's bet is **[decision]** and it's settled by
+  **[payout rule]**." Then diff that sentence against every kept core's skin-free version —
+  especially: TOLLGATE = "claim demand-priced price levels, paid when price touches them";
+  RIPTIDE = "claim spatial bands, paid by your share"; DEADLOCK = "manage a two-force tension
+  meter, push vs hold, lose at the redline"; REACTOR = "accumulate vs a rupture meter, bank
+  before it blows". If your decision+settlement pair matches any kept core, the theme is
+  irrelevant — it's a DUPLICATE. Redesign the LOOP, not the skin. (Recent rejects: a prism game
+  that was really TOLLGATE+RIPTIDE; a fishing game that was really TOLLGATE+DEADLOCK.)
