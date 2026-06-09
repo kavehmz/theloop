@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BALLAST — balance the beam against the market</title>
+<style>
+  :root{
+    --bg0:#05070e; --bg1:#0a1020; --bg2:#0e1730;
+    --teal:#27e6c8; --teal-dim:#0d6f63;
+    --amber:#ffb43a; --red:#ff4d61; --green:#37f5a3;
+    --ink:#e8f0ff; --muted:#7c8bb0; --panel:rgba(18,28,52,.72);
+    --line:rgba(120,150,210,.16);
+  }
+  *{box-sizing:border-box; margin:0; padding:0}
+  html,body{height:100%}
+  body{
+    font-family:"Inter",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+    background:radial-gradient(1200px 800px at 70% -10%, #112042 0%, var(--bg1) 40%, var(--bg0) 100%);
+    color:var(--ink); overflow-x:hidden;
+    -webkit-font-smoothing:antialiased;
+  }
+  /* ---------- HERO STAGE : exactly one viewport ---------- */
+  .stage{
+    position:relative; width:100%; height:100vh; min-height:800px;
+    display:grid;
+    grid-template-columns: 244px 1fr 252px;
+    grid-template-rows: 58px 1fr 96px;
+    gap:14px; padding:14px 18px 16px;
+    overflow:hidden;
+  }
+  /* top bar spans all */
+  .topbar{
+    grid-column:1 / 4; grid-row:1;
+    display:flex; align-items:center; gap:18px;
+  }
+  .brand{display:flex; align-items:center; gap:12px}
+  .logo{
+    width:34px;height:34px;border-radius:9px;position:relative;
+    background:linear-gradient(135deg,var(--teal),#1796d6);
+    box-shadow:0 0 18px rgba(39,230,200,.55);
+  }
+  .logo:before{content:"";position:absolute;left:7px;right:7px;top:15px;height:4px;border-radius:3px;background:#04121a}
+  .logo:after{content:"";position:absolute;left:50%;top:8px;width:3px;height:18px;transform:translateX(-50%) rotate(0deg);background:#04121a;border-radius:2px}
+  .brand h1{font-size:19px;letter-spacing:3px;font-weight:800}
+  .brand h1 b{color:var(--teal)}
+  .brand .tag{font-size:10.5px;color:var(--muted);letter-spacing:1.5px;margin-top:1px}
+  .ticker{
+    display:flex; align-items:center; gap:10px; margin-left:6px;
+    background:var(--panel); border:1px solid var(--line); border-radius:11px;
+    padding:7px 13px;
+  }
+  .ticker .sym{font-size:11px;color:var(--muted);letter-spacing:1px}
+  .ticker .px{font-variant-numeric:tabular-nums;font-weight:700;font-size:16px}
+  .ticker .chg{font-size:11.5px;font-weight:700;font-variant-numeric:tabular-nums}
+  .spark{width:96px;height:30px;display:block}
+  .topbar .spacer{flex:1}
+  .bal{
+    text-align:right; background:var(--panel); border:1px solid var(--line);
+    border-radius:11px; padding:6px 15px;
+  }
+  .bal .k{font-size:10px;color:var(--muted);letter-spacing:1.5px}
+  .bal .v{font-size:17px;font-weight:800;color:var(--teal);font-variant-numeric:tabular-nums}
+
+  /* left panel */
+  .left{grid-column:1;grid-row:2;display:flex;flex-direction:column;gap:12px}
+  .right{grid-column:3;grid-row:2;display:flex;flex-direction:column;gap:12px}
+  .card{
+    background:var(--panel); border:1px solid var(--line); border-radius:14px;
+    padding:13px 14px; backdrop-filter:blur(7px);
+  }
+  .card h3{font-size:10.5px;letter-spacing:1.8px;color:var(--muted);font-weight:700;margin-bottom:9px;text-transform:uppercase}
+
+  .stat{display:flex;justify-content:space-between;align-items:baseline;margin:7px 0}
+  .stat .l{font-size:12px;color:var(--muted)}
+  .stat .n{font-size:15px;font-weight:800;font-variant-numeric:tabular-nums}
+
+  .mult-card{text-align:center;padding:16px 14px}
+  .mult-card .big{
+    font-size:46px;font-weight:900;line-height:1;font-variant-numeric:tabular-nums;
+    color:var(--teal); text-shadow:0 0 26px rgba(39,230,200,.55);
+  }
+  .mult-card .lbl{font-size:10.5px;letter-spacing:2px;color:var(--muted);margin-top:5px}
+  .mult-card .pot{font-size:13px;margin-top:9px;color:var(--ink)}
+  .mult-card .pot b{color:var(--amber)}
+
+  /* spirit level */
+  .level-wrap{margin-top:4px}
+  .level{
+    position:relative;height:18px;border-radius:10px;overflow:hidden;
+    background:linear-gradient(90deg,rgba(255,77,97,.22),rgba(55,245,163,.18) 50%,rgba(255,77,97,.22));
+    border:1px solid var(--line);
+  }
+  .level .center{position:absolute;left:50%;top:0;bottom:0;width:2px;background:rgba(255,255,255,.35);transform:translateX(-50%)}
+  .level .bubble{
+    position:absolute;top:50%;width:26px;height:12px;border-radius:7px;
+    background:radial-gradient(circle at 40% 35%,#bafff0,var(--teal));
+    box-shadow:0 0 12px var(--teal); transform:translate(-50%,-50%); left:50%;
+    transition:none;
+  }
+  .level-cap{display:flex;justify-content:space-between;font-size:9.5px;color:var(--muted);margin-top:5px;letter-spacing:1px}
+
+  .vol-bar{height:9px;border-radius:6px;background:rgba(255,255,255,.06);overflow:hidden;margin-top:3px}
+  .vol-bar > i{display:block;height:100%;width:20%;border-radius:6px;background:linear-gradient(90deg,var(--green),var(--amber),var(--red));transition:width .25s}
+
+  .tier{display:flex;align-items:center;gap:8px;margin:8px 0;font-size:12px}
+  .tier .dot{width:11px;height:11px;border-radius:50%;border:2px solid var(--muted);flex:none}
+  .tier.hit .dot{background:var(--teal);border-color:var(--teal);box-shadow:0 0 10px var(--teal)}
+  .tier .pay{margin-left:auto;color:var(--amber);font-weight:700;font-variant-numeric:tabular-nums}
+  .tier.hit .pay{color:var(--teal)}
+
+  /* center stage */
+  .arena{
+    grid-column:2;grid-row:2;position:relative;border-radius:18px;overflow:hidden;
+    background:
+      radial-gradient(700px 380px at 50% 8%, rgba(39,230,200,.07), transparent 60%),
+      linear-gradient(180deg, rgba(12,22,46,.5), rgba(5,8,16,.6));
+    border:1px solid var(--line);
+    box-shadow:inset 0 0 80px rgba(0,0,0,.5);
+  }
+  #game{display:block;width:100%;height:100%}
+  .arena .hint{
+    position:absolute;left:50%;bottom:14px;transform:translateX(-50%);
+    font-size:11.5px;color:var(--muted);letter-spacing:.5px;
+    background:rgba(5,8,16,.55);padding:5px 13px;border-radius:20px;border:1px solid var(--line);
+    pointer-events:none; white-space:nowrap;
+  }
+  .arena .hint b{color:var(--teal)}
+  .flash{position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity .12s}
+  .flash.win{background:radial-gradient(circle at 50% 60%,rgba(55,245,163,.35),transparent 60%)}
+  .flash.lose{background:radial-gradient(circle at 50% 50%,rgba(255,77,97,.4),transparent 65%)}
+
+  /* bottom controls */
+  .controls{
+    grid-column:1 / 4; grid-row:3;
+    display:flex;align-items:center;gap:14px;
+    background:var(--panel);border:1px solid var(--line);border-radius:16px;
+    padding:0 18px; backdrop-filter:blur(7px);
+  }
+  .stake{display:flex;flex-direction:column;gap:4px}
+  .stake label{font-size:10px;color:var(--muted);letter-spacing:1.5px}
+  .stake-row{display:flex;align-items:center;gap:8px}
+  .chip{
+    background:rgba(255,255,255,.05);border:1px solid var(--line);color:var(--ink);
+    border-radius:9px;padding:8px 12px;font-weight:700;font-size:13px;cursor:pointer;
+    font-variant-numeric:tabular-nums; transition:.15s;
+  }
+  .chip:hover{border-color:var(--teal);color:var(--teal)}
+  .chip.active{background:rgba(39,230,200,.16);border-color:var(--teal);color:var(--teal)}
+  .amt{
+    font-size:20px;font-weight:800;font-variant-numeric:tabular-nums;min-width:78px;text-align:center;
+  }
+  .controls .spacer{flex:1}
+  .btn{
+    border:none;cursor:pointer;font-weight:800;letter-spacing:1px;border-radius:13px;
+    padding:15px 30px;font-size:15px;transition:transform .08s, box-shadow .2s, filter .2s;
+    font-family:inherit;
+  }
+  .btn:active{transform:translateY(2px)}
+  .btn-go{background:linear-gradient(135deg,var(--teal),#15a0cf);color:#03121a;box-shadow:0 8px 26px rgba(39,230,200,.4)}
+  .btn-go:hover{filter:brightness(1.08)}
+  .btn-bank{background:linear-gradient(135deg,var(--amber),#ff8a3a);color:#241000;box-shadow:0 8px 26px rgba(255,180,58,.4)}
+  .btn-bank:disabled,.btn-go:disabled{filter:grayscale(.7) brightness(.6);cursor:not-allowed;box-shadow:none}
+  .drop-hint{font-size:11px;color:var(--muted);max-width:150px;line-height:1.4}
+  .drop-hint b{color:var(--teal)}
+
+  /* below-fold explainer */
+  .below{max-width:1180px;margin:46px auto 70px;padding:0 26px}
+  .below h2{font-size:24px;letter-spacing:1px;margin-bottom:8px}
+  .below h2 b{color:var(--teal)}
+  .below p.lead{color:var(--muted);max-width:760px;line-height:1.6;margin-bottom:30px}
+  .steps{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}
+  .step{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px}
+  .step .num{font-size:12px;color:var(--teal);font-weight:800;letter-spacing:2px}
+  .step h4{font-size:15px;margin:8px 0 6px}
+  .step p{font-size:13px;color:var(--muted);line-height:1.55}
+  .below .foot{margin-top:34px;font-size:12px;color:var(--muted);text-align:center;letter-spacing:.5px}
+
+  @media (max-height:760px){ .stage{min-height:720px} }
+</style>
+</head>
+<body>
+
+<section class="stage">
+  <!-- TOP BAR -->
+  <div class="topbar">
+    <div class="brand">
+      <div class="logo"></div>
+      <div>
+        <h1><b>BALLAST</b></h1>
+        <div class="tag">BALANCE THE MARKET · DON'T LET IT TIP</div>
+      </div>
+    </div>
+    <div class="ticker">
+      <span class="sym">VOL&nbsp;100</span>
+      <svg class="spark" id="spark" viewBox="0 0 96 30" preserveAspectRatio="none"></svg>
+      <span class="px" id="px">10000.0</span>
+      <span class="chg" id="chg">+0.00%</span>
+    </div>
+    <div class="spacer"></div>
+    <div class="bal">
+      <div class="k">BALANCE</div>
+      <div class="v">$<span id="balance">1000.00</span></div>
+    </div>
+  </div>
+
+  <!-- LEFT PANEL -->
+  <div class="left">
+    <div class="card mult-card">
+      <div class="big" id="mult">1.00×</div>
+      <div class="lbl">HEIGHT MULTIPLIER</div>
+      <div class="pot">Cash-out: <b>$<span id="pot">0.00</span></b></div>
+    </div>
+    <div class="card">
+      <h3>Beam Balance</h3>
+      <div class="level-wrap">
+        <div class="level">
+          <div class="center"></div>
+          <div class="bubble" id="bubble"></div>
+        </div>
+        <div class="level-cap"><span>◀ LEAN LEFT</span><span>LEVEL</span><span>LEAN RIGHT ▶</span></div>
+      </div>
+      <div class="stat" style="margin-top:13px"><span class="l">Tilt angle</span><span class="n" id="angleN">0.0°</span></div>
+      <div class="stat"><span class="l">Topple at</span><span class="n" style="color:var(--red)">±24°</span></div>
+    </div>
+    <div class="card">
+      <h3>Market Stress</h3>
+      <div class="stat"><span class="l">Direction torque</span><span class="n" id="torqN">→</span></div>
+      <div class="stat" style="margin-bottom:4px"><span class="l">Volatility (quakes)</span><span class="n" id="volN">LOW</span></div>
+      <div class="vol-bar"><i id="volFill"></i></div>
+    </div>
+  </div>
+
+  <!-- CENTER ARENA -->
+  <div class="arena">
+    <canvas id="game"></canvas>
+    <div class="flash win" id="flashWin"></div>
+    <div class="flash lose" id="flashLose"></div>
+    <div class="hint" id="hint">Press <b>BUILD</b> to stake — then move your mouse to aim the block and click to drop on the high side</div>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div class="right">
+    <div class="card">
+      <h3>Stack</h3>
+      <div class="stat"><span class="l">Blocks placed</span><span class="n" id="blocksN">0</span></div>
+      <div class="stat"><span class="l">Center of mass</span><span class="n" id="comN">0.00</span></div>
+      <div class="stat"><span class="l">Balance bonus</span><span class="n" id="bonusN" style="color:var(--green)">+0.0%</span></div>
+    </div>
+    <div class="card" style="flex:1">
+      <h3>Height Tiers</h3>
+      <div class="tier" data-t="3"><span class="dot"></span><span>Tier I · 3 blocks</span><span class="pay">2.5×</span></div>
+      <div class="tier" data-t="6"><span class="dot"></span><span>Tier II · 6 blocks</span><span class="pay">6×</span></div>
+      <div class="tier" data-t="9"><span class="dot"></span><span>Tier III · 9 blocks</span><span class="pay">14×</span></div>
+      <div class="tier" data-t="13"><span class="dot"></span><span>Tier IV · 13 blocks</span><span class="pay">40×</span></div>
+      <div style="font-size:11px;color:var(--muted);line-height:1.5;margin-top:12px">
+        Each block raised the center of mass — the taller you go, the more violently the market tips you.
+      </div>
+    </div>
+  </div>
+
+  <!-- BOTTOM CONTROLS -->
+  <div class="controls">
+    <div class="stake">
+      <label>STAKE</label>
+      <div class="stake-row">
+        <button class="chip" data-s="-">–</button>
+        <span class="amt">$<span id="stakeV">10</span></span>
+        <button class="chip" data-s="+">+</button>
+        <button class="chip" data-q="10">10</button>
+        <button class="chip active" data-q="25">25</button>
+        <button class="chip" data-q="100">100</button>
+      </div>
+    </div>
+    <div class="spacer"></div>
+    <div class="drop-hint" id="dropHint">Read the lean. Drop weight on the <b>uphill</b> side to fight the market's tilt.</div>
+    <button class="btn btn-go" id="goBtn">BUILD ▲</button>
+    <button class="btn btn-bank" id="bankBtn" disabled>BANK $0.00</button>
+  </div>
+</section>
+
+<!-- BELOW THE FOLD -->
+<section class="below">
+  <h2>How <b>BALLAST</b> works</h2>
+  <p class="lead">The live market is not a number on a chart — it is a physical force. Price velocity tips the beam left and right; volatility hits it as quakes. Your job is structural engineering under fire: counterweight the lean, keep the beam near level, and stack as high as your nerve allows.</p>
+  <div class="steps">
+    <div class="step"><div class="num">01 · STAKE</div><h4>Set your bet & build</h4><p>Pick a stake and press BUILD. A beam balanced on a single pivot appears — and the market immediately starts leaning it.</p></div>
+    <div class="step"><div class="num">02 · COUNTERWEIGHT</div><h4>Place mass with intent</h4><p>Slide the glowing block along the beam. Torque = mass × distance from the pivot, so far-out drops are powerful but unforgiving. Drop on the high side to level out.</p></div>
+    <div class="step"><div class="num">03 · CLIMB</div><h4>Every block = more height = more multiplier</h4><p>Survive and your multiplier grows. But each block raises the center of mass, so the same market tilt swings a tall stack far harder.</p></div>
+    <div class="step"><div class="num">04 · BANK or TOPPLE</div><h4>Lock it in — or lose it</h4><p>Cash out anytime to bank stake × multiplier. Let the beam tilt past 24° and the whole stack slides off. No bust RNG — only balance you defend.</p></div>
+  </div>
+  <p class="foot">Prototype · simulated VOL 100 synthetic feed · BALLAST concept for Deriv — construction/balance under live market stress</p>
+</section>
+
+<script>
+(()=>{
+'use strict';
+const $=id=>document.getElementById(id);
+
+/* ---------------- Live market feed (simulated VOL-100-style) ---------------- */
+const px0=10000;
+let price=px0, t=0;
+let regime=0, regimeT=0;          // regime: -1 trend down,0 chop,1 trend up
+let driftBias=0;                  // persistent drift
+const priceHist=[];               // for spark + velocity
+function stepMarket(dt){
+  regimeT-=dt;
+  if(regimeT<=0){
+    const r=Math.random();
+    regime = r<0.34?1 : r<0.68?-1 : 0;
+    driftBias = regime*(0.6+Math.random()*1.1);
+    regimeT = 2.5+Math.random()*4.5;
+  }
+  // base vol breathes; occasional spikes
+  baseVol = baseVol + (targetVol-baseVol)*0.02;
+  if(Math.random()<0.006){ targetVol = 0.6+Math.random()*2.6; } // vol spike events
+  if(Math.random()<0.02){ targetVol = 0.4+Math.random()*0.7; }  // calm down
+  const shock = (Math.random()*2-1);
+  const move = driftBias*0.9 + shock*baseVol*4.0;
+  price += move;
+  priceHist.push(price);
+  if(priceHist.length>140) priceHist.shift();
+  return move;
+}
+let baseVol=0.7, targetVol=0.7;
+
+/* velocity = recent mean move, used as market torque */
+function marketVelocity(){
+  const n=priceHist.length;
+  if(n<6) return 0;
+  return (priceHist[n-1]-priceHist[n-6])/5;
+}
+function realizedVol(){
+  const n=priceHist.length; if(n<12) return baseVol;
+  let s=0,m=0; for(let i=n-12;i<n;i++){m+=priceHist[i];} m/=12;
+  for(let i=n-12;i<n;i++){const d=priceHist[i]-m;s+=d*d;}
+  return Math.sqrt(s/12);
+}
+
+/* ---------------- Canvas setup ---------------- */
+const cv=$('game'), ctx=cv.getContext('2d');
+let W=0,H=0,DPR=Math.min(2,window.devicePixelRatio||1);
+function resize(){
+  const r=cv.parentElement.getBoundingClientRect();
+  W=r.width; H=r.height;
+  cv.width=W*DPR; cv.height=H*DPR;
+  cv.style.width=W+'px'; cv.style.height=H+'px';
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+}
+window.addEventListener('resize',resize);
+
+/* ---------------- Game state ---------------- */
+const BEAM_LEN_FRAC=0.62;       // beam length as fraction of W
+const TOPPLE=24*Math.PI/180;    // radians
+const BLOCK_W=46, BLOCK_H=20;
+let state='idle';               // idle | playing | toppling | banked
+let angle=0, angVel=0;          // beam tilt
+let blocks=[];                  // {pos:-1..1 along beam, side, color}
+let carry=null;                 // current carried block {pos}
+let stake=10, mult=1, balanceBonus=0, balanceAccum=0;
+let pivotX=0, pivotY=0, beamLen=0;
+let mouseX=0;
+let shake=0, shakeMag=0;
+let particles=[];
+let toppleT=0;
+let bestLevelStreak=0;
+let balance=1000;
+let comX=0; // center of mass (signed, beam coords -1..1)
+
+/* tiers */
+const tiers=[{n:3,p:2.5},{n:6,p:6},{n:9,p:14},{n:13,p:40}];
+
+function reset(){
+  angle=0; angVel=0; blocks=[]; carry=null; mult=1; balanceBonus=0; balanceAccum=0;
+  particles=[]; shake=0; comX=0;
+}
+
+/* torque from a mass at beam-position p (-1..1) given current angle.
+   Gravity component perpendicular to beam ~ cos(angle); lever arm ~ p*beamLen.
+   Also the higher the block stacked, the more its weight*sin(angle) adds tipping. */
+function computePhysics(dt){
+  const vel=marketVelocity();
+  // market torque: price velocity pushes beam. scale into radians/s^2 force.
+  const marketTorque = clamp(vel*0.018, -1.4,1.4);
+  // structural torque from placed blocks (lever arm + height-amplified tipping)
+  let strTorque=0, totMass=0, momSum=0;
+  for(const b of blocks){
+    const lever=b.pos; // -1..1
+    // weight pulls down: contributes lever*cos(angle); plus height tipping lever-independent: sin
+    strTorque += lever*Math.cos(angle)*0.9;
+    // stacking height amplifies: blocks higher up add sin(angle)*height tipping
+    strTorque += Math.sin(angle)*b.h*0.10;
+    totMass++; momSum+=lever;
+  }
+  comX = totMass? momSum/totMass : 0;
+  // restoring: beam itself wants level slightly (pivot friction)
+  const restoring = -angle*0.6;
+  // gravity self-tip grows with stack height (instability)
+  const heightInstab = Math.sin(angle)* (0.25+blocks.length*0.09);
+  let acc = marketTorque + strTorque*0.12 + heightInstab + restoring;
+  // quakes from volatility
+  const rv=realizedVol();
+  shakeMag = clamp((rv-0.6)/2.4,0,1);
+  if(Math.random()< (0.02+shakeMag*0.10)){
+    const q=(Math.random()*2-1)*(0.4+shakeMag*2.2);
+    angVel += q*dt*6;
+    shake=Math.min(1,shake+0.25+shakeMag*0.5);
+  }
+  angVel += acc*dt;
+  angVel *= 0.985; // damping
+  angle += angVel*dt;
+}
+function clamp(v,a,b){return v<a?a:v>b?b:v;}
+
+/* ---------------- interaction ---------------- */
+cv.addEventListener('mousemove',e=>{
+  const r=cv.getBoundingClientRect(); mouseX=e.clientX-r.left;
+  if(carry){ updateCarry(); }
+});
+cv.addEventListener('click',()=>{ if(state==='playing'&&carry) dropBlock(); });
+function updateCarry(){
+  // map mouseX to beam position -1..1
+  const half=beamLen/2;
+  let local=(mouseX-pivotX)/half;
+  carry.pos=clamp(local,-1,1);
+}
+function spawnCarry(){
+  carry={pos:0, h:blocks.length};
+  updateCarry();
+}
+function previewTorque(p){
+  // sign of torque a block at p would add (to know if it fights lean)
+  return p*Math.cos(angle);
+}
+function dropBlock(){
+  const p=carry.pos;
+  const fights = (p*angle)<0 || Math.abs(angle)<0.02; // placing on uphill side fights lean
+  const col = fights? 'g':'r';
+  blocks.push({pos:p, side:p<0?-1:1, color:col, h:blocks.length, settle:1});
+  // immediate physical kick: the mass lands -> impulse
+  angVel += -p*0.18*Math.cos(angle); // good placement nudges toward level if uphill
+  // landing thunk particles
+  const bx=pivotX+p*(beamLen/2);
+  for(let i=0;i<10;i++) particles.push(mkP(bx, beamTopY(p), col));
+  shake=Math.min(1,shake+0.12);
+  mult = +(1 + blocks.length*0.55 + Math.pow(blocks.length,1.7)*0.06 + balanceBonus).toFixed(2);
+  spawnCarry();
+  updateTiers();
+}
+function beamTopY(p){
+  // approximate y of beam surface at position p, in screen space (pre-rotation simplification)
+  return pivotY - 6 - blocks.length*BLOCK_H*0.5;
+}
+function mkP(x,y,c){
+  const col = c==='g'?'#37f5a3':c==='r'?'#ff4d61':'#27e6c8';
+  return {x,y,vx:(Math.random()*2-1)*60,vy:-Math.random()*90-20,life:1,col};
+}
+
+/* ---------------- game flow ---------------- */
+function startGame(){
+  if(state==='playing') return;
+  if(stake>balance) return;
+  balance-=stake; updateBalance();
+  reset(); state='playing';
+  spawnCarry();
+  $('goBtn').disabled=true; $('bankBtn').disabled=false;
+  $('hint').style.display='none';
+}
+function bank(){
+  if(state!=='playing') return;
+  const win=+(stake*mult).toFixed(2);
+  balance+=win; updateBalance();
+  state='banked'; carry=null;
+  flash('win');
+  burst('#37f5a3', 60);
+  $('goBtn').disabled=false; $('bankBtn').disabled=true;
+  $('goBtn').textContent='BUILD ▲';
+  $('hint').style.display='block';
+  $('hint').innerHTML='Banked <b>$'+win.toFixed(2)+'</b> at '+mult.toFixed(2)+'×. Press <b>BUILD</b> to go again.';
+  setTimeout(()=>{ if(state==='banked'){ state='idle'; reset(); }},1600);
+}
+function topple(){
+  state='toppling'; toppleT=0; carry=null;
+  flash('lose'); shake=1;
+  $('bankBtn').disabled=true; $('goBtn').disabled=true;
+  // give blocks tumble velocity
+  for(const b of blocks){ b.vx=(b.pos*40+ (angle>0?60:-60))*(0.6+Math.random()); b.vy=-Math.random()*40; b.rot=0; b.rv=(Math.random()*2-1)*6; }
+  burst('#ff4d61', 50);
+  $('hint').style.display='block';
+  $('hint').innerHTML='<span style="color:var(--red)">TOPPLED</span> — beam tilted past 24°. Stake lost. Press <b>BUILD</b> to retry.';
+}
+function burst(col,n){
+  for(let i=0;i<n;i++){
+    const a=Math.random()*Math.PI*2, sp=Math.random()*220+40;
+    particles.push({x:pivotX,y:pivotY-90,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-60,life:1,col});
+  }
+}
+function flash(type){
+  const el=type==='win'?$('flashWin'):$('flashLose');
+  el.style.opacity=.9; setTimeout(()=>el.style.opacity=0,140);
+}
+
+/* ---------------- UI updates ---------------- */
+function updateBalance(){ $('balance').textContent=balance.toFixed(2); }
+function updateTiers(){
+  document.querySelectorAll('.tier').forEach(el=>{
+    const need=+el.dataset.t;
+    el.classList.toggle('hit', blocks.length>=need);
+  });
+}
+
+/* ---------------- main render loop ---------------- */
+let last=performance.now();
+function frame(now){
+  let dt=(now-last)/1000; if(dt>0.05)dt=0.05; last=now;
+  t+=dt;
+
+  // market always running for visual life
+  for(let i=0;i<2;i++) stepMarket(dt/2);
+  updateHud();
+
+  if(state==='playing'){
+    computePhysics(dt);
+    // balance bonus: accrue while near level
+    if(Math.abs(angle)<0.06){
+      balanceAccum+=dt; balanceBonus=Math.min(0.5, balanceAccum*0.04);
+    }
+    mult=+(1 + blocks.length*0.55 + Math.pow(blocks.length,1.7)*0.06 + balanceBonus).toFixed(2);
+    if(Math.abs(angle)>=TOPPLE) topple();
+  } else if(state==='toppling'){
+    toppleT+=dt;
+    // beam keeps falling
+    angVel += (angle>0?1:-1)*2.2*dt; angle+=angVel*dt;
+    for(const b of blocks){ b.vx*=0.99; b.vy+=420*dt; b.x=(b.x||0); }
+    if(toppleT>2.0){ state='idle'; reset(); $('goBtn').disabled=false; $('goBtn').textContent='BUILD ▲'; }
+  }
+
+  // shake decay
+  shake*=0.90;
+  // particles
+  for(const p of particles){ p.x+=p.vx*dt; p.y+=p.vy*dt; p.vy+=320*dt; p.life-=dt*0.9; }
+  particles=particles.filter(p=>p.life>0);
+
+  draw();
+  requestAnimationFrame(frame);
+}
+
+function draw(){
+  ctx.clearRect(0,0,W,H);
+  pivotX=W*0.5; pivotY=H*0.74; beamLen=W*BEAM_LEN_FRAC;
+
+  // screen shake
+  let sx=0,sy=0;
+  if(shake>0.01){ sx=(Math.random()*2-1)*shake*9; sy=(Math.random()*2-1)*shake*7; }
+  ctx.save(); ctx.translate(sx,sy);
+
+  drawBackground();
+  drawPriceRibbon();
+  drawPivotBase();
+
+  // beam + stack rotate around pivot
+  ctx.save();
+  ctx.translate(pivotX,pivotY);
+  ctx.rotate(angle);
+  drawBeam();
+  drawStack();
+  ctx.restore();
+
+  // carried block (ghost, follows beam tilt at its pos)
+  if(carry && state==='playing') drawCarry();
+
+  drawParticles();
+  drawDangerGlow();
+  ctx.restore();
+}
+
+function drawBackground(){
+  // faint grid
+  ctx.strokeStyle='rgba(120,150,210,.05)'; ctx.lineWidth=1;
+  for(let x=0;x<W;x+=46){ ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke(); }
+  for(let y=0;y<H;y+=46){ ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke(); }
+}
+
+/* a live price ribbon across the top wired visually to the lean */
+function drawPriceRibbon(){
+  const n=priceHist.length; if(n<2) return;
+  const topPad=22, hBand=120;
+  let mn=Infinity,mx=-Infinity;
+  for(let i=0;i<n;i++){mn=Math.min(mn,priceHist[i]);mx=Math.max(mx,priceHist[i]);}
+  const rng=(mx-mn)||1;
+  ctx.lineWidth=2.2; ctx.beginPath();
+  for(let i=0;i<n;i++){
+    const x=(i/(n-1))*W;
+    const y=topPad+ (1-(priceHist[i]-mn)/rng)*hBand;
+    i?ctx.lineTo(x,y):ctx.moveTo(x,y);
+  }
+  const up=marketVelocity()>=0;
+  const grad=ctx.createLinearGradient(0,0,W,0);
+  grad.addColorStop(0,'rgba(39,230,200,.15)');
+  grad.addColorStop(1, up?'rgba(55,245,163,.9)':'rgba(255,77,97,.9)');
+  ctx.strokeStyle=grad; ctx.stroke();
+  // glow dot at head
+  const hx=W, hy=topPad+(1-(priceHist[n-1]-mn)/rng)*hBand;
+  ctx.fillStyle=up?'#37f5a3':'#ff4d61';
+  ctx.shadowColor=ctx.fillStyle; ctx.shadowBlur=16;
+  ctx.beginPath();ctx.arc(W-3,hy,4,0,7);ctx.fill(); ctx.shadowBlur=0;
+
+  // a downward "force" arrow indicating which way the market is leaning the beam
+  const dir=marketVelocity();
+  if(Math.abs(dir)>0.05 && state==='playing'){
+    const ax=pivotX + (dir>0?1:-1)*beamLen*0.34;
+    ctx.save();
+    ctx.globalAlpha=Math.min(.8,Math.abs(dir)*0.6+.25);
+    ctx.strokeStyle=dir>0?'#37f5a3':'#ff4d61'; ctx.fillStyle=ctx.strokeStyle; ctx.lineWidth=3;
+    const ay0=pivotY-180, ay1=pivotY-120;
+    ctx.beginPath();ctx.moveTo(ax,ay0);ctx.lineTo(ax,ay1);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(ax-7,ay1-9);ctx.lineTo(ax+7,ay1-9);ctx.lineTo(ax,ay1);ctx.fill();
+    ctx.restore();
+  }
+}
+
+function drawPivotBase(){
+  // tripod / fulcrum base under pivot
+  ctx.save();
+  ctx.fillStyle='#0c1428'; ctx.strokeStyle='rgba(39,230,200,.5)'; ctx.lineWidth=2;
+  ctx.beginPath();
+  ctx.moveTo(pivotX, pivotY-4);
+  ctx.lineTo(pivotX-46, H-6);
+  ctx.lineTo(pivotX+46, H-6);
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+  // pivot knuckle
+  ctx.fillStyle='#13243f';
+  ctx.beginPath();ctx.arc(pivotX,pivotY,9,0,7);ctx.fill();
+  ctx.strokeStyle='var(--teal)'; ctx.strokeStyle='#27e6c8'; ctx.lineWidth=2; ctx.stroke();
+  ctx.fillStyle='#27e6c8'; ctx.beginPath();ctx.arc(pivotX,pivotY,3.2,0,7);ctx.fill();
+  ctx.restore();
+}
+
+function drawBeam(){
+  const half=beamLen/2, bh=12;
+  const g=ctx.createLinearGradient(-half,0,half,0);
+  g.addColorStop(0,'#2a3a5e'); g.addColorStop(.5,'#5d6f93'); g.addColorStop(1,'#2a3a5e');
+  ctx.fillStyle=g;
+  roundRect(-half,-bh/2,beamLen,bh,5); ctx.fill();
+  // ticks
+  ctx.strokeStyle='rgba(255,255,255,.12)';ctx.lineWidth=1;
+  for(let i=-5;i<=5;i++){ const x=i*half/5; ctx.beginPath();ctx.moveTo(x,-bh/2);ctx.lineTo(x,bh/2);ctx.stroke(); }
+  // center line
+  ctx.strokeStyle='rgba(39,230,200,.6)';ctx.lineWidth=2;
+  ctx.beginPath();ctx.moveTo(0,-bh/2-2);ctx.lineTo(0,bh/2+2);ctx.stroke();
+}
+
+function drawStack(){
+  const half=beamLen/2;
+  // blocks stack upward; group by side to form towers near where dropped
+  // simple model: each block sits at its pos, stacked in order by nearest neighbors
+  // We render in placement order, raising a per-column height map.
+  const colH={};
+  for(let i=0;i<blocks.length;i++){
+    const b=blocks[i];
+    const x=b.pos*half;
+    const key=Math.round(b.pos*6);
+    const lvl=colH[key]||0; colH[key]=lvl+1;
+    const y=-12 - lvl*BLOCK_H - BLOCK_H/2; // above beam
+    if(state==='toppling' && b.vx!==undefined){
+      // tumbling: draw with offset+rotation
+      b.x=(b.x||x)+b.vx*0.016; b.fy=(b.fy||y)+(b.vy||0)*0.016; b.rot=(b.rot||0)+(b.rv||0)*0.016;
+      ctx.save(); ctx.translate(b.x,b.fy); ctx.rotate(b.rot);
+      paintBlock(0,0,b.color); ctx.restore();
+    } else {
+      paintBlock(x,y,b.color);
+    }
+  }
+}
+function paintBlock(x,y,c){
+  const w=BLOCK_W,h=BLOCK_H;
+  const col = c==='g'? [55,245,163] : c==='r'? [255,77,97] : [39,230,200];
+  const g=ctx.createLinearGradient(x-w/2,y-h/2,x-w/2,y+h/2);
+  g.addColorStop(0,`rgba(${col[0]},${col[1]},${col[2]},.28)`);
+  g.addColorStop(1,`rgba(${col[0]},${col[1]},${col[2]},.12)`);
+  ctx.fillStyle=g;
+  ctx.strokeStyle=`rgba(${col[0]},${col[1]},${col[2]},.85)`; ctx.lineWidth=1.5;
+  ctx.shadowColor=`rgba(${col[0]},${col[1]},${col[2]},.5)`; ctx.shadowBlur=10;
+  roundRect(x-w/2,y-h/2,w,h,4); ctx.fill(); ctx.stroke();
+  ctx.shadowBlur=0;
+  // glossy top
+  ctx.fillStyle=`rgba(255,255,255,.18)`;
+  roundRect(x-w/2+3,y-h/2+2,w-6,4,2); ctx.fill();
+}
+
+function drawCarry(){
+  const half=beamLen/2;
+  const p=carry.pos;
+  // draw in screen space along beam axis (apply rotation manually)
+  const lx=p*half;
+  // top of stack at this column
+  const key=Math.round(p*6);
+  let lvl=0; for(const b of blocks){ if(Math.round(b.pos*6)===key) lvl++; }
+  const ly=-12-lvl*BLOCK_H-BLOCK_H/2;
+  // rotate point around pivot
+  const cos=Math.cos(angle),sin=Math.sin(angle);
+  const sxp=pivotX+lx*cos-ly*sin;
+  const syp=pivotY+lx*sin+ly*cos;
+  const fights=previewTorque(p)*angle<0 || Math.abs(angle)<0.02;
+  const col=fights?'g':'r';
+  ctx.save();
+  ctx.translate(sxp, syp - 34 - 6*Math.sin(t*4)); // hover above
+  ctx.globalAlpha=0.9;
+  paintBlock(0,0,col);
+  // drop guide line
+  ctx.globalAlpha=0.5;
+  ctx.strokeStyle=col==='g'?'#37f5a3':'#ff4d61'; ctx.setLineDash([4,4]); ctx.lineWidth=1.5;
+  ctx.beginPath();ctx.moveTo(0,12);ctx.lineTo(0,34);ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.restore();
+  // torque preview arc near pivot
+  drawTorqueArc(p,fights);
+}
+function drawTorqueArc(p,fights){
+  const mag=Math.min(1,Math.abs(p));
+  ctx.save();
+  ctx.translate(pivotX,pivotY);
+  ctx.lineWidth=4; ctx.lineCap='round';
+  ctx.strokeStyle=fights?'rgba(55,245,163,.8)':'rgba(255,77,97,.8)';
+  const dir=p<0?-1:1;
+  ctx.beginPath();
+  ctx.arc(0,0,40, dir<0?Math.PI:0, dir<0?Math.PI+mag*1.3:mag*1.3, dir>0);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawParticles(){
+  for(const p of particles){
+    ctx.globalAlpha=Math.max(0,p.life);
+    ctx.fillStyle=p.col;
+    ctx.beginPath();ctx.arc(p.x,p.y,2.6,0,7);ctx.fill();
+  }
+  ctx.globalAlpha=1;
+}
+
+function drawDangerGlow(){
+  const d=Math.abs(angle)/TOPPLE;
+  if(d>0.55 && state==='playing'){
+    const a=(d-0.55)/0.45;
+    ctx.fillStyle=`rgba(255,77,97,${a*0.22})`;
+    ctx.fillRect(0,0,W,H);
+    // heartbeat vignette
+    const pulse=0.5+0.5*Math.sin(t*14);
+    ctx.strokeStyle=`rgba(255,77,97,${a*pulse*0.6})`; ctx.lineWidth=6;
+    ctx.strokeRect(3,3,W-6,H-6);
+  }
+}
+
+function roundRect(x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);
+  ctx.arcTo(x+w,y,x+w,y+h,r);
+  ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r);
+  ctx.arcTo(x,y,x+w,y,r);
+  ctx.closePath();
+}
+
+/* ---------------- HUD ---------------- */
+let lastSparkPx=px0;
+function updateHud(){
+  $('px').textContent=price.toFixed(1);
+  const chg=(price-px0)/px0*100;
+  const ce=$('chg'); ce.textContent=(chg>=0?'+':'')+chg.toFixed(2)+'%';
+  ce.style.color=chg>=0?'#37f5a3':'#ff4d61';
+  // spark
+  drawSpark();
+  // multiplier + pot
+  $('mult').textContent=mult.toFixed(2)+'×';
+  $('pot').textContent=(stake*mult).toFixed(2);
+  // angle / bubble
+  const deg=angle*180/Math.PI;
+  $('angleN').textContent=(deg>=0?'+':'')+deg.toFixed(1)+'°';
+  const frac=clamp(angle/TOPPLE,-1,1);
+  $('bubble').style.left=(50+frac*46)+'%';
+  $('bubble').style.background = Math.abs(frac)>0.7
+     ? 'radial-gradient(circle at 40% 35%,#ffd0d6,#ff4d61)'
+     : 'radial-gradient(circle at 40% 35%,#bafff0,#27e6c8)';
+  // torque dir
+  const v=marketVelocity();
+  $('torqN').textContent = v>0.15?'→ RIGHT' : v<-0.15?'◀ LEFT':'· steady ·';
+  $('torqN').style.color = v>0.15?'#37f5a3': v<-0.15?'#ff4d61':'#7c8bb0';
+  // volatility
+  const rv=realizedVol();
+  const vf=clamp((rv-0.4)/2.4,0,1);
+  $('volFill').style.width=(15+vf*85)+'%';
+  $('volN').textContent= vf<0.33?'LOW': vf<0.66?'ELEVATED':'EXTREME';
+  $('volN').style.color= vf<0.33?'#37f5a3': vf<0.66?'#ffb43a':'#ff4d61';
+  // stack
+  $('blocksN').textContent=blocks.length;
+  $('comN').textContent=comX.toFixed(2);
+  $('comN').style.color=Math.abs(comX)<0.25?'#37f5a3':Math.abs(comX)<0.55?'#ffb43a':'#ff4d61';
+  $('bonusN').textContent='+'+(balanceBonus*100).toFixed(1)+'%';
+  // bank btn
+  $('bankBtn').textContent='BANK $'+(stake*mult).toFixed(2);
+}
+function drawSpark(){
+  const svg=$('spark');
+  const n=priceHist.length; if(n<2) return;
+  let mn=Infinity,mx=-Infinity;
+  for(let i=Math.max(0,n-40);i<n;i++){mn=Math.min(mn,priceHist[i]);mx=Math.max(mx,priceHist[i]);}
+  const rng=(mx-mn)||1; const s=Math.max(0,n-40), m=n-s;
+  let d='';
+  for(let i=0;i<m;i++){
+    const x=(i/(m-1))*96, y=2+(1-(priceHist[s+i]-mn)/rng)*26;
+    d+=(i?'L':'M')+x.toFixed(1)+' '+y.toFixed(1)+' ';
+  }
+  const up=priceHist[n-1]>=priceHist[s];
+  svg.innerHTML=`<path d="${d}" fill="none" stroke="${up?'#37f5a3':'#ff4d61'}" stroke-width="1.6"/>`;
+}
+
+/* ---------------- controls wiring ---------------- */
+$('goBtn').addEventListener('click',startGame);
+$('bankBtn').addEventListener('click',bank);
+function setStake(v){ stake=clamp(v,1,balance); $('stakeV').textContent=stake; updateHud(); }
+document.querySelectorAll('.chip').forEach(c=>{
+  c.addEventListener('click',()=>{
+    if(c.dataset.q){ setStake(+c.dataset.q);
+      document.querySelectorAll('.chip[data-q]').forEach(x=>x.classList.remove('active'));
+      c.classList.add('active'); }
+    else if(c.dataset.s==='+') setStake(stake+5);
+    else if(c.dataset.s==='-') setStake(stake-5);
+  });
+});
+
+/* prime the feed a bit so chart isn't empty */
+for(let i=0;i<60;i++) stepMarket(0.05);
+
+resize();
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
