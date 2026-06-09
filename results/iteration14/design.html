@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>DEEPLINE — cast · hook · reel the price</title>
+<style>
+  :root{
+    --bg0:#03060f; --bg1:#061226; --ink:#dfeafb; --muted:#7d93b6;
+    --cyan:#39e0ff; --cyan2:#6ff0ff; --amber:#ffb33a; --red:#ff3b54; --gold:#ffd76a;
+    --panel:rgba(10,20,40,.62); --panel2:rgba(8,16,34,.85); --line:rgba(90,150,220,.16);
+    --good:#37f0b0;
+  }
+  *{box-sizing:border-box; margin:0; padding:0}
+  html,body{height:100%}
+  body{
+    background:radial-gradient(120% 80% at 50% 0%, #0a1a36 0%, var(--bg1) 38%, var(--bg0) 100%);
+    color:var(--ink);
+    font-family:"SF Pro Display",-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;
+    overflow-x:hidden; -webkit-font-smoothing:antialiased;
+  }
+
+  /* ============ HERO (first viewport, 1280x800 target) ============ */
+  .hero{
+    position:relative; width:100%; height:100vh; min-height:760px; max-height:860px;
+    display:grid; grid-template-columns: 1fr 296px; overflow:hidden;
+  }
+  /* Stage = the water column */
+  .stage{ position:relative; overflow:hidden; }
+  #col{ position:absolute; inset:0; width:100%; height:100%; display:block; }
+
+  /* Top brand strip */
+  .brandbar{
+    position:absolute; top:0; left:0; right:0; height:54px; z-index:6;
+    display:flex; align-items:center; gap:14px; padding:0 22px;
+    background:linear-gradient(180deg, rgba(3,7,16,.78), rgba(3,7,16,0));
+    pointer-events:none;
+  }
+  .logo{ display:flex; align-items:baseline; gap:9px; }
+  .logo b{ font-size:21px; letter-spacing:5px; font-weight:800;
+    background:linear-gradient(90deg,var(--cyan2),var(--gold)); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .logo .fin{ font-size:11px; letter-spacing:2px; color:var(--muted); }
+  .tape{ margin-left:auto; display:flex; align-items:center; gap:16px; font-variant-numeric:tabular-nums; }
+  .tape .sym{ font-size:12px; letter-spacing:1.5px; color:var(--muted); }
+  .tape .px{ font-size:17px; font-weight:700; color:var(--cyan2); }
+  .tape .dot{ width:8px; height:8px; border-radius:50%; background:var(--good); box-shadow:0 0 12px var(--good); animation:liveblink 1.6s infinite; }
+  @keyframes liveblink{0%,100%{opacity:1}50%{opacity:.35}}
+
+  /* Phase banner (center-top of stage) */
+  .phase{
+    position:absolute; top:64px; left:50%; transform:translateX(-50%); z-index:6;
+    text-align:center; pointer-events:none; transition:opacity .3s;
+  }
+  .phase .big{ font-size:15px; letter-spacing:4px; font-weight:800; color:var(--cyan2); text-shadow:0 0 18px rgba(57,224,255,.5); }
+  .phase .sub{ font-size:11px; letter-spacing:1px; color:var(--muted); margin-top:3px; }
+
+  /* Depth ladder labels (left edge) */
+  .ladder{ position:absolute; left:10px; top:54px; bottom:8px; z-index:4; width:64px; pointer-events:none;
+    font-variant-numeric:tabular-nums; }
+
+  /* Cast hint + reel handle hint overlay */
+  .floathint{
+    position:absolute; z-index:6; left:50%; transform:translateX(-50%); bottom:84px;
+    font-size:12px; letter-spacing:1px; color:var(--cyan2); background:rgba(4,12,28,.6);
+    border:1px solid rgba(57,224,255,.28); padding:7px 14px; border-radius:999px;
+    box-shadow:0 0 24px rgba(57,224,255,.15); pointer-events:none;
+    animation:hintpulse 2s infinite;
+  }
+  @keyframes hintpulse{0%,100%{opacity:.7}50%{opacity:1}}
+
+  /* Tension gauge — vertical heat bar on the right of stage */
+  .tensionwrap{ position:absolute; right:14px; top:120px; bottom:120px; width:50px; z-index:5;
+    display:flex; flex-direction:column; align-items:center; gap:8px; pointer-events:none; }
+  .tlabel{ font-size:9px; letter-spacing:2px; color:var(--muted); }
+  .tbar{ position:relative; flex:1; width:18px; border-radius:10px; overflow:hidden;
+    background:rgba(8,16,34,.85); border:1px solid var(--line); box-shadow:inset 0 0 18px rgba(0,0,0,.6); }
+  .tfill{ position:absolute; left:0; right:0; bottom:0; height:0%;
+    background:linear-gradient(0deg,var(--cyan) 0%, var(--amber) 60%, var(--red) 100%);
+    transition:height .08s linear; box-shadow:0 0 18px rgba(255,80,90,.4); }
+  .tred{ position:absolute; left:-3px; right:-3px; height:2px; background:var(--red);
+    box-shadow:0 0 10px var(--red); top:15%; }
+  .tval{ font-size:11px; font-weight:700; font-variant-numeric:tabular-nums; }
+
+  /* ============ Right control rail ============ */
+  .rail{
+    position:relative; z-index:7; background:linear-gradient(180deg, var(--panel2), rgba(5,11,24,.96));
+    border-left:1px solid var(--line); padding:18px 18px 16px; display:flex; flex-direction:column; gap:14px;
+    backdrop-filter:blur(8px);
+  }
+  .card{ background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:13px 14px; }
+  .card h4{ font-size:10px; letter-spacing:2.5px; color:var(--muted); font-weight:700; margin-bottom:9px; text-transform:uppercase; }
+
+  .pay{ text-align:center; }
+  .pay .lab{ font-size:10px; letter-spacing:2px; color:var(--muted); }
+  .pay .amt{ font-size:34px; font-weight:800; font-variant-numeric:tabular-nums; line-height:1.05; margin-top:2px;
+    background:linear-gradient(90deg,var(--cyan2),var(--gold)); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .pay .x{ font-size:12px; color:var(--muted); margin-top:2px; }
+
+  .statrow{ display:flex; justify-content:space-between; align-items:center; font-size:12px; padding:5px 0; }
+  .statrow + .statrow{ border-top:1px solid rgba(90,150,220,.08); }
+  .statrow .k{ color:var(--muted); letter-spacing:.5px; }
+  .statrow .v{ font-weight:700; font-variant-numeric:tabular-nums; }
+  .fishchip{ display:inline-flex; align-items:center; gap:6px; }
+  .fishdot{ width:10px; height:10px; border-radius:50%; box-shadow:0 0 10px currentColor; }
+
+  /* Depth selector */
+  .depths{ display:grid; grid-template-columns:repeat(3,1fr); gap:7px; }
+  .depthbtn{ cursor:pointer; border:1px solid var(--line); border-radius:10px; padding:8px 4px 9px; text-align:center;
+    background:rgba(8,18,38,.5); transition:.15s; }
+  .depthbtn .nm{ font-size:11px; font-weight:700; letter-spacing:.5px; }
+  .depthbtn .ml{ font-size:10px; color:var(--muted); margin-top:2px; }
+  .depthbtn.sel{ border-color:var(--cyan); background:rgba(57,224,255,.12); box-shadow:0 0 16px rgba(57,224,255,.18); }
+  .depthbtn:hover{ border-color:rgba(57,224,255,.5); }
+
+  .stakerow{ display:flex; align-items:center; gap:8px; }
+  .stakerow .amt{ font-size:20px; font-weight:800; font-variant-numeric:tabular-nums; flex:1; text-align:center;
+    background:rgba(8,18,38,.6); border:1px solid var(--line); border-radius:9px; padding:6px 0; }
+  .sbtn{ width:34px; height:34px; border-radius:9px; border:1px solid var(--line); background:rgba(8,18,38,.6);
+    color:var(--ink); font-size:18px; cursor:pointer; transition:.15s; }
+  .sbtn:hover{ border-color:var(--cyan); color:var(--cyan2); }
+
+  .actions{ margin-top:auto; display:flex; flex-direction:column; gap:9px; }
+  .btn{ cursor:pointer; border:none; border-radius:12px; padding:14px; font-size:14px; font-weight:800; letter-spacing:1.5px;
+    transition:.15s transform, .15s box-shadow, .2s opacity; }
+  .btn:active{ transform:translateY(1px) scale(.995); }
+  .btn-cast{ background:linear-gradient(95deg,var(--cyan),#2aa7ff); color:#021018; box-shadow:0 8px 26px rgba(57,224,255,.32); }
+  .btn-net{ background:linear-gradient(95deg,var(--gold),#ff9b3a); color:#1a1003; box-shadow:0 8px 24px rgba(255,180,60,.28); }
+  .btn[disabled]{ opacity:.32; cursor:not-allowed; box-shadow:none; }
+  .hintline{ text-align:center; font-size:10.5px; color:var(--muted); letter-spacing:.4px; min-height:13px; }
+
+  .bal{ display:flex; justify-content:space-between; font-size:12px; padding-top:2px; }
+  .bal .v{ font-weight:800; font-variant-numeric:tabular-nums; color:var(--good); }
+
+  /* toast for land/snap */
+  .toast{ position:absolute; z-index:9; top:46%; left:50%; transform:translate(-50%,-50%) scale(.8);
+    text-align:center; opacity:0; pointer-events:none; transition:opacity .25s, transform .25s; }
+  .toast.show{ opacity:1; transform:translate(-50%,-50%) scale(1); }
+  .toast .t{ font-size:44px; font-weight:900; letter-spacing:4px; }
+  .toast .d{ font-size:15px; letter-spacing:1px; margin-top:4px; color:var(--ink); font-variant-numeric:tabular-nums; }
+  .toast.land .t{ color:var(--gold); text-shadow:0 0 40px rgba(255,215,106,.7); }
+  .toast.snap .t{ color:var(--red); text-shadow:0 0 40px rgba(255,59,84,.7); }
+
+  /* ============ below-fold explainer ============ */
+  .below{ max-width:1180px; margin:0 auto; padding:40px 24px 70px; }
+  .below h2{ font-size:13px; letter-spacing:4px; color:var(--cyan2); margin-bottom:18px; text-transform:uppercase; }
+  .steps{ display:grid; grid-template-columns:repeat(4,1fr); gap:16px; }
+  .step{ background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:18px; }
+  .step .n{ font-size:11px; letter-spacing:2px; color:var(--gold); font-weight:800; }
+  .step h3{ font-size:15px; margin:8px 0 7px; }
+  .step p{ font-size:12.5px; line-height:1.5; color:var(--muted); }
+  .tags{ margin-top:26px; display:flex; gap:10px; flex-wrap:wrap; }
+  .tag{ font-size:11px; letter-spacing:1px; color:var(--muted); border:1px solid var(--line); border-radius:999px; padding:6px 13px; }
+</style>
+</head>
+<body>
+<section class="hero">
+  <div class="stage" id="stage">
+    <canvas id="col"></canvas>
+
+    <div class="brandbar">
+      <div class="logo"><b>DEEPLINE</b><span class="fin">DERIV · CAST · HOOK · REEL</span></div>
+      <div class="tape">
+        <span class="sym">VOL 75 INDEX</span>
+        <span class="px" id="tapePx">—</span>
+        <span class="dot"></span>
+      </div>
+    </div>
+
+    <div class="phase" id="phase">
+      <div class="big" id="phaseBig">PICK A DEPTH · CAST</div>
+      <div class="sub" id="phaseSub">deeper water = bigger fish, harder fight</div>
+    </div>
+
+    <div class="ladder" id="ladder"></div>
+
+    <div class="tensionwrap">
+      <div class="tlabel">SNAP</div>
+      <div class="tbar"><div class="tred"></div><div class="tfill" id="tfill"></div></div>
+      <div class="tlabel">LINE</div>
+      <div class="tval" id="tval" style="color:var(--cyan2)">0%</div>
+    </div>
+
+    <div class="floathint" id="floathint">drag the hook to a depth, then CAST</div>
+
+    <div class="toast" id="toast"><div class="t" id="toastT">LANDED</div><div class="d" id="toastD"></div></div>
+  </div>
+
+  <aside class="rail">
+    <div class="card pay">
+      <div class="lab">FIGHT PAYOUT</div>
+      <div class="amt" id="payAmt">0.00</div>
+      <div class="x" id="payX">×0.00 · reel to land</div>
+    </div>
+
+    <div class="card">
+      <h4>The Catch</h4>
+      <div class="statrow"><span class="k">Fish size (vol)</span>
+        <span class="v fishchip"><i class="fishdot" id="fishDot" style="color:#39e0ff;background:#39e0ff"></i><span id="fishSize">—</span></span></div>
+      <div class="statrow"><span class="k">Fight distance</span><span class="v" id="distVal">0%</span></div>
+      <div class="statrow"><span class="k">Depth bonus</span><span class="v" id="depBonus">×1.4</span></div>
+    </div>
+
+    <div class="card">
+      <h4>Cast Depth</h4>
+      <div class="depths" id="depths">
+        <div class="depthbtn" data-d="0"><div class="nm">SHALLOW</div><div class="ml">×1.4 · easy</div></div>
+        <div class="depthbtn sel" data-d="1"><div class="nm">MID</div><div class="ml">×2.2 · live</div></div>
+        <div class="depthbtn" data-d="2"><div class="nm">ABYSS</div><div class="ml">×3.6 · wild</div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h4>Stake</h4>
+      <div class="stakerow">
+        <button class="sbtn" id="stakeDn">–</button>
+        <div class="amt" id="stakeAmt">10.00</div>
+        <button class="sbtn" id="stakeUp">+</button>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-cast" id="castBtn">CAST</button>
+      <button class="btn btn-net" id="netBtn" disabled>NET EARLY</button>
+      <div class="hintline" id="hint">cast fee 0.30 · misses cost only the fee</div>
+      <div class="bal"><span class="k" style="color:var(--muted)">BALANCE</span><span class="v" id="bal">1,000.00</span></div>
+    </div>
+  </aside>
+</section>
+
+<section class="below">
+  <h2>How DEEPLINE works</h2>
+  <div class="steps">
+    <div class="step"><div class="n">01 · CAST</div><h3>Choose your depth</h3>
+      <p>Depth = price level. The live price is a fish swimming up &amp; down the column. Drag the hook to a band and cast. Deeper bands pay more but the fish fights harder.</p></div>
+    <div class="step"><div class="n">02 · HOOK</div><h3>The strike</h3>
+      <p>When the price touches your hook depth the fish strikes. The market's volatility at that instant sets the fish size — choppy moments hook the trophies.</p></div>
+    <div class="step"><div class="n">03 · FIGHT</div><h3>Reel vs. tension</h3>
+      <p>Reel toward the boat to gain distance — but reeling against a price run loads the line toward SNAP. Feed slack through the runs, crank in the calm. Read the tape.</p></div>
+    <div class="step"><div class="n">04 · LAND</div><h3>Bank or break</h3>
+      <p>Reel to the surface to land the full payout, or NET EARLY for the banked distance. Let tension hit the redline and the line snaps — the fish bolts with your stake.</p></div>
+  </div>
+  <div class="tags">
+    <span class="tag">Quarry position = live price level</span>
+    <span class="tag">Strike = price-level touch</span>
+    <span class="tag">Fish size = realised volatility</span>
+    <span class="tag">Tension = adverse price velocity</span>
+    <span class="tag">Payout = fight distance reeled</span>
+    <span class="tag">No rising-multiplier wrapper</span>
+  </div>
+</section>
+
+<script>
+(()=>{
+"use strict";
+const $=id=>document.getElementById(id);
+const clamp=(v,a,b)=>v<a?a:v>b?b:v;
+const lerp=(a,b,t)=>a+(b-a)*t;
+
+// ---------- canvas ----------
+const cv=$("col"), ctx=cv.getContext("2d");
+const stage=$("stage");
+let W=0,H=0,DPR=1;
+function resize(){
+  DPR=Math.min(window.devicePixelRatio||1,2);
+  W=stage.clientWidth; H=stage.clientHeight;
+  cv.width=W*DPR; cv.height=H*DPR; cv.style.width=W+"px"; cv.style.height=H+"px";
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+}
+window.addEventListener("resize",resize);
+
+// ---------- price feed (simulated synthetic index) ----------
+// price mapped to depth: priceY in [0,1] where 0=surface(high price band top),1=deep
+let price=100, vel=0, regime=0, regimeT=0;
+const priceHist=[]; // recent {p}
+function stepPrice(dt){
+  regimeT-=dt;
+  if(regimeT<=0){ regime=Math.random(); regimeT=0.6+Math.random()*1.8; }
+  // bursty volatility: occasional runs
+  const burst = regime>0.72 ? (2.6) : (regime>0.4?1.0:0.45);
+  const drift = (Math.random()-0.5);
+  vel += (drift*burst - vel*0.08);
+  // occasional sharp shocks
+  if(Math.random()<0.012*burst) vel += (Math.random()-0.5)*9;
+  price += vel*dt*9;
+  // soft bounds so it stays in column
+  if(price>140){ price=140; vel-=Math.abs(vel)*0.6; }
+  if(price<60){ price=60; vel+=Math.abs(vel)*0.6; }
+  priceHist.push(price);
+  if(priceHist.length>240) priceHist.shift();
+}
+// map price->y pixel. price 60..140 -> y H*0.9 .. H*0.12
+function priceToY(p){ const t=(p-60)/80; return lerp(H*0.12,H*0.9,1-t); }
+function realisedVol(){ // ATR-ish of last 40
+  const n=Math.min(40,priceHist.length); if(n<3) return 0.4;
+  let s=0; for(let i=priceHist.length-n+1;i<priceHist.length;i++) s+=Math.abs(priceHist[i]-priceHist[i-1]);
+  return s/n; // ~0.05..2
+}
+
+// ---------- game state ----------
+const DEPTHS=[
+  {name:"SHALLOW", yc:0.30, bonus:1.4, hard:0.7},
+  {name:"MID",     yc:0.55, bonus:2.2, hard:1.0},
+  {name:"ABYSS",   yc:0.80, bonus:3.6, hard:1.55},
+];
+let G={
+  phase:"idle", // idle | sinking | waiting | fight | done
+  depth:1,
+  stake:10, balance:1000, castFee:0.3,
+  hookY:0,            // current hook depth (px) while aiming/sinking
+  hookTargetY:0,      // chosen band center (px)
+  handleY:0,          // reel handle (player setpoint) px during fight
+  fishSize:1,         // realised vol snapshot
+  fishColor:"#39e0ff",
+  tension:0,          // 0..1 ; >0.85 region near snap; 1 = snap
+  dist:0,             // fight distance 0..1 (0 at deep, 1 at surface)
+  startY:0,           // y where fish was hooked
+  boatY:0,            // surface target y
+  waitT:0,            // cast timeout
+  fishY:0,            // rendered fish y (=price during free swim, custom in fight)
+  particles:[],
+  ripples:[],
+  shake:0,
+};
+const depthBonus=()=>DEPTHS[G.depth].bonus;
+function fightMul(){ // payout multiplier from distance
+  return G.fishSize * depthBonus() * (0.4 + 1.6*G.dist);
+}
+function payout(){ return G.stake * (0.4 + 1.6*G.dist) * (G.fishSize/ refSize()) * depthBonus() * 0.5; }
+function refSize(){ return 0.7; } // normaliser so sizes ~1x
+// simpler displayed payout
+function payAmount(){ return G.stake * fightPayMul(); }
+function fightPayMul(){ return (0.35 + 1.65*G.dist) * (G.fishSize/refSize()) * depthBonus() * 0.42; }
+
+// fish size category color
+function sizeColor(sz){
+  const t=clamp((sz-0.15)/1.4,0,1);
+  // cyan -> green -> gold -> molten
+  if(t<0.4) return mix("#39e0ff","#37f0b0",t/0.4);
+  if(t<0.75) return mix("#37f0b0","#ffd76a",(t-0.4)/0.35);
+  return mix("#ffd76a","#ff8a3a",(t-0.75)/0.25);
+}
+function mix(a,b,t){
+  const pa=hx(a),pb=hx(b);
+  return `rgb(${Math.round(lerp(pa[0],pb[0],t))},${Math.round(lerp(pa[1],pb[1],t))},${Math.round(lerp(pa[2],pb[2],t))})`;
+}
+function hx(h){h=h.replace('#','');return [parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)];}
+
+// ---------- particles ----------
+function burst(x,y,color,n,spd){
+  for(let i=0;i<n;i++){
+    const a=Math.random()*Math.PI*2, s=spd*(0.3+Math.random());
+    G.particles.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s-spd*0.3,life:1,color,r:1.5+Math.random()*2.5});
+  }
+}
+function ripple(x,y,color){ G.ripples.push({x,y,r:4,max:60+Math.random()*30,life:1,color}); }
+
+// ---------- input: drag hook (aim) / handle (fight) ----------
+let dragging=false;
+function localY(e){
+  const r=cv.getBoundingClientRect();
+  const cy=(e.touches?e.touches[0].clientY:e.clientY)-r.top;
+  return clamp(cy,H*0.12,H*0.92);
+}
+function onDown(e){
+  if(G.phase==="idle"||G.phase==="aiming"){ dragging=true; G.phase="aiming"; G.hookTargetY=localY(e); G.hookY=G.hookTargetY;}
+  else if(G.phase==="fight"){ dragging=true; G.handleY=localY(e); }
+}
+function onMove(e){
+  if(!dragging) return;
+  if(G.phase==="aiming"){ G.hookTargetY=localY(e); G.hookY=G.hookTargetY; }
+  else if(G.phase==="fight"){ G.handleY=localY(e); }
+  e.preventDefault&&e.preventDefault();
+}
+function onUp(){ dragging=false; }
+cv.addEventListener("mousedown",onDown); window.addEventListener("mousemove",onMove); window.addEventListener("mouseup",onUp);
+cv.addEventListener("touchstart",onDown,{passive:false}); window.addEventListener("touchmove",onMove,{passive:false}); window.addEventListener("touchend",onUp);
+
+// ---------- UI refs ----------
+const elTape=$("tapePx"), elPhaseBig=$("phaseBig"), elPhaseSub=$("phaseSub"),
+  elTfill=$("tfill"), elTval=$("tval"), elPay=$("payAmt"), elPayX=$("payX"),
+  elFishSize=$("fishSize"), elFishDot=$("fishDot"), elDist=$("distVal"), elDep=$("depBonus"),
+  elStake=$("stakeAmt"), elBal=$("bal"), elHint=$("hint"), elFloat=$("floathint"),
+  castBtn=$("castBtn"), netBtn=$("netBtn"), toast=$("toast"), toastT=$("toastT"), toastD=$("toastD"),
+  ladder=$("ladder");
+
+// depth buttons
+document.querySelectorAll(".depthbtn").forEach(b=>{
+  b.addEventListener("click",()=>{
+    if(G.phase!=="idle"&&G.phase!=="aiming") return;
+    G.depth=+b.dataset.d;
+    document.querySelectorAll(".depthbtn").forEach(x=>x.classList.remove("sel"));
+    b.classList.add("sel");
+    elDep.textContent="×"+depthBonus().toFixed(1);
+    // suggest a hook position at that band
+    if(G.phase==="idle"){ G.hookTargetY=H*DEPTHS[G.depth].yc; G.hookY=G.hookTargetY; }
+  });
+});
+$("stakeUp").onclick=()=>{ if(canEditStake()){G.stake=clamp(G.stake+5,1,500); elStake.textContent=G.stake.toFixed(2);} };
+$("stakeDn").onclick=()=>{ if(canEditStake()){G.stake=clamp(G.stake-5,1,500); elStake.textContent=G.stake.toFixed(2);} };
+function canEditStake(){ return G.phase==="idle"||G.phase==="aiming"; }
+
+castBtn.onclick=doCast;
+netBtn.onclick=netEarly;
+
+function doCast(){
+  if(G.phase!=="idle"&&G.phase!=="aiming") return;
+  if(G.balance<G.stake+G.castFee){ flashHint("insufficient balance"); return; }
+  G.balance-=G.castFee;
+  // if no aim set, use band center
+  if(!G.hookTargetY) G.hookTargetY=H*DEPTHS[G.depth].yc;
+  G.phase="sinking"; G.hookY=H*0.13; G.waitT=0;
+  setPhase("CASTING…","line sinking to your depth");
+  castBtn.disabled=true; netBtn.disabled=true;
+  elFloat.style.opacity=0;
+  ripple(W*0.5,H*0.13,"#39e0ff");
+}
+
+function doStrike(){
+  // snapshot fish size from realised vol
+  const rv=realisedVol();
+  G.fishSize=clamp(0.35+rv*0.95,0.3,2.0);
+  G.fishColor=sizeColor(G.fishSize);
+  G.phase="fight";
+  G.startY=priceToY(price);
+  G.fishY=G.startY;
+  G.boatY=H*0.135;
+  G.handleY=G.startY;     // start with handle on the fish (neutral)
+  G.dist=0; G.tension=0.12;
+  G.stake=G.stake; // locked
+  // deduct stake now (at-risk)
+  G.balance-=G.stake;
+  netBtn.disabled=false;
+  setPhase("FIGHT!","reel in the calm · feed slack on the runs");
+  elFloat.style.opacity=1; elFloat.textContent="drag UP to reel · let go / drag down to give slack";
+  burst(W*0.62,G.startY,G.fishColor,26,3.2); ripple(W*0.62,G.startY,G.fishColor);
+  G.shake=6;
+  refreshFishUI();
+}
+
+function land(){
+  G.phase="done";
+  const amt=payAmount();
+  G.balance+=amt;
+  showToast("land","FISH ON!","+"+amt.toFixed(2));
+  burst(W*0.55,G.boatY,"#ffd76a",60,5.5); burst(W*0.55,G.boatY,"#fff",30,4);
+  ripple(W*0.55,G.boatY,"#ffd76a"); ripple(W*0.55,G.boatY,"#fff");
+  G.shake=10;
+  endRound();
+}
+function netEarly(){
+  if(G.phase!=="fight") return;
+  G.phase="done";
+  const amt=payAmount()*0.82; // haircut for early net
+  G.balance+=amt;
+  showToast("land","NETTED","+"+amt.toFixed(2));
+  burst(W*0.55,G.fishY,"#ffd76a",40,4.2); ripple(W*0.55,G.fishY,"#ffd76a");
+  endRound();
+}
+function snap(){
+  G.phase="done";
+  showToast("snap","LINE SNAPPED","−"+G.stake.toFixed(2));
+  burst(W*0.62,G.fishY,"#ff3b54",46,5.5);
+  // fish bolts into the deep
+  G.shake=12;
+  endRound();
+}
+function endRound(){
+  netBtn.disabled=true;
+  setTimeout(()=>{
+    G.phase="idle"; G.tension=0; G.dist=0;
+    castBtn.disabled=false;
+    G.hookTargetY=H*DEPTHS[G.depth].yc; G.hookY=G.hookTargetY;
+    setPhase("PICK A DEPTH · CAST","deeper water = bigger fish, harder fight");
+    elFloat.style.opacity=1; elFloat.textContent="drag the hook to a depth, then CAST";
+    refreshFishUI();
+  },1850);
+}
+
+function showToast(cls,t,d){
+  toast.className="toast show "+cls; toastT.textContent=t; toastD.textContent=d;
+  setTimeout(()=>toast.classList.remove("show"),1500);
+}
+function setPhase(b,s){ elPhaseBig.textContent=b; elPhaseSub.textContent=s; }
+function flashHint(m){ elHint.textContent=m; setTimeout(()=>elHint.textContent="cast fee "+G.castFee.toFixed(2)+" · misses cost only the fee",1600); }
+
+function refreshFishUI(){
+  const cat = G.fishSize<0.7?"Minnow":G.fishSize<1.1?"Runner":G.fishSize<1.5?"Trophy":"Leviathan";
+  elFishSize.textContent = G.phase==="idle" ? "—" : cat+" ·"+G.fishSize.toFixed(2)+"×";
+  elFishDot.style.color=G.fishColor; elFishDot.style.background=G.fishColor;
+  elDep.textContent="×"+depthBonus().toFixed(1);
+}
+
+// ---------- main update (fixed timestep; runs on setInterval so it survives tab throttling) ----------
+let last=performance.now();
+function update(now){
+  now = now || performance.now();
+  let dt=(now-last)/1000; if(dt>0.05) dt=0.05; if(dt<=0) dt=0.016; last=now;
+  stepPrice(dt);
+  elTape.textContent=price.toFixed(2);
+
+  const fy=priceToY(price);
+
+  if(G.phase==="idle"){ G.fishY=fy; if(!G.hookTargetY){G.hookTargetY=H*DEPTHS[G.depth].yc;G.hookY=G.hookTargetY;} }
+  else if(G.phase==="aiming"){ G.fishY=fy; }
+  else if(G.phase==="sinking"){
+    G.fishY=fy; // fish keeps swimming at live price
+    G.hookY=lerp(G.hookY,G.hookTargetY,clamp(dt*3.2,0,1));
+    if(Math.abs(G.hookY-G.hookTargetY)<3){ G.hookY=G.hookTargetY; G.phase="waiting"; G.waitT=0; setPhase("WAITING FOR A BITE…","price must swim to your hook depth"); }
+  }
+  else if(G.phase==="waiting"){
+    G.fishY=fy; G.waitT+=dt;            // fish swims at the live price level
+    // strike when the swimming price-fish crosses the hook band
+    if(Math.abs(fy-G.hookTargetY) < H*0.028){ doStrike(); }
+    else if(G.waitT>8){                 // no bite within window — only the cast fee is lost
+      G.phase="done"; showToast("snap","NO BITE","−"+G.castFee.toFixed(2)); endRound();
+    }
+  }
+  else if(G.phase==="fight"){
+    // --- Fish dynamics ---
+    // The fish is yanked toward the LIVE price level (fy) by the market, and pulled toward
+    // the BOAT only by the reel handle when the handle is held above the fish.
+    const marketPull = (fy - G.fishY);                 // where the price wants the fish
+    const reelPull   = (G.handleY - G.fishY);          // negative when handle is above fish (reeling up)
+    const reeling    = G.handleY < G.fishY - 2;        // handle above the fish = applying drag toward boat
+    const hard       = DEPTHS[G.depth].hard;
+    // price tug strength scales with fish size & depth (bigger/deeper fish fight harder)
+    const tugK = clamp(dt*2.6,0,1) * (0.34 + 0.4*G.fishSize) * hard;
+    G.fishY += marketPull * tugK;
+    // reeling drags the fish toward the boat — brisk, so a clean fight lands in ~10-16s
+    if(reeling) G.fishY += reelPull * clamp(dt*3.8,0,1);
+    G.fishY = clamp(G.fishY, G.boatY, H*0.92);
+
+    // --- Tension = line stretch + adverse market velocity ---
+    // adverse run: price diving deeper (fy increasing => moving DOWN/away from boat)
+    const adverseVel = Math.max(0, fy - G.fishY) + Math.max(0, vel)*3.2*hard; // px of pull away
+    const reelStrain = reeling ? clamp((G.fishY - G.handleY)/(H*0.14),0,1) : 0;
+    const adverse    = clamp(adverseVel/(H*0.07),0,1);
+    // load rises hard when you reel INTO a run; a wild fish loads even at rest;
+    // even calm reeling builds some heat so there's always a pump-and-rest rhythm
+    let load = reelStrain*(0.55 + 1.7*adverse) + adverse*0.7*hard + 0.16*hard;
+    // slack relief: handle at/below the fish lets the line cool quickly
+    const slack = clamp((G.handleY - (G.fishY-2))/(H*0.10),0,1);
+    G.tension += (load*1.85 - (0.62 + slack*2.2))*dt;
+    G.tension  = clamp(G.tension,0,1.0);
+
+    // --- Fight distance = best progress toward the boat ---
+    const prog = clamp((G.startY - G.fishY)/(G.startY - G.boatY),0,1);
+    G.dist = prog;
+
+    G.shake = Math.max(G.shake, G.tension>0.72?(G.tension-0.72)*26:0);
+
+    if(G.fishY<=G.boatY+7 && G.dist>0.97){ land(); }
+    else if(G.tension>=1){ snap(); }
+
+    elPay.textContent=payAmount().toFixed(2);
+    elPayX.textContent="×"+fightPayMul().toFixed(2)+" · reel to land";
+    elDist.textContent=Math.round(G.dist*100)+"%";
+  }
+
+  // tension gauge
+  const tp=Math.round(G.tension*100);
+  elTfill.style.height=(G.tension*100)+"%";
+  elTval.textContent=tp+"%";
+  elTval.style.color = G.tension>0.82?"#ff3b54":G.tension>0.5?"#ffb33a":"#6ff0ff";
+
+  if(G.phase!=="fight"){ elPay.textContent=(G.phase==="done"?elPay.textContent:"0.00"); }
+  if(G.phase==="idle"){ elPay.textContent="0.00"; elPayX.textContent="×0.00 · reel to land"; elDist.textContent="0%"; }
+
+  elStake.textContent=G.stake.toFixed(2);
+  elBal.textContent=G.balance.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+// render loop (rAF, visuals only)
+function renderLoop(){ draw(); requestAnimationFrame(renderLoop);
+}
+
+// ---------- DRAW ----------
+let plankton=[];
+function initPlankton(){ plankton=[]; for(let i=0;i<60;i++) plankton.push({x:Math.random(),y:Math.random(),r:0.5+Math.random()*1.6,s:0.2+Math.random()*0.5}); }
+let t0=0;
+function draw(){
+  t0+=0.016;
+  ctx.clearRect(0,0,W,H);
+  let sx=0,sy=0;
+  if(G.shake>0.2){ sx=(Math.random()-0.5)*G.shake; sy=(Math.random()-0.5)*G.shake; G.shake*=0.85; }
+  ctx.save(); ctx.translate(sx,sy);
+
+  // water gradient (already on body, add column tint + light rays)
+  const g=ctx.createLinearGradient(0,0,0,H);
+  g.addColorStop(0,"rgba(20,60,110,0.55)");
+  g.addColorStop(0.18,"rgba(10,34,72,0.35)");
+  g.addColorStop(0.55,"rgba(5,16,40,0.5)");
+  g.addColorStop(1,"rgba(1,4,12,0.85)");
+  ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+
+  // god rays
+  ctx.save(); ctx.globalCompositeOperation="screen";
+  for(let i=0;i<5;i++){
+    const rx=W*(0.12+i*0.2)+Math.sin(t0*0.3+i)*30;
+    const grd=ctx.createLinearGradient(rx,0,rx+80,H*0.7);
+    grd.addColorStop(0,"rgba(90,180,240,0.10)"); grd.addColorStop(1,"rgba(90,180,240,0)");
+    ctx.fillStyle=grd; ctx.beginPath();
+    ctx.moveTo(rx-30,0); ctx.lineTo(rx+30,0); ctx.lineTo(rx+120,H*0.75); ctx.lineTo(rx+10,H*0.75); ctx.closePath(); ctx.fill();
+  }
+  ctx.restore();
+
+  // plankton
+  ctx.save();
+  for(const p of plankton){
+    p.y-=p.s*0.0006; if(p.y<0)p.y=1;
+    const px=p.x*W+Math.sin(t0*0.4+p.x*10)*6, py=p.y*H;
+    ctx.fillStyle="rgba(120,180,230,"+(0.06+p.r*0.05)+")";
+    ctx.beginPath(); ctx.arc(px,py,p.r,0,7); ctx.fill();
+  }
+  ctx.restore();
+
+  // depth band highlight for current target
+  if(G.phase==="idle"||G.phase==="aiming"||G.phase==="sinking"||G.phase==="waiting"){
+    const by=G.hookTargetY, bh=H*0.044;
+    ctx.fillStyle="rgba(57,224,255,0.07)"; ctx.fillRect(0,by-bh/2,W,bh);
+    ctx.strokeStyle="rgba(57,224,255,0.35)"; ctx.setLineDash([6,7]); ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(0,by); ctx.lineTo(W,by); ctx.stroke(); ctx.setLineDash([]);
+  }
+
+  // ---- price wake ribbon (the recent price line = the live tape trailing the quarry) ----
+  if(priceHist.length>2){
+    const n=priceHist.length;
+    const hooked2 = (G.phase==="fight"||G.phase==="done");
+    // pre-hook the wake terminates AT the fish lane (the fish IS the live price);
+    // during the fight it trails to the left, dimmed (it's now ambient tape).
+    const x0=W*0.10, x1= hooked2 ? W*0.40 : W*0.55;
+    const baseA = hooked2 ? 0.12 : 0.34;
+    ctx.lineWidth=2; ctx.strokeStyle="rgba(57,224,255,"+baseA+")";
+    ctx.beginPath();
+    for(let i=0;i<n;i++){
+      const x=lerp(x0,x1,i/(n-1)); const y=priceToY(priceHist[i]);
+      i?ctx.lineTo(x,y):ctx.moveTo(x,y);
+    }
+    ctx.stroke();
+    ctx.save(); ctx.globalCompositeOperation="screen"; ctx.lineWidth=6;
+    ctx.strokeStyle="rgba(57,224,255,"+(baseA*0.28)+")"; ctx.stroke(); ctx.restore();
+  }
+
+  // ---- boat / surface ----
+  const surfY=H*0.115;
+  ctx.save();
+  // surface shimmer line
+  ctx.strokeStyle="rgba(150,220,255,0.5)"; ctx.lineWidth=2;
+  ctx.beginPath();
+  for(let x=0;x<=W;x+=14){ const y=surfY+Math.sin(t0*1.5+x*0.03)*3; x?ctx.lineTo(x,y):ctx.moveTo(x,y);} ctx.stroke();
+  ctx.fillStyle="rgba(120,200,255,0.06)"; ctx.fillRect(0,0,W,surfY);
+  // boat hull (centred over the fishing lane at W*0.55)
+  ctx.fillStyle="#0c1f3a"; ctx.strokeStyle="rgba(57,224,255,0.5)"; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.moveTo(W*0.47,surfY-2); ctx.lineTo(W*0.63,surfY-2);
+  ctx.lineTo(W*0.605,surfY-20); ctx.lineTo(W*0.495,surfY-20); ctx.closePath(); ctx.fill(); ctx.stroke();
+  // rod arching out to the tip directly above the lane
+  ctx.strokeStyle="rgba(200,225,255,0.7)"; ctx.lineWidth=2.5;
+  ctx.beginPath(); ctx.moveTo(W*0.51,surfY-18);
+  ctx.quadraticCurveTo(W*0.52,surfY-44, W*0.55,surfY-44); ctx.stroke();
+  // rod tip node
+  ctx.fillStyle="rgba(200,225,255,0.9)"; ctx.beginPath(); ctx.arc(W*0.55,surfY-44,2.2,0,7); ctx.fill();
+  ctx.restore();
+
+  // ---- fishing line + hook/fish ----
+  const lineTopX=W*0.55, lineTopY=surfY-44;
+  const fishX=W*0.55;                   // the quarry swims in this vertical lane
+  // line endpoint: at the hook depth while sinking/waiting, at the hooked fish while fighting
+  let lineEndX=fishX, lineEndY;
+  if(G.phase==="fight"||G.phase==="done"){ lineEndY=G.fishY; }
+  else if(G.phase==="sinking"||G.phase==="waiting"){ lineEndY=G.hookY; }
+  else { lineEndY=G.hookY; }
+
+  // line color by tension
+  const tn=G.tension;
+  const lineCol = G.phase==="fight"
+    ? (tn>0.82? "rgba(255,59,84,0.95)" : tn>0.5? "rgba(255,179,58,0.9)" : "rgba(57,224,255,0.85)")
+    : "rgba(120,170,220,0.55)";
+
+  // catenary sag when slack (handle below fish) else taut + vibrate when high tension
+  ctx.save();
+  ctx.lineWidth = G.phase==="fight" ? (1.6+tn*2.2) : 1.4;
+  ctx.strokeStyle=lineCol;
+  if(G.phase==="fight" && tn>0.6){ ctx.shadowColor=lineCol; ctx.shadowBlur=12+tn*16; }
+  ctx.beginPath();
+  ctx.moveTo(lineTopX,lineTopY);
+  let slackAmt=0;
+  if(G.phase==="fight"){ slackAmt=clamp((G.handleY-G.fishY)/(H*0.12),0,1); }
+  const midX=(lineTopX+lineEndX)/2 + (G.phase==="fight"?slackAmt*30:0);
+  const sag = slackAmt*(H*0.06) - (tn>0.6? Math.sin(t0*40)*tn*4 : 0);
+  const midY=(lineTopY+lineEndY)/2 + sag;
+  ctx.quadraticCurveTo(midX,midY,lineEndX,lineEndY);
+  ctx.stroke();
+  ctx.restore();
+
+  // reel handle marker (during fight) — the player's setpoint
+  if(G.phase==="fight"){
+    ctx.save();
+    ctx.strokeStyle="rgba(255,255,255,0.85)"; ctx.lineWidth=2;
+    ctx.setLineDash([3,4]);
+    ctx.beginPath(); ctx.moveTo(W*0.30,G.handleY); ctx.lineTo(W*0.78,G.handleY); ctx.stroke();
+    ctx.setLineDash([]);
+    // handle knob
+    ctx.fillStyle="#ffffff"; ctx.beginPath(); ctx.arc(W*0.30,G.handleY,6,0,7); ctx.fill();
+    ctx.fillStyle="rgba(0,0,0,0.5)"; ctx.font="700 9px sans-serif"; ctx.textAlign="center";
+    ctx.fillStyle="rgba(220,235,255,0.8)"; ctx.fillText("REEL",W*0.30,G.handleY-11);
+    ctx.restore();
+  }
+
+  // ---- the quarry (fish) — always swims at G.fishY (=live price until hooked) ----
+  const hooked = (G.phase==="fight"||G.phase==="done");
+  drawFish(fishX, G.fishY,
+           hooked?G.fishColor:"#bfe6ff",
+           hooked?G.fishSize:0.6,
+           G.phase!=="idle"&&G.phase!=="aiming");
+
+  // hook marker at the chosen depth while aiming / sinking / waiting
+  if(G.phase==="aiming"||G.phase==="idle"||G.phase==="sinking"||G.phase==="waiting"){
+    const hx2=fishX, hy2=G.hookY;
+    // proximity pulse: fish near the hook band = about to bite
+    const near = G.phase==="waiting" ? clamp(1-Math.abs(G.fishY-hy2)/(H*0.10),0,1) : 0;
+    ctx.save(); ctx.globalCompositeOperation="screen";
+    const r=9+Math.sin(t0*4)*3 + near*8;
+    const gg=ctx.createRadialGradient(hx2,hy2,0,hx2,hy2,r*2);
+    gg.addColorStop(0,`rgba(57,224,255,${0.45+near*0.4})`); gg.addColorStop(1,"rgba(57,224,255,0)");
+    ctx.fillStyle=gg; ctx.beginPath(); ctx.arc(hx2,hy2,r*2,0,7); ctx.fill();
+    ctx.restore();
+    // hook shape
+    ctx.strokeStyle="rgba(220,240,255,0.9)"; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.arc(hx2,hy2+5,5,Math.PI*0.1,Math.PI*1.4); ctx.stroke();
+  }
+
+  // ripples
+  for(let i=G.ripples.length-1;i>=0;i--){
+    const r=G.ripples[i]; r.r+=1.6; r.life-=0.02;
+    if(r.life<=0){G.ripples.splice(i,1);continue;}
+    ctx.strokeStyle=r.color.replace(/[\d.]+\)$/,(r.life*0.6)+")").replace("rgb","rgba").replace(/^rgba\(([^)]+)\)$/,(m,p)=> "rgba("+p+")");
+    ctx.globalAlpha=r.life*0.6; ctx.strokeStyle=r.color; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.arc(r.x,r.y,r.r,0,7); ctx.stroke(); ctx.globalAlpha=1;
+  }
+
+  // particles
+  for(let i=G.particles.length-1;i>=0;i--){
+    const p=G.particles[i]; p.x+=p.vx; p.y+=p.vy; p.vy+=0.12; p.life-=0.022;
+    if(p.life<=0){G.particles.splice(i,1);continue;}
+    ctx.globalAlpha=clamp(p.life,0,1); ctx.fillStyle=p.color;
+    ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,7); ctx.fill(); ctx.globalAlpha=1;
+  }
+
+  // SNAP flash danger vignette
+  if(G.phase==="fight" && tn>0.8){
+    ctx.save(); ctx.globalCompositeOperation="screen";
+    const v=ctx.createRadialGradient(W/2,H/2,H*0.3,W/2,H/2,H*0.75);
+    v.addColorStop(0,"rgba(255,40,60,0)"); v.addColorStop(1,"rgba(255,40,60,"+((tn-0.8)*1.4)+")");
+    ctx.fillStyle=v; ctx.fillRect(0,0,W,H); ctx.restore();
+  }
+
+  ctx.restore(); // shake
+}
+
+function drawFish(x,y,color,size,active){
+  const len=18+size*22, h=8+size*10;
+  ctx.save(); ctx.translate(x,y);
+  const sway=Math.sin(t0*(active?6:3))*0.12;
+  ctx.rotate(sway);
+  // glow
+  ctx.save(); ctx.globalCompositeOperation="screen";
+  const gg=ctx.createRadialGradient(0,0,0,0,0,len*1.3);
+  gg.addColorStop(0,hexA(color,0.5)); gg.addColorStop(1,hexA(color,0));
+  ctx.fillStyle=gg; ctx.beginPath(); ctx.arc(0,0,len*1.3,0,7); ctx.fill(); ctx.restore();
+  // body
+  ctx.fillStyle=color;
+  ctx.beginPath();
+  ctx.moveTo(len*0.55,0);
+  ctx.quadraticCurveTo(0,-h, -len*0.5,0);
+  ctx.quadraticCurveTo(0,h, len*0.55,0);
+  ctx.fill();
+  // tail
+  const tf=Math.sin(t0*(active?9:4))*0.5;
+  ctx.beginPath();
+  ctx.moveTo(-len*0.45,0);
+  ctx.lineTo(-len*0.72,-h*0.7+tf*4);
+  ctx.lineTo(-len*0.72, h*0.7+tf*4);
+  ctx.closePath(); ctx.fill();
+  // eye
+  ctx.fillStyle="rgba(2,8,16,0.9)"; ctx.beginPath(); ctx.arc(len*0.32,-h*0.12,2.2,0,7); ctx.fill();
+  ctx.fillStyle="rgba(255,255,255,0.9)"; ctx.beginPath(); ctx.arc(len*0.34,-h*0.18,0.9,0,7); ctx.fill();
+  ctx.restore();
+}
+function hexA(c,a){
+  if(c.startsWith("rgb")){ return c.replace("rgb(","rgba(").replace(")",","+a+")"); }
+  const p=hx(c); return `rgba(${p[0]},${p[1]},${p[2]},${a})`;
+}
+
+// ---------- depth ladder labels ----------
+function buildLadder(){
+  ladder.innerHTML="";
+  const marks=[ {p:135,l:"+ shallow"},{p:120,l:""},{p:105,l:""},{p:90,l:""},{p:75,l:""},{p:62,l:"deep +"} ];
+  marks.forEach(m=>{
+    const y=priceToY(m.p);
+    const d=document.createElement("div");
+    d.style.cssText="position:absolute;left:0;top:"+(y-7)+"px;font-size:9px;color:var(--muted);letter-spacing:1px;";
+    d.textContent=m.p.toFixed(0);
+    ladder.appendChild(d);
+  });
+}
+
+// ---------- boot ----------
+function boot(){
+  resize(); initPlankton(); buildLadder();
+  G.hookTargetY=H*DEPTHS[G.depth].yc; G.hookY=G.hookTargetY;
+  for(let i=0;i<60;i++) stepPrice(0.05); // seed history
+  refreshFishUI();
+  last=performance.now();
+  setInterval(()=>update(),16);     // simulation tick — independent of rAF throttling
+  requestAnimationFrame(renderLoop); // visuals
+}
+window.addEventListener("resize",()=>{ buildLadder(); });
+boot();
+})();
+</script>
+</body>
+</html>
