@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>RIPTIDE — territory war on a living chart</title>
+<style>
+  :root{
+    --bg0:#03060c; --bg1:#060c18; --bg2:#0a1426;
+    --you:#ffd54a;        /* gold */
+    --you2:#ffae1a;
+    --teal:#21e6c1;       /* rival A */
+    --mag:#ff4d9d;        /* rival B */
+    --undertow:#2a3a55;   /* neutral */
+    --ink:#e8f0ff;
+    --muted:#7f93b5;
+    --line:#bfe9ff;
+    --panel:rgba(10,20,38,.72);
+    --stroke:rgba(120,160,220,.16);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--bg0);color:var(--ink);
+    font-family:"Segoe UI",Inter,system-ui,-apple-system,sans-serif;overflow-x:hidden}
+  body{background:
+     radial-gradient(1200px 700px at 78% -10%, #0d1d38 0%, transparent 60%),
+     radial-gradient(900px 600px at 10% 110%, #0a1830 0%, transparent 55%),
+     linear-gradient(180deg,var(--bg1),var(--bg0));}
+
+  /* ============ HERO (above the fold) ============ */
+  .hero{position:relative;height:100vh;min-height:760px;width:100%;
+    display:flex;flex-direction:column;}
+  .topbar{position:absolute;top:0;left:0;right:0;z-index:6;
+    display:flex;align-items:center;justify-content:space-between;
+    padding:16px 26px;pointer-events:none}
+  .brand{display:flex;align-items:center;gap:12px}
+  .logo{width:34px;height:34px;border-radius:9px;position:relative;
+    background:conic-gradient(from 200deg,#ffd54a,#21e6c1,#ff4d9d,#ffd54a);
+    box-shadow:0 0 22px rgba(33,230,193,.5);}
+  .logo:after{content:"";position:absolute;inset:5px;border-radius:6px;background:#05080f}
+  .logo:before{content:"";position:absolute;inset:0;border-radius:9px;
+    background:conic-gradient(from 200deg,#ffd54a,#21e6c1,#ff4d9d,#ffd54a);filter:blur(7px);opacity:.7}
+  .wordmark{font-weight:800;letter-spacing:.34em;font-size:20px;
+    background:linear-gradient(90deg,#fff,#bfe9ff);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .tag{font-size:11px;letter-spacing:.32em;color:var(--muted);text-transform:uppercase;margin-top:2px}
+  .pill{pointer-events:auto;display:flex;gap:18px;align-items:center;
+    background:var(--panel);border:1px solid var(--stroke);border-radius:40px;
+    padding:9px 20px;backdrop-filter:blur(10px);box-shadow:0 8px 30px rgba(0,0,0,.4)}
+  .pill .k{font-size:10px;letter-spacing:.2em;color:var(--muted);text-transform:uppercase}
+  .pill .v{font-size:16px;font-weight:800}
+  .vol{display:flex;align-items:center;gap:7px}
+  .voldot{width:8px;height:8px;border-radius:50%;background:var(--teal);box-shadow:0 0 10px var(--teal)}
+
+  .stage{position:relative;flex:1;margin:74px 18px 132px 18px;border-radius:20px;overflow:hidden;
+    border:1px solid var(--stroke);
+    background:linear-gradient(180deg,#060d1d 0%,#04080f 100%);
+    box-shadow:inset 0 0 120px rgba(0,0,0,.6), 0 24px 70px rgba(0,0,0,.55)}
+  canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+  #fx{pointer-events:none}
+
+  /* claim handles drawn on canvas; right rail = live coverage */
+  .rail{position:absolute;top:14px;right:14px;z-index:5;width:226px;
+    background:var(--panel);border:1px solid var(--stroke);border-radius:14px;
+    padding:13px 14px;backdrop-filter:blur(12px);box-shadow:0 10px 40px rgba(0,0,0,.5)}
+  .rail h4{margin:0 0 10px;font-size:10px;letter-spacing:.26em;color:var(--muted);text-transform:uppercase;font-weight:700}
+  .crow{margin-bottom:11px}
+  .crow .lab{display:flex;justify-content:space-between;align-items:center;font-size:12px;margin-bottom:5px}
+  .crow .nm{display:flex;align-items:center;gap:7px;font-weight:700}
+  .sw{width:11px;height:11px;border-radius:3px;box-shadow:0 0 9px currentColor}
+  .crow .pct{font-variant-numeric:tabular-nums;font-weight:800;font-size:13px}
+  .bar{height:8px;border-radius:6px;background:rgba(255,255,255,.06);overflow:hidden}
+  .bar > i{display:block;height:100%;width:0%;border-radius:6px;transition:width .12s linear}
+
+  .timerwrap{position:absolute;top:16px;left:16px;z-index:5;display:flex;align-items:center;gap:14px}
+  .ring{position:relative;width:78px;height:78px}
+  .ring svg{transform:rotate(-90deg)}
+  .ring .t{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+  .ring .t b{font-size:22px;font-weight:800;line-height:1;font-variant-numeric:tabular-nums}
+  .ring .t span{font-size:8px;letter-spacing:.22em;color:var(--muted);margin-top:3px}
+  .phaselab{font-size:13px;font-weight:700;letter-spacing:.04em}
+  .phaselab small{display:block;color:var(--muted);font-weight:500;font-size:11px;letter-spacing:.06em;margin-top:3px;max-width:200px}
+
+  /* bottom HUD inside hero */
+  .hud{position:absolute;left:0;right:0;bottom:0;z-index:6;
+    display:flex;align-items:center;gap:14px;justify-content:center;
+    padding:18px 24px 22px}
+  .hud .panel{background:var(--panel);border:1px solid var(--stroke);border-radius:16px;
+    backdrop-filter:blur(12px);box-shadow:0 12px 44px rgba(0,0,0,.5)}
+  .stakebox{display:flex;align-items:center;gap:14px;padding:12px 18px}
+  .field{display:flex;flex-direction:column;gap:5px}
+  .field label{font-size:9px;letter-spacing:.22em;color:var(--muted);text-transform:uppercase}
+  .stepper{display:flex;align-items:center;gap:8px}
+  .stepper button{width:28px;height:28px;border-radius:8px;border:1px solid var(--stroke);
+    background:#0c1830;color:#cfe3ff;font-size:17px;cursor:pointer;line-height:1;transition:.12s}
+  .stepper button:hover{background:#13243f;border-color:rgba(120,160,220,.4)}
+  .stepper .val{min-width:62px;text-align:center;font-weight:800;font-size:16px;font-variant-numeric:tabular-nums}
+  .heightseg{display:flex;gap:4px}
+  .heightseg button{padding:6px 11px;border-radius:8px;border:1px solid var(--stroke);
+    background:#0c1830;color:var(--muted);font-size:11px;font-weight:700;cursor:pointer;letter-spacing:.04em}
+  .heightseg button.on{color:#05080f;background:linear-gradient(180deg,var(--you),var(--you2));border-color:transparent;box-shadow:0 0 16px rgba(255,213,74,.45)}
+
+  .actbtns{display:flex;gap:11px;padding:11px 14px;align-items:center}
+  .gobtn{padding:14px 30px;border-radius:13px;border:none;cursor:pointer;
+    font-size:15px;font-weight:800;letter-spacing:.05em;color:#05080f;
+    background:linear-gradient(180deg,#fff0bd,var(--you) 40%,var(--you2));
+    box-shadow:0 0 26px rgba(255,180,30,.55),inset 0 1px 0 rgba(255,255,255,.6);transition:.14s}
+  .gobtn:hover{transform:translateY(-1px);box-shadow:0 0 38px rgba(255,180,30,.8)}
+  .gobtn:disabled{filter:grayscale(.7) brightness(.6);cursor:not-allowed;box-shadow:none;transform:none}
+  .ability{display:flex;flex-direction:column;align-items:center;gap:4px;
+    padding:9px 14px;border-radius:12px;border:1px solid var(--stroke);background:#0a1628;
+    cursor:pointer;min-width:84px;transition:.12s;position:relative;overflow:hidden}
+  .ability:hover{border-color:rgba(120,200,255,.5);background:#0e1d36}
+  .ability:disabled{opacity:.4;cursor:not-allowed}
+  .ability .ic{font-size:17px}
+  .ability .nm{font-size:11px;font-weight:800;letter-spacing:.05em}
+  .ability .sub{font-size:9px;color:var(--muted);letter-spacing:.08em}
+  .ability .cd{position:absolute;bottom:0;left:0;height:3px;background:var(--teal);width:0%}
+  .ability.surge{box-shadow:inset 0 0 0 1px rgba(33,230,193,.25)}
+  .ability.pull{box-shadow:inset 0 0 0 1px rgba(255,77,157,.2)}
+
+  .hint{position:absolute;left:50%;top:25%;transform:translate(-50%,-50%);z-index:4;
+    text-align:center;pointer-events:none;transition:opacity .4s}
+  .hint .big{font-size:26px;font-weight:800;letter-spacing:.02em;
+    background:linear-gradient(90deg,#fff,#bfe9ff);-webkit-background-clip:text;background-clip:text;color:transparent;
+    text-shadow:0 0 40px rgba(120,200,255,.3)}
+  .hint .small{font-size:13px;color:var(--muted);margin-top:8px;letter-spacing:.04em}
+  .hint .kbd{display:inline-block;padding:2px 7px;border:1px solid var(--stroke);border-radius:6px;
+    background:#0c1830;color:#cfe3ff;font-size:11px;margin:0 2px}
+
+  .toast{position:absolute;left:50%;top:38%;transform:translate(-50%,-50%) scale(.8);z-index:8;
+    text-align:center;opacity:0;pointer-events:none;transition:.45s cubic-bezier(.2,.9,.3,1.3)}
+  .toast.show{opacity:1;transform:translate(-50%,-50%) scale(1)}
+  .toast .res{font-size:54px;font-weight:900;letter-spacing:.02em;line-height:1}
+  .toast .det{font-size:15px;color:#cfe3ff;margin-top:10px;letter-spacing:.05em}
+  .toast.win .res{background:linear-gradient(90deg,#fff3c4,#ffd54a,#21e6c1);-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:0 0 50px rgba(255,200,60,.5)}
+  .toast.lose .res{color:#6d7e9c;text-shadow:none}
+
+  /* below the fold */
+  .below{max-width:1180px;margin:0 auto;padding:60px 26px 90px}
+  .below h2{font-size:13px;letter-spacing:.3em;color:var(--muted);text-transform:uppercase;text-align:center;margin:0 0 8px}
+  .below .lead{text-align:center;font-size:24px;font-weight:800;margin:0 0 40px;
+    background:linear-gradient(90deg,#fff,#bfe9ff);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .cards{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}
+  .card{background:linear-gradient(180deg,rgba(14,26,46,.7),rgba(8,16,30,.7));
+    border:1px solid var(--stroke);border-radius:16px;padding:22px;position:relative;overflow:hidden}
+  .card .n{font-size:11px;font-weight:800;letter-spacing:.2em;color:var(--teal);margin-bottom:10px}
+  .card h3{margin:0 0 8px;font-size:17px}
+  .card p{margin:0;color:#9fb3d4;font-size:13px;line-height:1.6}
+  .card .glow{position:absolute;width:120px;height:120px;border-radius:50%;filter:blur(40px);opacity:.4;top:-40px;right:-40px}
+  @media(max-width:900px){.cards{grid-template-columns:repeat(2,1fr)}}
+  .legend{display:flex;gap:22px;justify-content:center;margin-top:34px;flex-wrap:wrap}
+  .legend span{display:flex;align-items:center;gap:8px;font-size:12px;color:#9fb3d4}
+  .legend i{width:13px;height:13px;border-radius:4px;box-shadow:0 0 10px currentColor}
+  .foot{text-align:center;color:var(--muted);font-size:11px;letter-spacing:.18em;margin-top:46px}
+</style>
+</head>
+<body>
+
+<section class="hero">
+  <div class="topbar">
+    <div class="brand">
+      <div class="logo"></div>
+      <div>
+        <div class="wordmark">RIPTIDE</div>
+        <div class="tag">Territory war · live market</div>
+      </div>
+    </div>
+    <div class="pill">
+      <div><div class="k">Balance</div><div class="v" id="balance">$1,000.00</div></div>
+      <div><div class="k">Pool</div><div class="v" id="pool">$0.00</div></div>
+      <div class="vol"><span class="voldot" id="voldot"></span><div><div class="k">Volatility</div><div class="v" id="volmult">×1.0</div></div></div>
+    </div>
+  </div>
+
+  <div class="stage" id="stage">
+    <canvas id="ink"></canvas>
+    <canvas id="fx"></canvas>
+
+    <div class="timerwrap">
+      <div class="ring">
+        <svg width="78" height="78">
+          <circle cx="39" cy="39" r="33" stroke="rgba(255,255,255,.08)" stroke-width="6" fill="none"/>
+          <circle id="timerArc" cx="39" cy="39" r="33" stroke="url(#tg)" stroke-width="6" fill="none"
+            stroke-linecap="round" stroke-dasharray="207.3" stroke-dashoffset="0"/>
+          <defs><linearGradient id="tg" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#ffd54a"/><stop offset="1" stop-color="#21e6c1"/></linearGradient></defs>
+        </svg>
+        <div class="t"><b id="timerNum">30</b><span id="timerLab">SECONDS</span></div>
+      </div>
+      <div class="phaselab" id="phaseLab">Drop your claim
+        <small id="phaseSub">Drag your gold band to a price level, then ride the tide.</small></div>
+    </div>
+
+    <div class="rail">
+      <h4>Live coverage</h4>
+      <div class="crow">
+        <div class="lab"><span class="nm"><span class="sw" style="background:var(--you);color:var(--you)"></span>You</span><span class="pct" id="pYou">0%</span></div>
+        <div class="bar"><i id="bYou" style="background:linear-gradient(90deg,#ffe28a,#ffae1a)"></i></div>
+      </div>
+      <div class="crow">
+        <div class="lab"><span class="nm"><span class="sw" style="background:var(--teal);color:var(--teal)"></span>Teal tide</span><span class="pct" id="pTeal">0%</span></div>
+        <div class="bar"><i id="bTeal" style="background:linear-gradient(90deg,#8ff5e6,#21e6c1)"></i></div>
+      </div>
+      <div class="crow">
+        <div class="lab"><span class="nm"><span class="sw" style="background:var(--mag);color:var(--mag)"></span>Magenta tide</span><span class="pct" id="pMag">0%</span></div>
+        <div class="bar"><i id="bMag" style="background:linear-gradient(90deg,#ff9cc6,#ff4d9d)"></i></div>
+      </div>
+      <div class="crow" style="margin-bottom:0">
+        <div class="lab"><span class="nm"><span class="sw" style="background:var(--undertow);color:#46618f"></span>Undertow</span><span class="pct" id="pUnd">0%</span></div>
+        <div class="bar"><i id="bUnd" style="background:linear-gradient(90deg,#3a527a,#2a3a55)"></i></div>
+      </div>
+    </div>
+
+    <div class="hint" id="hint">
+      <div class="big">Claim the ocean.</div>
+      <div class="small">Drag the <b style="color:var(--you)">gold band</b> to a price. The market line paints whoever it sweeps. Press <span class="kbd">START TIDE</span>.</div>
+    </div>
+
+    <div class="toast" id="toast"><div class="res" id="toastRes">+$0</div><div class="det" id="toastDet"></div></div>
+  </div>
+
+  <div class="hud">
+    <div class="panel stakebox">
+      <div class="field">
+        <label>Stake</label>
+        <div class="stepper">
+          <button id="stakeDown">−</button>
+          <div class="val" id="stakeVal">$25</div>
+          <button id="stakeUp">+</button>
+        </div>
+      </div>
+      <div class="field">
+        <label>Band height</label>
+        <div class="heightseg" id="heightSeg">
+          <button data-h="0.5">Tight ×2.0</button>
+          <button data-h="1" class="on">Mid ×1.3</button>
+          <button data-h="1.8">Wide ×1.0</button>
+        </div>
+      </div>
+    </div>
+    <div class="panel actbtns">
+      <button class="ability surge" id="surgeBtn" disabled>
+        <span class="ic">🌊</span><span class="nm">SURGE</span><span class="sub">expand 3s</span>
+        <span class="cd" id="surgeCd"></span>
+      </button>
+      <button class="ability pull" id="pullBtn" disabled>
+        <span class="ic">🧲</span><span class="nm">PULL</span><span class="sub">chase price</span>
+        <span class="cd" id="pullCd"></span>
+      </button>
+      <button class="gobtn" id="goBtn">START TIDE</button>
+    </div>
+  </div>
+</section>
+
+<section class="below">
+  <h2>How it plays</h2>
+  <div class="lead">The price line is the brush. Hold the most painted ocean when the tide locks.</div>
+  <div class="cards">
+    <div class="card"><div class="glow" style="background:var(--you)"></div><div class="n">01 · CLAIM</div><h3>Drop your band</h3><p>Drag your gold price-band to where you think the market will live. Tighter band = denser reward but easier to miss; wider = safer, lower multiplier.</p></div>
+    <div class="card"><div class="glow" style="background:var(--teal)"></div><div class="n">02 · PAINT</div><h3>The market inks</h3><p>Every tick, the glowing price comet lays ink in the color of whichever band it's inside. No dice — only real price movement captures territory.</p></div>
+    <div class="card"><div class="glow" style="background:var(--mag)"></div><div class="n">03 · CONTEST</div><h3>Surge & pull</h3><p>Spend a slice of stake to balloon your band for 3s or drag it toward momentum. Rival tides do the same — overlaps shimmer and split.</p></div>
+    <div class="card"><div class="glow" style="background:#ffd54a"></div><div class="n">04 · LOCK</div><h3>Tally the tide</h3><p>The field freezes and every inked pixel is counted. Payout = pool × your coverage share × volatility multiplier. Dominate a wild tide, win big.</p></div>
+  </div>
+  <div class="legend">
+    <span><i style="background:var(--you);color:var(--you)"></i> Your claim</span>
+    <span><i style="background:var(--teal);color:var(--teal)"></i> Teal rival tide</span>
+    <span><i style="background:var(--mag);color:var(--mag)"></i> Magenta rival tide</span>
+    <span><i style="background:var(--undertow);color:#46618f"></i> Undertow (house, uncontested)</span>
+    <span><i style="background:var(--line);color:var(--line)"></i> Live price comet</span>
+  </div>
+  <div class="foot">RIPTIDE · concept prototype · simulated synthetic-index feed · for Deriv</div>
+</section>
+
+<script>
+(()=>{
+'use strict';
+const $=id=>document.getElementById(id);
+const inkC=$('ink'), fxC=$('fx');
+const ictx=inkC.getContext('2d'), fctx=fxC.getContext('2d');
+const stage=$('stage');
+let DPR=Math.min(window.devicePixelRatio||1,2);
+let W=0,H=0;
+
+// ---------- colors ----------
+const COL={
+  you:[255,213,74], teal:[33,230,193], mag:[255,77,157], und:[42,58,85]
+};
+const rgba=(c,a)=>`rgba(${c[0]},${c[1]},${c[2]},${a})`;
+
+// ---------- market simulation ----------
+let price=100, basePrice=100;
+let priceMin=92, priceMax=108;          // visible vertical window
+const histLen=320;
+let hist=[];                            // {p}
+let drift=0, vol=0.16, volMult=1.0;
+function seedHist(){
+  hist=[]; let p=100;
+  for(let i=0;i<histLen;i++){ p+= (Math.random()-0.5)*0.5; hist.push(p); }
+  price=p; basePrice=p;
+}
+function stepPrice(dt){
+  // mean-reverting + momentum + occasional bursts -> lively
+  drift = drift*0.92 + (Math.random()-0.5)*vol*1.4;
+  if(Math.random()<0.012) drift += (Math.random()-0.5)*vol*8; // burst
+  const mr = (basePrice - price)*0.012;
+  price += drift + mr;
+  hist.push(price); if(hist.length>histLen) hist.shift();
+  // adapt window slowly
+  let mn=Infinity,mx=-Infinity;
+  for(const v of hist){ if(v<mn)mn=v; if(v>mx)mx=v; }
+  const pad=(mx-mn)*0.28+1.5;
+  priceMin += ((mn-pad)-priceMin)*0.05;
+  priceMax += ((mx+pad)-priceMax)*0.05;
+}
+const yOf=p=> H - ((p-priceMin)/(priceMax-priceMin))*H;
+const pOf=y=> priceMin + (1 - y/H)*(priceMax-priceMin);
+
+// ---------- claims ----------
+// band: {col, centerP, halfP, surgeT, controller}
+let bands={};
+function makeBands(){
+  bands={
+    you:{key:'you',col:COL.you,centerP:price,halfP:bandHalf(),surge:0,target:null,ai:false},
+    teal:{key:'teal',col:COL.teal,centerP:price+ (Math.random()*6-1),halfP:1.6,surge:0,ai:true,bias:0.6},
+    mag:{key:'mag',col:COL.mag,centerP:price-(Math.random()*6-1),halfP:1.6,surge:0,ai:true,bias:-0.4},
+  };
+}
+function bandHalf(){ // half-height in price units based on height setting
+  return ({'0.5':0.95,'1':1.7,'1.8':3.0})[heightSel]||1.7;
+}
+function heightMult(){ return ({'0.5':2.0,'1':1.3,'1.8':1.0})[heightSel]||1.3; }
+
+// which band currently contains the price? priority: smallest containing (most contested handled separately)
+function controllerAt(p){
+  let inside=[];
+  for(const k in bands){ const b=bands[k];
+    const h=b.halfP*(1+b.surge*1.1);
+    if(p>=b.centerP-h && p<=b.centerP+h) inside.push(b);
+  }
+  if(inside.length===0) return null;        // undertow
+  if(inside.length===1) return inside[0];
+  // contested: whoever surged most recently / strongest wins this tick (shimmer)
+  inside.sort((a,b)=> b.surge - a.surge || (Math.random()-0.5));
+  return inside[0];
+}
+
+// ---------- coverage counting (sampled from ink canvas-ish: track painted counts) ----------
+let counts={you:0,teal:0,mag:0,und:0,total:0};
+
+// ---------- game state ----------
+let phase='idle';   // idle | running | locked
+let stake=25, heightSel='1';
+let balance=1000, pool=0;
+let timeLeft=30, roundLen=30;
+let lastT=0, brushX=0;
+const SURGE_COOL=4.2, PULL_COOL=5.5;
+let surgeReady=0, pullReady=0;
+let dragging=false;
+
+// ---------- resize ----------
+function resize(){
+  const r=stage.getBoundingClientRect();
+  W=Math.max(320,r.width|0); H=Math.max(240,r.height|0);
+  DPR=Math.min(window.devicePixelRatio||1,2);
+  for(const c of [inkC,fxC]){ c.width=W*DPR; c.height=H*DPR; }
+  ictx.setTransform(DPR,0,0,DPR,0,0);
+  fctx.setTransform(DPR,0,0,DPR,0,0);
+  ictx.clearRect(0,0,W,H);
+}
+window.addEventListener('resize',resize);
+
+// ---------- particles ----------
+let parts=[];
+function burst(x,y,c,n,spread,sp){
+  for(let i=0;i<n;i++){ const a=Math.random()*Math.PI*2, v=sp*(0.3+Math.random());
+    parts.push({x,y,vx:Math.cos(a)*v*(0.4+Math.random()),vy:Math.sin(a)*v-spread*Math.random(),
+      life:1,col:c,r:1+Math.random()*2.4}); }
+}
+let rings=[];
+function ring(x,y,c){ rings.push({x,y,r:6,a:0.9,col:c}); }
+
+// ---------- background grid ----------
+function drawGrid(g){
+  g.save();
+  g.globalAlpha=1;
+  // faint horizontal price gridlines
+  g.strokeStyle='rgba(120,160,220,.05)'; g.lineWidth=1;
+  for(let i=0;i<=8;i++){ const y=(H/8)*i; g.beginPath(); g.moveTo(0,y); g.lineTo(W,y); g.stroke(); }
+  g.strokeStyle='rgba(120,160,220,.035)';
+  for(let i=0;i<=12;i++){ const x=(W/12)*i; g.beginPath(); g.moveTo(x,0); g.lineTo(x,H); g.stroke(); }
+  g.restore();
+}
+
+// draw band overlays (translucent zones) onto fx
+function drawBands(g){
+  for(const k in bands){ const b=bands[k];
+    const h=b.halfP*(1+b.surge*1.1);
+    const y1=yOf(b.centerP+h), y2=yOf(b.centerP-h);
+    const top=Math.min(y1,y2), hh=Math.abs(y2-y1);
+    const a=b.key==='you'?0.12:0.07;
+    const grd=g.createLinearGradient(0,top,0,top+hh);
+    grd.addColorStop(0,rgba(b.col,0.015));
+    grd.addColorStop(0.5,rgba(b.col,a+b.surge*0.16));
+    grd.addColorStop(1,rgba(b.col,0.015));
+    g.fillStyle=grd; g.fillRect(0,top,W,hh);
+    // glowing edges
+    g.save();
+    g.shadowColor=rgba(b.col,0.8); g.shadowBlur=b.key==='you'?14:7;
+    g.strokeStyle=rgba(b.col,0.75+b.surge*0.25); g.lineWidth=b.key==='you'?2.4:1.4;
+    g.setLineDash(b.key==='you'?[]:[7,7]);
+    g.beginPath(); g.moveTo(0,top); g.lineTo(W,top); g.stroke();
+    g.beginPath(); g.moveTo(0,top+hh); g.lineTo(W,top+hh); g.stroke();
+    g.restore();
+    g.setLineDash([]);
+    // label tag on right edge for the band center
+    if(b.key==='you'){
+      const cy=yOf(b.centerP);
+      g.fillStyle=rgba(b.col,0.9);
+      g.beginPath(); g.moveTo(W-2,cy); g.lineTo(W-14,cy-7); g.lineTo(W-14,cy+7); g.closePath(); g.fill();
+    }
+  }
+}
+
+// ---------- ink painting (analytical column-ownership model) ----------
+// The field is a ring of COLS columns spanning the visible width. As the tide
+// runs, every frame we record the current price column's owner + price. The
+// ink canvas is repainted from this log so visuals and the coverage tally are
+// always the SAME data — no fragile pixel reads, focus-independent.
+const COLS=200;
+let col=[];               // each: {owner:'you'|'teal'|'mag'|'und', p, surge}
+function resetField(){ col=new Array(COLS).fill(null); }
+resetField();
+let scrollAcc=0;          // sub-column scroll accumulator
+
+// push a new column at the right edge (advance the field)
+function advanceField(owner,p,surgeStrength){
+  col.shift();
+  col.push({owner,p,surge:surgeStrength});
+}
+
+// render accumulated ink from the column log onto the ink canvas.
+// Each painted column fills DOWNWARD/UPWARD from the price toward the owning
+// band's far edge, so captured territory reads as bold columns of light.
+function renderInk(){
+  ictx.clearRect(0,0,W,H);
+  const cw=W/COLS;
+  ictx.globalCompositeOperation='lighter';
+  for(let i=0;i<COLS;i++){
+    const c=col[i]; if(!c||c.owner==='und') continue;
+    const x=i*cw, y=yOf(c.p);
+    const colr = c.owner==='you'?COL.you : c.owner==='teal'?COL.teal : COL.mag;
+    const sUp = (c.surge||0);
+    // tall vivid bloom centered on the price path — the captured column
+    const h=34+sUp*26;
+    const g=ictx.createLinearGradient(0,y-h,0,y+h);
+    g.addColorStop(0,rgba(colr,0));
+    g.addColorStop(0.5,rgba(colr,0.5+sUp*0.3));
+    g.addColorStop(1,rgba(colr,0));
+    ictx.fillStyle=g;
+    ictx.fillRect(x-cw*0.5,y-h,cw*2,h*2);
+    // bright saturated core along the path
+    ictx.fillStyle=rgba(colr,0.85);
+    ictx.fillRect(x-cw*0.3,y-2.6,cw*1.6,5.2);
+  }
+  ictx.globalCompositeOperation='source-over';
+}
+
+// coverage tally straight from the log
+function tally(){
+  let c={you:0,teal:0,mag:0,und:0,total:0};
+  for(let i=0;i<COLS;i++){ const k=col[i]?col[i].owner:'und'; c[k]++; c.total++; }
+  counts=c; updateRail();
+}
+function pctOf(k){ return counts.total? counts[k]/counts.total:0; }
+function updateRail(){
+  const y=pctOf('you'),t=pctOf('teal'),m=pctOf('mag'),u=pctOf('und');
+  // normalize displayed among inked (exclude pure undertow for the headline share, but show undertow too)
+  $('pYou').textContent=Math.round(y*100)+'%';
+  $('pTeal').textContent=Math.round(t*100)+'%';
+  $('pMag').textContent=Math.round(m*100)+'%';
+  $('pUnd').textContent=Math.round(u*100)+'%';
+  $('bYou').style.width=(y*100)+'%';
+  $('bTeal').style.width=(t*100)+'%';
+  $('bMag').style.width=(m*100)+'%';
+  $('bUnd').style.width=(u*100)+'%';
+}
+
+// ---------- AI rivals behavior ----------
+function aiTick(dt){
+  for(const k in bands){ const b=bands[k]; if(!b.ai) continue;
+    // drift their center toward (price + bias*momentum), with some lag and noise
+    const mom=(hist[hist.length-1]-hist[hist.length-12||0])||0;
+    const want=price + (b.bias)*Math.sign(mom)*Math.min(3,Math.abs(mom)*0.5) + Math.sin(performance.now()/900+b.centerP)*0.4;
+    b.centerP += (want-b.centerP)*0.04*dt*60/16;
+    // occasionally surge (ring at the live edge, not screen center)
+    b.surge=Math.max(0,b.surge-dt*0.6);
+    if(Math.random()<0.006 && b.surge<0.1){ b.surge=1; ring(W-6,yOf(b.centerP),b.col); }
+  }
+}
+
+// ---------- main loop ----------
+function frame(t){
+  if(!lastT) lastT=t;
+  // cap higher so a throttled (backgrounded) frame still advances and catches up
+  let dt=(t-lastT)/1000; if(dt>0.4)dt=0.4; lastT=t;
+
+  // dynamic volatility wobble
+  vol += (Math.random()-0.5)*0.004; vol=Math.max(0.08,Math.min(0.42,vol));
+  volMult = 0.8 + (vol-0.08)/0.34*1.9;
+  $('volmult').textContent='×'+volMult.toFixed(1);
+  const vd=$('voldot');
+  if(vol>0.28){ vd.style.background='#ff4d9d'; vd.style.boxShadow='0 0 10px #ff4d9d'; }
+  else if(vol>0.18){ vd.style.background='#ffd54a'; vd.style.boxShadow='0 0 10px #ffd54a'; }
+  else { vd.style.background='#21e6c1'; vd.style.boxShadow='0 0 10px #21e6c1'; }
+
+  if(phase==='running'){
+    timeLeft-=dt; if(timeLeft<=0){ timeLeft=0; lockTide(); }
+    // advance market (multiple sub-steps so the field fills even at low fps)
+    const steps=Math.max(1,Math.round(dt/0.018));
+    for(let s=0;s<steps;s++){
+      stepPrice(0.018);
+      aiTick(0.018);
+      bands.you.surge=Math.max(0,bands.you.surge-0.018*0.4);
+      // advance the field one column with current owner
+      const ctrl=controllerAt(price);
+      const owner=ctrl?ctrl.key:'und';
+      advanceField(owner, price, ctrl?ctrl.surge:0);
+    }
+    brushX=W-3;
+    // cooldowns
+    surgeReady=Math.min(1,surgeReady+dt/SURGE_COOL);
+    pullReady=Math.min(1,pullReady+dt/PULL_COOL);
+    $('surgeCd').style.width=(surgeReady*100)+'%';
+    $('pullCd').style.width=(pullReady*100)+'%';
+    $('surgeBtn').disabled = surgeReady<1;
+    $('pullBtn').disabled = pullReady<1;
+    // timer ui
+    $('timerNum').textContent=Math.ceil(timeLeft);
+    const arc=$('timerArc'); const C=2*Math.PI*33;
+    arc.style.strokeDashoffset = C*(1-timeLeft/roundLen);
+    renderInk();
+    tally();
+  } else if(phase==='idle'){
+    // ATTRACT MODE: a live demo tide so the hero shows the core mechanic at rest
+    const steps=Math.max(1,Math.round(dt/0.02));
+    for(let s=0;s<steps;s++){
+      stepPrice(0.02);
+      aiTick(0.02);
+      // in attract mode, let the gold band lazily follow price (unless user is dragging)
+      if(!dragging){ bands.you.centerP += (price-bands.you.centerP)*0.02; userCenter=bands.you.centerP; }
+      bands.you.surge=Math.max(0,bands.you.surge-0.02*0.4);
+      const ctrl=controllerAt(price);
+      advanceField(ctrl?ctrl.key:'und', price, ctrl?ctrl.surge:0);
+    }
+    renderInk();
+    tally();
+  } else if(phase==='locked'){
+    // keep field frozen, light ambient shimmer only
+    renderInk();
+  }
+
+  render();
+  requestAnimationFrame(frame);
+}
+
+function drawPriceLine(g){
+  g.save();
+  // glow line
+  const n=hist.length;
+  const stepx=W/(histLen-1);
+  g.lineJoin='round'; g.lineCap='round';
+  // wake (under line) subtle
+  for(let pass=0;pass<2;pass++){
+    g.beginPath();
+    for(let i=0;i<n;i++){ const x=W-(n-1-i)*stepx; const y=yOf(hist[i]);
+      if(i===0)g.moveTo(x,y); else g.lineTo(x,y); }
+    if(pass===0){ g.strokeStyle='rgba(191,233,255,.18)'; g.lineWidth=9; g.shadowColor='rgba(120,200,255,.9)'; g.shadowBlur=22; }
+    else { g.strokeStyle='rgba(230,245,255,.95)'; g.lineWidth=2.2; g.shadowColor='rgba(160,220,255,.9)'; g.shadowBlur=12; }
+    g.stroke();
+  }
+  g.shadowBlur=0;
+  // comet head
+  const hx=W-3, hy=yOf(hist[n-1]);
+  const ctrl=(phase==='running')?controllerAt(price):null;
+  const cc=ctrl?ctrl.col:[200,230,255];
+  const hg=g.createRadialGradient(hx,hy,0,hx,hy,18);
+  hg.addColorStop(0,'rgba(255,255,255,.95)');
+  hg.addColorStop(0.3,rgba(cc,0.85));
+  hg.addColorStop(1,rgba(cc,0));
+  g.fillStyle=hg; g.beginPath(); g.arc(hx,hy,18,0,7); g.fill();
+  g.fillStyle='#fff'; g.beginPath(); g.arc(hx,hy,3.2,0,7); g.fill();
+  g.restore();
+
+  // price tag
+  g.save();
+  g.font='700 12px Inter,system-ui,sans-serif';
+  const lab=price.toFixed(2);
+  const tw=g.measureText(lab).width+16;
+  g.fillStyle=rgba(cc,0.18); g.strokeStyle=rgba(cc,0.7); g.lineWidth=1;
+  const ty=Math.max(10,Math.min(H-22,hy-10));
+  roundRect(g,hx-tw-8,ty,tw,20,5); g.fill(); g.stroke();
+  g.fillStyle='#eaf4ff'; g.fillText(lab,hx-tw-2,ty+14);
+  g.restore();
+}
+function roundRect(g,x,y,w,h,r){ g.beginPath();
+  g.moveTo(x+r,y); g.arcTo(x+w,y,x+w,y+h,r); g.arcTo(x+w,y+h,x,y+h,r);
+  g.arcTo(x,y+h,x,y,r); g.arcTo(x,y,x+w,y,r); g.closePath(); }
+
+function render(){
+  // fx layer
+  fctx.clearRect(0,0,W,H);
+  drawGrid(fctx);
+  // ink canvas already persistent; draw a slight bloom of it is implicit
+  drawBands(fctx);
+  drawPriceLine(fctx);
+
+  // rings
+  for(let i=rings.length-1;i>=0;i--){ const r=rings[i];
+    r.r+=4; r.a*=0.93;
+    fctx.strokeStyle=rgba(r.col,r.a); fctx.lineWidth=2;
+    fctx.beginPath(); fctx.arc(r.x,r.y,r.r,0,7); fctx.stroke();
+    if(r.a<0.04) rings.splice(i,1);
+  }
+  // particles
+  for(let i=parts.length-1;i>=0;i--){ const p=parts[i];
+    p.vy+=0.18; p.x+=p.vx; p.y+=p.vy; p.life-=0.02;
+    fctx.globalAlpha=Math.max(0,p.life); fctx.fillStyle=rgba(p.col,1);
+    fctx.shadowColor=rgba(p.col,1); fctx.shadowBlur=8;
+    fctx.beginPath(); fctx.arc(p.x,p.y,p.r,0,7); fctx.fill();
+    if(p.life<=0) parts.splice(i,1);
+  }
+  fctx.globalAlpha=1; fctx.shadowBlur=0;
+}
+
+// ---------- round control ----------
+function startTide(){
+  if(phase==='running') return;
+  if(stake>balance) return;
+  balance-=stake; pool=stake*1.0; // rivals contribute simulated
+  pool += stake*1.7; // rival contributions to make pool juicy
+  $('balance').textContent='$'+balance.toFixed(2);
+  $('pool').textContent='$'+pool.toFixed(2);
+  ictx.clearRect(0,0,W,H);
+  resetField();
+  counts={you:0,teal:0,mag:0,und:0,total:0}; updateRail();
+  makeBands();
+  // your band keeps current center from last drag, default to price
+  if(userCenter==null) bands.you.centerP=price; else bands.you.centerP=userCenter;
+  bands.you.halfP=bandHalf();
+  phase='running'; timeLeft=roundLen; surgeReady=0.4; pullReady=0.4;
+  parts=[];rings=[];
+  $('hint').style.opacity='0';
+  $('goBtn').disabled=true; $('goBtn').textContent='TIDE RUNNING';
+  $('phaseLab').childNodes[0].nodeValue='Riding the tide ';
+  $('phaseSub').textContent='Surge to expand · Pull to chase momentum · hold the most ink.';
+  $('timerLab').textContent='SECONDS';
+}
+function lockTide(){
+  phase='locked';
+  $('goBtn').disabled=false; $('goBtn').textContent='NEXT TIDE';
+  $('phaseLab').childNodes[0].nodeValue='Tide locked ';
+  $('phaseSub').textContent='Field frozen — coverage tallied.';
+  $('surgeBtn').disabled=true; $('pullBtn').disabled=true;
+  tally();
+  const share=pctOf('you');
+  // payout: pool * share * volMult (share among inked only -> exclude undertow from denom for fairness)
+  const inked=Math.max(0.0001,1-pctOf('und'));
+  const youShare=pctOf('you')/inked;
+  const win = pool * youShare * (0.6+volMult*0.5);
+  const net = win - stake;
+  balance += win;
+  $('balance').textContent='$'+balance.toFixed(2);
+  // toast
+  const toast=$('toast'), res=$('toastRes'), det=$('toastDet');
+  if(win>=stake){ toast.className='toast win show'; res.textContent='+$'+(win-0).toFixed(0);
+    det.textContent=`You held ${Math.round(youShare*100)}% of the tide · ×${(0.6+volMult*0.5).toFixed(2)} vol`;
+    // celebratory burst over field
+    for(let i=0;i<6;i++) setTimeout(()=>burst(W*(0.2+Math.random()*0.6),H*0.4,COL.you,40,5,7),i*70);
+    ring(W/2,H/2,COL.you);
+  } else { toast.className='toast lose show'; res.textContent=(net>=0?'+':'')+'$'+net.toFixed(0);
+    det.textContent=`Only ${Math.round(youShare*100)}% painted gold · the tide turned`;
+  }
+  setTimeout(()=>{ toast.classList.remove('show'); },2600);
+  $('timerNum').textContent='0';
+}
+
+// ---------- abilities ----------
+function doSurge(){ if(phase!=='running'||surgeReady<1) return;
+  surgeReady=0; bands.you.surge=1;
+  const cost=stake*0.06; balance-=cost; $('balance').textContent='$'+balance.toFixed(2);
+  pool+=cost; $('pool').textContent='$'+pool.toFixed(2);
+  ring(brushX||W*0.7,yOf(bands.you.centerP),COL.you);
+  burst(W-20,yOf(bands.you.centerP),COL.you,22,4,5);
+}
+function doPull(){ if(phase!=='running'||pullReady<1) return;
+  pullReady=0;
+  const cost=stake*0.05; balance-=cost; $('balance').textContent='$'+balance.toFixed(2);
+  pool+=cost; $('pool').textContent='$'+pool.toFixed(2);
+  // snap your band center toward price + momentum
+  const mom=(hist[hist.length-1]-hist[hist.length-14||0])||0;
+  bands.you.centerP = price + Math.sign(mom)*Math.min(2.4,Math.abs(mom)*0.6);
+  userCenter=bands.you.centerP;
+  ring(W*0.7,yOf(bands.you.centerP),COL.mag);
+}
+
+// ---------- input: drag your band ----------
+let userCenter=null;
+function evY(e){ const r=stage.getBoundingClientRect();
+  const cy=(e.touches?e.touches[0].clientY:e.clientY)-r.top; return cy; }
+function nearYouBand(y){ const cy=yOf(bands.you?bands.you.centerP:price);
+  return Math.abs(y-cy) < Math.max(40, (bands.you?yOf(bands.you.centerP-bands.you.halfP)-yOf(bands.you.centerP+bands.you.halfP):60)/1.2); }
+function startDrag(e){
+  if(!bands.you){ makeBands(); if(userCenter!=null)bands.you.centerP=userCenter; }
+  const y=evY(e);
+  dragging=true; setBandY(y); e.preventDefault();
+}
+function moveDrag(e){ if(!dragging) return; setBandY(evY(e)); e.preventDefault(); }
+function setBandY(y){ if(!bands.you) return;
+  const p=pOf(Math.max(8,Math.min(H-8,y)));
+  bands.you.centerP=p; userCenter=p;
+}
+function endDrag(){ dragging=false; }
+stage.addEventListener('mousedown',startDrag);
+window.addEventListener('mousemove',moveDrag);
+window.addEventListener('mouseup',endDrag);
+stage.addEventListener('touchstart',startDrag,{passive:false});
+stage.addEventListener('touchmove',moveDrag,{passive:false});
+window.addEventListener('touchend',endDrag);
+
+// ---------- controls ----------
+$('goBtn').addEventListener('click',()=>{ if(phase==='running')return; startTide(); });
+$('surgeBtn').addEventListener('click',doSurge);
+$('pullBtn').addEventListener('click',doPull);
+window.addEventListener('keydown',e=>{
+  if(e.code==='Space'){ e.preventDefault(); if(phase!=='running')startTide(); }
+  if(e.key==='q'||e.key==='Q') doSurge();
+  if(e.key==='e'||e.key==='E') doPull();
+});
+$('stakeUp').addEventListener('click',()=>{ stake=Math.min(500,stake+25); $('stakeVal').textContent='$'+stake; });
+$('stakeDown').addEventListener('click',()=>{ stake=Math.max(25,stake-25); $('stakeVal').textContent='$'+stake; });
+document.querySelectorAll('#heightSeg button').forEach(b=>{
+  b.addEventListener('click',()=>{ document.querySelectorAll('#heightSeg button').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on'); heightSel=b.dataset.h;
+    if(bands.you){ bands.you.halfP=bandHalf(); } });
+});
+
+// ---------- boot ----------
+function prefillField(){
+  // simulate a few seconds so the hero shows a painted territory field at rest
+  resetField();
+  for(let s=0;s<COLS+40;s++){
+    stepPrice(0.02);
+    aiTick(0.02);
+    if(!dragging){ bands.you.centerP += (price-bands.you.centerP)*0.02; userCenter=bands.you.centerP; }
+    bands.you.surge=Math.max(0,bands.you.surge-0.02*0.4);
+    const ctrl=controllerAt(price);
+    advanceField(ctrl?ctrl.key:'und', price, ctrl?ctrl.surge:0);
+  }
+  rings=[]; parts=[]; // don't carry attract-mode fx artifacts into first frame
+}
+function boot(){
+  resize(); seedHist(); makeBands(); userCenter=price; bands.you.centerP=price;
+  prefillField(); renderInk(); tally();
+  requestAnimationFrame(frame);
+}
+boot();
+// re-measure after layout settle
+setTimeout(resize,120); setTimeout(resize,500);
+})();
+</script>
+</body>
+</html>
