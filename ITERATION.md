@@ -108,3 +108,13 @@ or edit any other file.
   --window-size=1280,800 http://127.0.0.1:<port>/design.html`. A design judged from code alone
   (no screenshot) risks a Visual-gate rejection it might not deserve — give the judge a real
   1280×800 render.
+- **DE-SKIN YOUR SETTLEMENT, not just your theme.** The newest failure mode: a novel *decision*
+  and a clever market-feature mapping hiding a *settlement* that is a saturated game. Write your
+  PAYOUT FUNCTION with every market/theme word stripped (suits→"4 categories", ranks→"1–13",
+  regimes→"labels", "rotors/combo"→"a streak that resets on a miss"), then check the bare scoring
+  rule. If it reduces to poker hand-ranking (flush/straight/straight-flush), a peak-combo streak
+  (already = PULSEPOINT), a rising-multiplier cash-out (Crash), or any kept core's settlement,
+  it FAILS originality — no matter how intrinsic the price mapping or how fresh the decision.
+  A novel decision is necessary but NOT sufficient; the SETTLEMENT must also survive de-skinning.
+  (Recent rejects: a card game whose scoring de-skinned to poker; a pinball game whose peak-combo
+  payout de-skinned to PULSEPOINT's combo.)
