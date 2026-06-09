@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OVERTONE — tune your tone to the market's hum</title>
+<style>
+  :root{
+    --bg0:#05070d; --bg1:#0a0f1c; --panel:rgba(16,23,40,.72);
+    --cyan:#33e6ff; --cyan-dim:#1c7e92;
+    --amber:#ffb347; --amber-dim:#a86a1f;
+    --hot:#fff6e8; --good:#39ffb0; --bad:#ff5a6e;
+    --ink:#dbe6ff; --ink-dim:#7e8db5; --line:rgba(120,150,210,.14);
+    --glow-c:0 0 18px rgba(51,230,255,.55);
+    --glow-a:0 0 18px rgba(255,179,71,.55);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--bg0);color:var(--ink);
+    font-family:'Segoe UI',Inter,system-ui,Arial,sans-serif;overflow:hidden;
+    -webkit-font-smoothing:antialiased}
+  #stage{position:relative;width:100vw;height:100vh;min-height:800px;
+    background:
+      radial-gradient(1200px 700px at 70% -10%, rgba(51,230,255,.10), transparent 60%),
+      radial-gradient(900px 600px at 12% 110%, rgba(255,179,71,.08), transparent 55%),
+      linear-gradient(180deg,var(--bg1),var(--bg0));
+    overflow:hidden}
+  /* subtle grid */
+  #stage::before{content:"";position:absolute;inset:0;pointer-events:none;
+    background-image:linear-gradient(rgba(120,150,210,.05) 1px,transparent 1px),
+                     linear-gradient(90deg,rgba(120,150,210,.05) 1px,transparent 1px);
+    background-size:46px 46px;mask:linear-gradient(180deg,transparent,#000 18%,#000 82%,transparent)}
+
+  /* ---------- HERO (above the fold) ---------- */
+  .hero{position:absolute;inset:0;display:grid;
+    grid-template-columns: 252px 1fr 264px;
+    grid-template-rows: 64px 1fr 118px;
+    gap:14px;padding:16px 20px 16px 20px}
+
+  /* top bar */
+  .topbar{grid-column:1/4;grid-row:1;display:flex;align-items:center;gap:18px}
+  .brand{display:flex;align-items:baseline;gap:12px}
+  .logo{font-weight:800;letter-spacing:.32em;font-size:23px;
+    background:linear-gradient(90deg,var(--cyan),var(--hot) 55%,var(--amber));
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    filter:drop-shadow(0 0 14px rgba(120,210,255,.35))}
+  .tag{font-size:11.5px;color:var(--ink-dim);letter-spacing:.16em;text-transform:uppercase}
+  .market{margin-left:auto;display:flex;align-items:center;gap:16px;font-size:12px}
+  .mk{display:flex;flex-direction:column;line-height:1.25}
+  .mk b{color:var(--ink);font-size:14px;font-variant-numeric:tabular-nums}
+  .mk span{color:var(--ink-dim);font-size:10px;letter-spacing:.12em;text-transform:uppercase}
+  .pill{padding:5px 11px;border-radius:999px;border:1px solid var(--line);
+    background:rgba(10,16,30,.6);font-size:11px;letter-spacing:.08em}
+  .pill .dot{display:inline-block;width:7px;height:7px;border-radius:50%;
+    background:var(--good);box-shadow:0 0 10px var(--good);margin-right:6px;
+    animation:liveblink 1.6s infinite}
+  @keyframes liveblink{50%{opacity:.35}}
+
+  /* left rail: dials */
+  .rail{grid-column:1;grid-row:2;display:flex;flex-direction:column;gap:12px;min-height:0}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:16px;
+    backdrop-filter:blur(8px);box-shadow:0 10px 40px rgba(0,0,0,.45) inset 0 1px 0 rgba(255,255,255,.03)}
+  .rail .panel{padding:13px 14px}
+  .ph{font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-dim);margin-bottom:9px}
+  .dial{margin-bottom:13px}
+  .dial:last-child{margin-bottom:2px}
+  .dial-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:7px}
+  .dial-name{font-size:12px;letter-spacing:.14em;color:var(--ink);font-weight:600}
+  .dial-val{font-size:12px;font-variant-numeric:tabular-nums;color:var(--amber);font-weight:700}
+  .track{position:relative;height:30px;display:flex;align-items:center;gap:8px}
+  .nudge{width:26px;height:26px;border-radius:8px;border:1px solid var(--line);
+    background:rgba(255,179,71,.08);color:var(--amber);font-size:14px;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;user-select:none;transition:.12s}
+  .nudge:hover{background:rgba(255,179,71,.2);box-shadow:var(--glow-a)}
+  .nudge:active{transform:scale(.9)}
+  .slot{position:relative;flex:1;height:8px;border-radius:8px;
+    background:linear-gradient(90deg,rgba(255,179,71,.1),rgba(255,179,71,.25));
+    border:1px solid rgba(255,179,71,.25);cursor:pointer}
+  .slot .target{position:absolute;top:-4px;height:16px;width:2px;background:var(--cyan);
+    box-shadow:var(--glow-c);transform:translateX(-1px);transition:left .25s ease}
+  .slot .knob{position:absolute;top:50%;width:16px;height:16px;border-radius:50%;
+    background:var(--amber);box-shadow:var(--glow-a);transform:translate(-50%,-50%);
+    border:2px solid #1a1205}
+  .hint{font-size:10px;color:var(--ink-dim);margin-top:10px;line-height:1.5}
+
+  /* center scope */
+  .scopewrap{grid-column:2;grid-row:2;position:relative;border-radius:18px;overflow:hidden;
+    border:1px solid var(--line);background:rgba(6,10,20,.5)}
+  #scope{position:absolute;inset:0;width:100%;height:100%;display:block}
+  .scope-label{position:absolute;top:12px;left:16px;font-size:10.5px;letter-spacing:.2em;
+    text-transform:uppercase;color:var(--ink-dim);pointer-events:none}
+  .legend{position:absolute;top:12px;right:16px;display:flex;gap:14px;font-size:11px;pointer-events:none}
+  .legend i{display:inline-block;width:18px;height:3px;border-radius:2px;vertical-align:middle;margin-right:6px}
+  .lock-banner{position:absolute;left:50%;top:14px;transform:translateX(-50%);
+    font-size:12px;letter-spacing:.34em;text-transform:uppercase;font-weight:700;
+    padding:6px 16px;border-radius:999px;opacity:0;transition:.25s;pointer-events:none}
+  .lock-on{opacity:1;color:var(--hot);background:rgba(255,246,232,.06);
+    border:1px solid rgba(255,246,232,.35);box-shadow:0 0 24px rgba(255,225,170,.35)}
+  .lissa{position:absolute;right:16px;bottom:16px;width:108px;height:108px;
+    border-radius:50%;border:1px solid var(--line);background:rgba(5,9,18,.6)}
+
+  /* right rail: payout + meters */
+  .side{grid-column:3;grid-row:2;display:flex;flex-direction:column;gap:12px;min-height:0}
+  .qbox{padding:16px 16px 14px;text-align:center;position:relative;overflow:hidden}
+  .qbox .ph{margin-bottom:4px}
+  .qval{font-size:52px;font-weight:800;line-height:1;font-variant-numeric:tabular-nums;
+    background:linear-gradient(180deg,var(--hot),var(--amber));
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    filter:drop-shadow(0 0 16px rgba(255,190,120,.4))}
+  .qsub{font-size:11px;color:var(--ink-dim);margin-top:4px;letter-spacing:.1em}
+  .payout{font-size:15px;margin-top:9px;color:var(--good);font-weight:700;font-variant-numeric:tabular-nums}
+  .meter{padding:13px 14px}
+  .meter .ph{margin-bottom:8px}
+  .bar{position:relative;height:12px;border-radius:8px;background:rgba(8,13,26,.8);
+    border:1px solid var(--line);overflow:hidden}
+  .bar .fill{position:absolute;left:0;top:0;bottom:0;width:0%;border-radius:8px;
+    background:linear-gradient(90deg,var(--bad),var(--amber) 50%,var(--good));transition:width .12s}
+  .bar .thr{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--hot);opacity:.7}
+  .mrow{display:flex;justify-content:space-between;font-size:10px;color:var(--ink-dim);margin-top:6px;letter-spacing:.08em}
+  .bands{display:flex;gap:4px;margin-top:11px;height:30px;align-items:flex-end}
+  .bands span{flex:1;background:linear-gradient(180deg,var(--cyan),var(--cyan-dim));
+    border-radius:3px 3px 0 0;height:30%;opacity:.85;transition:height .1s}
+
+  /* bottom controls */
+  .controls{grid-column:1/4;grid-row:3;display:none}
+  .actionbar{grid-column:2;grid-row:3;display:flex;align-items:center;gap:14px;padding:0 2px}
+  .stakebox{display:flex;flex-direction:column;gap:5px}
+  .stakebox .ph{margin:0}
+  .stakerow{display:flex;align-items:center;gap:8px}
+  .stk{width:34px;height:30px;border-radius:8px;border:1px solid var(--line);
+    background:rgba(255,255,255,.03);color:var(--ink);cursor:pointer;font-weight:700;font-size:13px}
+  .stk:hover{border-color:var(--amber)}
+  .stkval{font-size:20px;font-weight:800;font-variant-numeric:tabular-nums;min-width:64px;text-align:center}
+  .stkval small{font-size:12px;color:var(--ink-dim);font-weight:600}
+  .btn{flex:1;height:64px;border-radius:14px;border:none;cursor:pointer;font-weight:800;
+    letter-spacing:.16em;text-transform:uppercase;font-size:16px;transition:.15s;position:relative;overflow:hidden}
+  .btn-release{background:linear-gradient(180deg,#ffd27a,var(--amber));color:#241500;
+    box-shadow:0 8px 30px rgba(255,179,71,.4)}
+  .btn-release:hover{transform:translateY(-2px);box-shadow:0 12px 40px rgba(255,179,71,.55)}
+  .btn-release:active{transform:translateY(0)}
+  .btn-release:disabled{opacity:.4;cursor:default;transform:none;box-shadow:none;filter:grayscale(.4)}
+  .btn-tune{flex:0 0 168px;background:linear-gradient(180deg,#2aa7c4,#137d96);color:#02181d;
+    box-shadow:0 8px 30px rgba(51,230,255,.32)}
+  .btn-tune:hover{transform:translateY(-2px)}
+  .status{grid-column:1;grid-row:3;display:flex;flex-direction:column;justify-content:center;
+    padding:0 4px;font-size:11px;color:var(--ink-dim);line-height:1.6}
+  .status b{color:var(--ink)}
+  .roundnote{grid-column:3;grid-row:3;display:flex;flex-direction:column;justify-content:center;
+    text-align:right;font-size:11px;color:var(--ink-dim);line-height:1.5}
+  .roundnote b{color:var(--good);font-size:14px}
+
+  /* toast / overlay flash */
+  #flash{position:absolute;inset:0;pointer-events:none;opacity:0;mix-blend-mode:screen}
+  #toast{position:absolute;left:50%;top:42%;transform:translate(-50%,-50%) scale(.9);
+    text-align:center;pointer-events:none;opacity:0;transition:.3s;z-index:6}
+  #toast .big{font-size:46px;font-weight:800;letter-spacing:.04em}
+  #toast .small{font-size:15px;letter-spacing:.2em;text-transform:uppercase;margin-top:6px;color:var(--ink-dim)}
+
+  /* scroll-below explainer */
+  .below{position:relative;padding:34px 7vw 60px;background:linear-gradient(180deg,var(--bg0),#03050a)}
+  .below h2{font-size:13px;letter-spacing:.28em;text-transform:uppercase;color:var(--cyan);margin:0 0 18px}
+  .steps{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}
+  .step{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px}
+  .step .n{font-size:11px;color:var(--amber);letter-spacing:.2em;font-weight:700}
+  .step h3{margin:8px 0 7px;font-size:15px;color:var(--ink)}
+  .step p{margin:0;font-size:12.5px;color:var(--ink-dim);line-height:1.6}
+</style>
+</head>
+<body>
+<div id="stage">
+  <div class="hero">
+    <!-- TOP -->
+    <div class="topbar">
+      <div class="brand">
+        <div class="logo">OVERTONE</div>
+        <div class="tag">tune your tone to the market's hum</div>
+      </div>
+      <div class="market">
+        <div class="pill"><span class="dot"></span>LIVE · Volatility 100</div>
+        <div class="mk"><b id="mPx">—</b><span>Spot</span></div>
+        <div class="mk"><b id="mFreq">—</b><span>Mkt Pitch</span></div>
+        <div class="mk"><b id="mAmp">—</b><span>Mkt Amp</span></div>
+      </div>
+    </div>
+
+    <!-- LEFT: DIALS -->
+    <div class="rail">
+      <div class="panel" style="flex:1;display:flex;flex-direction:column">
+        <div class="ph">Your tuning fork</div>
+        <div class="dial">
+          <div class="dial-head"><span class="dial-name">FREQ</span><span class="dial-val" id="vFreq">—</span></div>
+          <div class="track">
+            <div class="nudge" data-d="freq" data-s="-1">◀</div>
+            <div class="slot" id="slotFreq"><div class="target"></div><div class="knob"></div></div>
+            <div class="nudge" data-d="freq" data-s="1">▶</div>
+          </div>
+        </div>
+        <div class="dial">
+          <div class="dial-head"><span class="dial-name">PHASE</span><span class="dial-val" id="vPhase">—</span></div>
+          <div class="track">
+            <div class="nudge" data-d="phase" data-s="-1">◀</div>
+            <div class="slot" id="slotPhase"><div class="target"></div><div class="knob"></div></div>
+            <div class="nudge" data-d="phase" data-s="1">▶</div>
+          </div>
+        </div>
+        <div class="dial">
+          <div class="dial-head"><span class="dial-name">GAIN</span><span class="dial-val" id="vGain">—</span></div>
+          <div class="track">
+            <div class="nudge" data-d="gain" data-s="-1">◀</div>
+            <div class="slot" id="slotGain"><div class="target"></div><div class="knob"></div></div>
+            <div class="nudge" data-d="gain" data-s="1">▶</div>
+          </div>
+        </div>
+        <div class="hint">Drag a dial or use <b>← →</b> (FREQ), <b>A D</b> (PHASE), <b>W S</b> (GAIN).
+        The cyan tick is where the market currently sits — chase it as it drifts.</div>
+      </div>
+    </div>
+
+    <!-- CENTER: OSCILLOSCOPE -->
+    <div class="scopewrap">
+      <canvas id="scope"></canvas>
+      <div class="scope-label">Resonance Scope · de-trended price wave</div>
+      <div class="legend">
+        <span><i style="background:var(--cyan)"></i>Market</span>
+        <span><i style="background:var(--amber)"></i>You</span>
+      </div>
+      <div class="lock-banner" id="lockBanner">◆ IN RESONANCE ◆</div>
+      <canvas class="lissa" id="lissa" width="108" height="108"></canvas>
+    </div>
+
+    <!-- RIGHT: PAYOUT + METERS -->
+    <div class="side">
+      <div class="panel qbox">
+        <div class="ph">Resonance Q</div>
+        <div class="qval" id="qVal">1.00<span style="font-size:24px">×</span></div>
+        <div class="qsub" id="qState">find the lock to build Q</div>
+        <div class="payout" id="payout">Live payout $10.00</div>
+      </div>
+      <div class="panel meter">
+        <div class="ph">Phase coherence</div>
+        <div class="bar"><div class="fill" id="cohFill"></div><div class="thr" id="cohThr"></div></div>
+        <div class="mrow"><span>dropout</span><span>LOCK ▸</span><span>fused</span></div>
+      </div>
+      <div class="panel meter" style="flex:1">
+        <div class="ph">Harmonic spectrum</div>
+        <div class="bands" id="bands">
+          <span></span><span></span><span></span><span></span><span></span>
+          <span></span><span></span><span></span><span></span><span></span>
+          <span></span><span></span><span></span><span></span>
+        </div>
+        <div class="hint" id="coachLine">Match FREQ first, then slide PHASE until the waves fuse white.</div>
+      </div>
+    </div>
+
+    <!-- BOTTOM -->
+    <div class="status">
+      <div>Round&nbsp;&nbsp;<b id="roundT">0.0s</b></div>
+      <div>Peak Q&nbsp;&nbsp;<b id="peakQ">1.00×</b></div>
+      <div>Lock held&nbsp;&nbsp;<b id="lockT">0.0s</b></div>
+    </div>
+
+    <div class="actionbar">
+      <div class="stakebox">
+        <div class="ph">Stake</div>
+        <div class="stakerow">
+          <button class="stk" id="stkDn">–</button>
+          <div class="stkval">$<span id="stkV">10</span></div>
+          <button class="stk" id="stkUp">+</button>
+        </div>
+      </div>
+      <button class="btn btn-tune" id="btnTune">New Tone</button>
+      <button class="btn btn-release" id="btnRelease">Release ▸ $<span id="relV">10.00</span></button>
+    </div>
+
+    <div class="roundnote">
+      <div>Last bank</div>
+      <div><b id="lastBank">—</b></div>
+      <div id="banked" style="margin-top:6px">Session +$0.00</div>
+    </div>
+  </div>
+
+  <div id="flash"></div>
+  <div id="toast"><div class="big" id="toastBig"></div><div class="small" id="toastSmall"></div></div>
+</div>
+
+<!-- BELOW THE FOLD -->
+<div class="below">
+  <h2>How OVERTONE pays</h2>
+  <div class="steps">
+    <div class="step"><div class="n">01 · LISTEN</div><h3>The market hums</h3>
+      <p>The live price is band-passed to expose its dominant micro-cycle — a real frequency and amplitude that drift as volatility shifts. Calm markets hum slow and quiet; wild markets scream fast and loud.</p></div>
+    <div class="step"><div class="n">02 · TUNE</div><h3>Match three dials</h3>
+      <p>Steer FREQ, PHASE and GAIN to lay your amber wave over the market's cyan wave. Coherence = how tightly the two oscillators are locked, instant by instant.</p></div>
+    <div class="step"><div class="n">03 · RESONATE</div><h3>Hold the lock</h3>
+      <p>Above the lock threshold your Resonance Q compounds — and it climbs faster in wilder markets. Drift out of phase and Q decays; flatline below dropout and the tone snaps.</p></div>
+    <div class="step"><div class="n">04 · RELEASE</div><h3>Bank stake × Q</h3>
+      <p>Release the tone anytime to bank stake × current Q. Ride the resonance to grow it — but let the drift break your lock and you snap, banking only a fraction. Read the drift, release at the crest.</p></div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  const $=id=>document.getElementById(id);
+  const clamp=(v,a,b)=>v<a?a:v>b?b:v;
+  const lerp=(a,b,t)=>a+(b-a)*t;
+  const TAU=Math.PI*2;
+
+  // ---------- canvases ----------
+  const scope=$("scope"), sctx=scope.getContext("2d");
+  const lissa=$("lissa"), lctx=lissa.getContext("2d");
+  let W=0,H=0,DPR=Math.min(window.devicePixelRatio||1,2);
+  function resize(){
+    const r=scope.getBoundingClientRect();
+    W=r.width; H=r.height;
+    scope.width=W*DPR; scope.height=H*DPR; sctx.setTransform(DPR,0,0,DPR,0,0);
+    lissa.width=108*DPR; lissa.height=108*DPR; lctx.setTransform(DPR,0,0,DPR,0,0);
+  }
+  window.addEventListener("resize",resize);
+
+  // ---------- market signal ----------
+  // dominant micro-cycle: instantaneous freq + amplitude that drift; plus carrier (trend) + noise
+  const M={ freq:0.95, amp:0.6, freqTarget:0.95, ampTarget:0.6, phase:0, carrier:0, spot:1043.27,
+            regime:0, regimeT:0 };
+  // player oscillator — starts close to lock so the hero blooms on load
+  const P={ freq:0.90, phase:0.04, gain:0.55, _phi:0 }; // freq in Hz-ish, phase 0..1, gain 0..1
+  // dial display ranges
+  const R={ freq:[0.35,1.8], phase:[0,1], gain:[0.05,1.0] };
+
+  // game state
+  const G={ q:1, peakQ:1, coh:0, cohSmooth:0, lock:false, lockT:0, roundT:0,
+            active:true, stake:10, banked:0, dropoutTimer:0, lastBank:"—", started:false };
+  const LOCK_THR=0.62, DROPOUT_FLOOR=0.30, DROPOUT_LIMIT=1.6; // seconds below floor before snap
+
+  // history buffer for drawn waves
+  const NPTS=240;
+  let t=0;
+
+  // ---------- coherence model ----------
+  function coherence(){
+    // frequency match
+    const df=Math.abs(P.freq-M.freq)/(R.freq[1]-R.freq[0]);
+    const fMatch=Math.exp(-Math.pow(df*3.4,2));
+    // phase alignment (circular)
+    let dph=Math.abs(((P.phase-(M.phase/TAU))%1+1)%1);
+    dph=Math.min(dph,1-dph); // 0..0.5
+    const phMatch=Math.cos(dph*TAU); // 1 at aligned, -1 opposite
+    const phN=clamp((phMatch+1)/2,0,1);
+    // amplitude proximity
+    const da=Math.abs(P.gain-M.amp);
+    const aMatch=Math.exp(-Math.pow(da*2.6,2));
+    // combine: freq & phase are gatekeepers, amp shapes ceiling
+    let c=Math.pow(fMatch,0.85)*Math.pow(phN,1.15)*(0.55+0.45*aMatch);
+    return clamp(c,0,1);
+  }
+
+  // ---------- update loop (setInterval so it survives backgrounding) ----------
+  const DT=1/60;
+  function step(){
+    t+=DT;
+    // ---- market drift ----
+    M.regimeT-=DT;
+    if(M.regimeT<=0){
+      M.regimeT=2.4+Math.random()*3.6;
+      M.freqTarget=lerp(R.freq[0]+0.05,R.freq[1]-0.1,Math.random());
+      M.ampTarget=lerp(0.25,0.92,Math.random());
+    }
+    // gentle wander toward targets + micro jitter
+    M.freq=lerp(M.freq,M.freqTarget,0.012)+(Math.random()-0.5)*0.004;
+    M.amp=lerp(M.amp,M.ampTarget,0.012)+(Math.random()-0.5)*0.004;
+    M.freq=clamp(M.freq,R.freq[0],R.freq[1]);
+    M.amp=clamp(M.amp,0.18,0.96);
+    M.phase=(M.phase+M.freq*DT*TAU)%TAU;
+    M.carrier+=(Math.random()-0.5)*0.0015; M.carrier=clamp(M.carrier,-0.4,0.4);
+    // spot ticker
+    const wv=Math.sin(M.phase)*M.amp;
+    M.spot+= (wv*0.18 + M.carrier*0.4 + (Math.random()-0.5)*0.25);
+
+    if(G.active){
+      // player phase advances at player freq for the lissajous & wave
+      P._phi=((P._phi||0)+P.freq*DT*TAU)%TAU;
+
+      // coherence
+      G.coh=coherence();
+      G.cohSmooth=lerp(G.cohSmooth,G.coh,0.18);
+      G.lock=G.cohSmooth>=LOCK_THR;
+
+      // Q dynamics: compound while locked (rate scales with tightness, mkt amp & freq),
+      // decay while below; snap if flatlined below floor
+      if(G.lock){
+        const tight=(G.cohSmooth-LOCK_THR)/(1-LOCK_THR); // 0..1
+        const wild=0.5+0.5*((M.amp-0.18)/0.78)+0.4*((M.freq-R.freq[0])/(R.freq[1]-R.freq[0]));
+        const rate=0.18*(0.35+tight)*wild;       // per second growth coefficient
+        G.q*=(1+rate*DT);
+        G.lockT+=DT; G.dropoutTimer=0;
+      } else {
+        // decay proportional to how far below threshold
+        const off=(LOCK_THR-G.cohSmooth)/LOCK_THR; // 0..1
+        const drate=0.10+0.55*off;
+        G.q=Math.max(1, G.q*(1-drate*DT));
+        if(G.cohSmooth<DROPOUT_FLOOR){ G.dropoutTimer+=DT; }
+        else { G.dropoutTimer=Math.max(0,G.dropoutTimer-DT*0.6); }
+        if(G.dropoutTimer>=DROPOUT_LIMIT && G.q>1.001){ snap(); }
+      }
+      G.q=Math.min(G.q, 999);
+      G.peakQ=Math.max(G.peakQ,G.q);
+      G.roundT+=DT;
+    }
+    updateUI();
+  }
+
+  // ---------- effects ----------
+  let particles=[];
+  function burst(x,y,color,n,spd){
+    for(let i=0;i<n;i++){
+      const a=Math.random()*TAU, s=spd*(0.3+Math.random());
+      particles.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:1,color,r:1.5+Math.random()*2.5});
+    }
+  }
+  let shake=0, flashA=0, flashCol="255,246,232";
+  function snap(){
+    G.active=false;
+    const consol=G.stake*lerp(1,G.q,0.22);
+    finishRound(consol,"SNAP","tone collapsed",false);
+    shake=14; flashA=0.5; flashCol="255,90,110";
+    burst(W*0.5,H*0.5,"#ff5a6e",60,7);
+  }
+  function release(){
+    if(!G.active) return;
+    const win=G.stake*G.q;
+    finishRound(win,"BANKED","stake × "+G.q.toFixed(2)+"×",true);
+    flashA=0.42; flashCol="255,225,170";
+    burst(W*0.5,H*0.42,"#ffd27a",70,6);
+  }
+  function finishRound(amount,big,small,win){
+    G.active=false;
+    G.banked+=amount-G.stake; // net vs stake for session line feel
+    G.lastBank=(win?"+":"")+"$"+amount.toFixed(2);
+    $("lastBank").textContent=G.lastBank;
+    $("lastBank").style.color=win?"var(--good)":"var(--bad)";
+    $("banked").textContent="Session "+(G.banked>=0?"+":"-")+"$"+Math.abs(G.banked).toFixed(2);
+    showToast(big+(win?" $"+amount.toFixed(2):""),small,win);
+    $("btnRelease").disabled=true;
+    $("qState").textContent=win?"tone released":"tone snapped";
+  }
+  function showToast(big,small,win){
+    const tt=$("toast");
+    $("toastBig").textContent=big;
+    $("toastBig").style.color=win?"var(--good)":"var(--bad)";
+    $("toastSmall").textContent=small;
+    tt.style.opacity="1"; tt.style.transform="translate(-50%,-50%) scale(1.05)";
+    setTimeout(()=>{tt.style.opacity="0";tt.style.transform="translate(-50%,-50%) scale(.9)";},1500);
+  }
+  function newTone(){
+    G.q=1; G.peakQ=1; G.coh=0; G.cohSmooth=0; G.lock=false; G.lockT=0; G.roundT=0;
+    G.active=true; G.dropoutTimer=0; G.started=true;
+    P._phi=0;
+    $("btnRelease").disabled=false;
+    $("qState").textContent="find the lock to build Q";
+  }
+
+  // ---------- rendering ----------
+  function drawScope(){
+    sctx.clearRect(0,0,W,H);
+    const midY=H*0.5, ampPx=H*0.30;
+    // baseline
+    sctx.strokeStyle="rgba(120,150,210,.12)"; sctx.lineWidth=1;
+    sctx.beginPath(); sctx.moveTo(0,midY); sctx.lineTo(W,midY); sctx.stroke();
+
+    const fused=G.cohSmooth;
+    // build market & player wave arrays across the scope width (time axis, "now" at right)
+    // we draw a window of phase; current phase at right edge.
+    const cycles=3.2;
+    function wave(freq,phaseOff,amp,col,glow,lw){
+      sctx.beginPath();
+      for(let i=0;i<=NPTS;i++){
+        const u=i/NPTS;                       // 0..1 left->right
+        const x=u*W;
+        // time at this column relative to now (right edge = now)
+        const tt=(u-1)*cycles/freq;           // seconds before now (negative .. 0)
+        const ph=(freq*tt*TAU)+phaseOff;
+        const y=midY - Math.sin(ph)*amp*ampPx;
+        if(i===0) sctx.moveTo(x,y); else sctx.lineTo(x,y);
+      }
+      sctx.lineWidth=lw; sctx.strokeStyle=col;
+      sctx.shadowBlur=glow; sctx.shadowColor=col; sctx.stroke();
+      sctx.shadowBlur=0;
+    }
+    // market wave (cyan) — its current phase is M.phase
+    wave(M.freq, M.phase, M.amp, "rgba(51,230,255,"+(0.85).toFixed(2)+")", 14+fused*10, 2.4);
+    // player wave (amber) — current phase = P._phi + phase offset
+    const pPhaseOff=(P._phi||0) + P.phase*TAU;
+    wave(P.freq, pPhaseOff, G.gainDisp(), "rgba(255,179,71,0.9)", 12+fused*14, 2.4);
+
+    // fusion ribbon: where locked, draw white-hot blended wave + bloom
+    if(fused>0.4){
+      const a=clamp((fused-0.4)/0.6,0,1);
+      sctx.beginPath();
+      for(let i=0;i<=NPTS;i++){
+        const u=i/NPTS, x=u*W;
+        const tt=(u-1)*cycles/M.freq;
+        const yM=midY-Math.sin(M.freq*tt*TAU+M.phase)*M.amp*ampPx;
+        const ttP=(u-1)*cycles/P.freq;
+        const yP=midY-Math.sin(P.freq*ttP*TAU+pPhaseOff)*P.gain*ampPx;
+        const y=lerp(yM,yP,0.5);
+        if(i===0) sctx.moveTo(x,y); else sctx.lineTo(x,y);
+      }
+      sctx.lineWidth=2+a*3; sctx.strokeStyle="rgba(255,246,232,"+(0.25+a*0.65).toFixed(2)+")";
+      sctx.shadowBlur=18+a*30; sctx.shadowColor="rgba(255,235,200,1)"; sctx.stroke();
+      sctx.shadowBlur=0;
+      // overtone ripples emanating
+      if(G.active && Math.random()<a*0.5){
+        burst(W*(0.55+Math.random()*0.4), midY+(Math.random()-0.5)*ampPx, "#fff2d6", 1, 1.5);
+      }
+    }
+    // "now" marker
+    sctx.fillStyle="rgba(255,255,255,.25)";
+    sctx.fillRect(W-1.5,midY-ampPx-10,1.5,ampPx*2+20);
+
+    // particles
+    for(let i=particles.length-1;i>=0;i--){
+      const p=particles[i];
+      p.x+=p.vx; p.y+=p.vy; p.vy+=0.04; p.life-=0.02; p.vx*=0.98; p.vy*=0.98;
+      if(p.life<=0){ particles.splice(i,1); continue; }
+      sctx.globalAlpha=p.life; sctx.fillStyle=p.color;
+      sctx.shadowBlur=8; sctx.shadowColor=p.color;
+      sctx.beginPath(); sctx.arc(p.x,p.y,p.r*p.life+0.4,0,TAU); sctx.fill();
+    }
+    sctx.globalAlpha=1; sctx.shadowBlur=0;
+  }
+  G.gainDisp=()=>P.gain;
+
+  function drawLissa(){
+    lctx.clearRect(0,0,108,108);
+    const cx=54,cy=54,rad=38;
+    lctx.strokeStyle="rgba(120,150,210,.18)"; lctx.lineWidth=1;
+    lctx.beginPath(); lctx.arc(cx,cy,rad+6,0,TAU); lctx.stroke();
+    // Lissajous: x = sin(market phase), y = sin(player phase). When freq/phase match -> ellipse/line collapses to clean shape.
+    const fused=G.cohSmooth;
+    const col=fused>=LOCK_THR ? "rgba(255,246,232," : (fused>0.4?"rgba(255,200,120,":"rgba(120,150,210,");
+    lctx.beginPath();
+    const N=160;
+    for(let i=0;i<=N;i++){
+      const k=i/N*TAU*2;
+      const x=cx+Math.sin(k*M.freq+M.phase)*rad;
+      const y=cy+Math.sin(k*P.freq+(P._phi||0)+P.phase*TAU)*rad*G.gainDisp()/Math.max(M.amp,0.2)*M.amp;
+      if(i===0) lctx.moveTo(x,y); else lctx.lineTo(x,y);
+    }
+    lctx.lineWidth=1.6; lctx.strokeStyle=col+(0.4+fused*0.6).toFixed(2)+")";
+    lctx.shadowBlur=fused>LOCK_THR?14:4; lctx.shadowColor=col+"1)";
+    lctx.stroke(); lctx.shadowBlur=0;
+    lctx.fillStyle="rgba(126,141,181,.8)"; lctx.font="9px Inter, sans-serif";
+    lctx.textAlign="center"; lctx.fillText("LOCK-EYE",cx,104);
+  }
+
+  // ---------- UI sync ----------
+  let bandEls=null;
+  function updateUI(){
+    // dial readouts
+    $("vFreq").textContent=(P.freq).toFixed(2)+" Hz";
+    $("vPhase").textContent=Math.round(P.phase*360)+"°";
+    $("vGain").textContent=Math.round(P.gain*100)+"%";
+    // knobs + targets
+    placeKnob("slotFreq",(P.freq-R.freq[0])/(R.freq[1]-R.freq[0]),(M.freq-R.freq[0])/(R.freq[1]-R.freq[0]));
+    placeKnob("slotPhase",P.phase,((M.phase/TAU)%1+1)%1);
+    placeKnob("slotGain",(P.gain-R.gain[0])/(R.gain[1]-R.gain[0]),(M.amp-R.gain[0])/(R.gain[1]-R.gain[0]));
+    // market readouts
+    $("mPx").textContent=M.spot.toFixed(2);
+    $("mFreq").textContent=M.freq.toFixed(2)+" Hz";
+    $("mAmp").textContent=Math.round(M.amp*100)+"%";
+    // Q
+    $("qVal").innerHTML=G.q.toFixed(2)+'<span style="font-size:24px">×</span>';
+    $("payout").textContent="Live payout $"+(G.stake*G.q).toFixed(2);
+    $("relV").textContent=(G.stake*G.q).toFixed(2);
+    $("peakQ").textContent=G.peakQ.toFixed(2)+"×";
+    $("roundT").textContent=G.roundT.toFixed(1)+"s";
+    $("lockT").textContent=G.lockT.toFixed(1)+"s";
+    // coherence bar
+    const f=$("cohFill"); f.style.width=(G.cohSmooth*100).toFixed(0)+"%";
+    $("cohThr").style.left=(LOCK_THR*100)+"%";
+    // lock banner
+    $("lockBanner").className="lock-banner"+(G.lock?" lock-on":"");
+    // q state text + coach
+    if(G.active){
+      if(G.lock){ $("qState").textContent="LOCKED · Q rising"; $("qVal").style.filter="drop-shadow(0 0 26px rgba(255,210,140,.7))"; }
+      else { $("qState").textContent=G.q>1.01?"drifting · Q decaying":"find the lock to build Q"; $("qVal").style.filter="drop-shadow(0 0 16px rgba(255,190,120,.4))"; }
+      // coaching
+      const dfreq=P.freq-M.freq;
+      let dph=(((M.phase/TAU)-P.phase)%1+1)%1; if(dph>0.5)dph-=1;
+      let msg;
+      if(Math.abs(dfreq)>0.10) msg=(dfreq>0?"FREQ too high — ease left":"FREQ too low — nudge right");
+      else if(Math.abs(dph)>0.06) msg=(dph>0?"slide PHASE right to align":"slide PHASE left to align");
+      else if(Math.abs(P.gain-M.amp)>0.12) msg=(P.gain>M.amp?"lower GAIN to match amplitude":"raise GAIN to match amplitude");
+      else msg="locked — ride it, then RELEASE before it drifts";
+      $("coachLine").textContent=msg;
+    }
+    // harmonic bands react to coherence + market
+    if(!bandEls) bandEls=$("bands").children;
+    for(let i=0;i<bandEls.length;i++){
+      const base=Math.abs(Math.sin(t*M.freq*1.2 + i*0.7))*0.5;
+      const peak = Math.exp(-Math.pow((i-(M.freq-R.freq[0])/(R.freq[1]-R.freq[0])*bandEls.length)*0.9,2));
+      const h=(15 + base*40 + peak*55*G.cohSmooth);
+      bandEls[i].style.height=clamp(h,8,100)+"%";
+      bandEls[i].style.opacity=G.lock?0.95:0.6;
+      bandEls[i].style.background=G.lock?"linear-gradient(180deg,#fff2d6,var(--amber))":"linear-gradient(180deg,var(--cyan),var(--cyan-dim))";
+    }
+  }
+  function placeKnob(slotId,val,target){
+    const slot=$(slotId);
+    const knob=slot.querySelector(".knob");
+    const tgt=slot.querySelector(".target");
+    knob.style.left=(clamp(val,0,1)*100)+"%";
+    tgt.style.left=(clamp(target,0,1)*100)+"%";
+  }
+
+  // ---------- render frame ----------
+  function render(){
+    if(shake>0.2){ stage.style.transform="translate("+(Math.random()-0.5)*shake+"px,"+(Math.random()-0.5)*shake+"px)"; shake*=0.86; }
+    else stage.style.transform="";
+    if(flashA>0.01){ $("flash").style.background="radial-gradient(circle at 50% 45%,rgba("+flashCol+","+flashA+"),transparent 60%)"; $("flash").style.opacity=1; flashA*=0.9; }
+    else $("flash").style.opacity=0;
+    drawScope(); drawLissa();
+    requestAnimationFrame(render);
+  }
+  const stage=$("stage");
+
+  // ---------- input ----------
+  function setDial(d,v){
+    if(d==="freq") P.freq=clamp(v,R.freq[0],R.freq[1]);
+    if(d==="phase") P.phase=((v%1)+1)%1;
+    if(d==="gain") P.gain=clamp(v,R.gain[0],R.gain[1]);
+  }
+  // nudges
+  document.querySelectorAll(".nudge").forEach(b=>{
+    b.addEventListener("click",()=>{
+      const d=b.dataset.d, s=+b.dataset.s;
+      const stepv={freq:0.03,phase:0.02,gain:0.03}[d];
+      if(d==="freq") setDial("freq",P.freq+s*stepv);
+      if(d==="phase") setDial("phase",P.phase+s*stepv);
+      if(d==="gain") setDial("gain",P.gain+s*stepv);
+    });
+  });
+  // slot drag
+  function bindSlot(slotId,d){
+    const slot=$(slotId);
+    let drag=false;
+    function fromX(clientX){
+      const r=slot.getBoundingClientRect();
+      const u=clamp((clientX-r.left)/r.width,0,1);
+      if(d==="freq") setDial("freq",R.freq[0]+u*(R.freq[1]-R.freq[0]));
+      else if(d==="phase") setDial("phase",u);
+      else setDial("gain",R.gain[0]+u*(R.gain[1]-R.gain[0]));
+    }
+    slot.addEventListener("pointerdown",e=>{drag=true;slot.setPointerCapture(e.pointerId);fromX(e.clientX);});
+    slot.addEventListener("pointermove",e=>{if(drag)fromX(e.clientX);});
+    slot.addEventListener("pointerup",()=>drag=false);
+    slot.addEventListener("pointercancel",()=>drag=false);
+  }
+  bindSlot("slotFreq","freq"); bindSlot("slotPhase","phase"); bindSlot("slotGain","gain");
+  // keyboard
+  window.addEventListener("keydown",e=>{
+    const k=e.key.toLowerCase();
+    if(k==="arrowleft"){setDial("freq",P.freq-0.025);e.preventDefault();}
+    else if(k==="arrowright"){setDial("freq",P.freq+0.025);e.preventDefault();}
+    else if(k==="a"){setDial("phase",P.phase-0.018);}
+    else if(k==="d"){setDial("phase",P.phase+0.018);}
+    else if(k==="w"){setDial("gain",P.gain+0.025);}
+    else if(k==="s"){setDial("gain",P.gain-0.025);}
+    else if(k===" "){ if(G.active) release(); else newTone(); e.preventDefault();}
+  });
+  // buttons
+  $("btnRelease").addEventListener("click",release);
+  $("btnTune").addEventListener("click",newTone);
+  $("stkUp").addEventListener("click",()=>{G.stake=clamp(G.stake+5,5,500);syncStake();});
+  $("stkDn").addEventListener("click",()=>{G.stake=clamp(G.stake-5,5,500);syncStake();});
+  function syncStake(){ $("stkV").textContent=G.stake; if(!G.active){} updateUI(); }
+
+  // ---------- boot ----------
+  resize();
+  newTone();
+  syncStake();
+  // setInterval drives the SIM (survives tab backgrounding); rAF only renders
+  setInterval(step, 1000/60);
+  requestAnimationFrame(render);
+  // re-measure after layout settles
+  setTimeout(resize,60); setTimeout(resize,400);
+})();
+</script>
+</body>
+</html>
