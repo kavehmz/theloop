@@ -437,7 +437,7 @@ function ignite(){
   if(G.state==='running') return;
   if(G.balance < G.stake) return;
   G.balance -= G.stake;
-  G.state='running'; G.energy=0; G.breach=0; G.bandCenter=price;
+  G.state='running'; G.energy=0; G.breach=0; G.pnl=0; G.bandCenter=price;
   igniteBtn.disabled=true; ejectBtn.disabled=false; fieldSlider.disabled=true;
 }
 function eject(){
@@ -683,8 +683,7 @@ function drawReactor(rvNorm,turbCol){
   // particles
   for(const p of parts){
     const a=p.life/p.max;
-    ctx.fillStyle=p.col.replace(')',`,${a})`).replace('rgb','rgba').replace('#','');
-    // support hex colors:
+    // particle colors are hex; fade via globalAlpha
     ctx.globalAlpha=a; ctx.fillStyle=p.col;
     ctx.beginPath(); ctx.arc(p.x,p.y,2.4*a+0.6,0,Math.PI*2); ctx.fill();
   }
