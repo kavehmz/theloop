@@ -31,3 +31,4 @@ One line per design: name — core mechanic — STATUS
 - DETONATE — seed charges in price-space; the live price path ignites neighbor-chaining cascades; paid by the largest connected cascade — KEEPER
 - SILKLINE — predict the full finishing order of N momentum-driven market runners; paid by rank-distance to the realized order — KEEPER
 - EMBERWELL — place a band and accrue heat by the time price dwells inside (leaking when outside); banked at the bell — KEEPER
+- SUMMIT FLAGS — call the price-and-time coordinate of the window high/low; paid by 2-D proximity to the realized extremum — KEEPER
