@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Claude's Ranking — 30 Deriv Games, Best to Worst</title>
+<style>
+  :root{--bg:#05070d;--panel:#0b1322;--stroke:rgba(120,160,220,.14);--ink:#eaf2ff;--muted:#8398bd;--keep:#27e0a8;--keep2:#9fffd8;--dup:#f5a623;}
+  *{box-sizing:border-box} html,body{margin:0}
+  body{background:radial-gradient(1200px 700px at 80% -10%,rgba(39,224,168,.10),transparent 60%),radial-gradient(1000px 600px at 10% 0%,rgba(120,90,255,.10),transparent 55%),var(--bg);
+    color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;}
+  header{max-width:1300px;margin:0 auto;padding:46px 30px 24px;border-bottom:1px solid var(--stroke)}
+  .eyebrow{font-size:12px;letter-spacing:.42em;text-transform:uppercase;color:var(--muted);margin:0 0 10px}
+  h1{margin:0;font-size:38px;font-weight:850;letter-spacing:-.01em;background:linear-gradient(92deg,#fff,#b9d2ff 55%,#9fffd8);-webkit-background-clip:text;background-clip:text;color:transparent}
+  header p{color:var(--muted);font-size:14px;max-width:760px;line-height:1.6;margin:14px 0 0}
+  .list{max-width:1300px;margin:0 auto;padding:26px 30px 100px;display:flex;flex-direction:column;gap:22px}
+  .row{display:flex;gap:24px;align-items:stretch;background:linear-gradient(180deg,var(--panel),#070d18);border:1px solid var(--stroke);
+    border-radius:18px;overflow:hidden;box-shadow:0 30px 70px -45px #000}
+  .row.keeper{border-color:rgba(39,224,168,.22)}
+  .row.duplicate,.row.below_bar{opacity:.9}
+  .info{flex:0 0 330px;display:flex;gap:16px;padding:22px 8px 22px 22px}
+  .rank{font-size:46px;font-weight:900;line-height:.9;color:#5e7aa8;min-width:62px;font-variant-numeric:tabular-nums}
+  .nm{font-size:18px;font-weight:800;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .take{margin:9px 0 0;color:#a9bcdd;font-size:13px;line-height:1.55}
+  .badge{font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;padding:4px 9px;border-radius:999px;white-space:nowrap}
+  .badge.keeper{color:#04140e;background:linear-gradient(180deg,var(--keep2),var(--keep))}
+  .badge.duplicate{color:#1a1303;background:linear-gradient(180deg,#ffd98a,var(--dup))}
+  .badge.below_bar{color:#cdd9ee;background:#1b2740;border:1px solid var(--stroke)}
+  .open{font-size:11px;color:var(--muted);text-decoration:none;border:1px solid var(--stroke);padding:4px 9px;border-radius:7px}
+  .open:hover{color:var(--ink);border-color:rgba(39,224,168,.5)}
+  .preview{flex:1;position:relative;align-self:stretch;min-height:300px;overflow:hidden;background:#03060c;border-left:1px solid var(--stroke)}
+  .preview iframe{position:absolute;top:0;left:0;width:1280px;height:800px;border:0;transform-origin:top left}
+  .preview .veil{position:absolute;inset:0;pointer-events:none;background:linear-gradient(90deg,rgba(11,19,34,.25),transparent 12%)}
+  .divider{display:flex;align-items:center;justify-content:center;margin:12px 0 2px}
+  .divider span{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);border:1px dashed var(--stroke);padding:8px 16px;border-radius:999px}
+  @media(max-width:840px){.row{flex-direction:column} .info{flex-basis:auto} .preview{border-left:0;border-top:1px solid var(--stroke)}}
+  footer{max-width:1300px;margin:0 auto;padding:0 30px 70px;color:var(--muted);font-size:12px}
+</style></head><body>
+  <header>
+    <p class="eyebrow">The Loop · Claude's editorial ranking</p>
+    <h1>30 Deriv games, ranked best → worst</h1>
+    <p>My subjective pick order across every design produced. Ranked on: instant visual wow in the first screenful, addictive "one more round" pull, originality of the core bet, and clarity of the live-market mechanic. Rows 1–24 are the keepers; the 6 below the divider are the duplicates and below-bar designs, ranked among themselves. Previews are the live prototypes (scaled to fit) — click "open ↗" for the full-bleed game.</p>
+  </header>
+  <main class="list">
+    <article class="row keeper">
+      <div class="info">
+        <div class="rank" style="color:#ffd54a;text-shadow:0 0 24px #ffd54a77">1</div>
+        <div class="txt">
+          <div class="nm">THREADLINE <span class="badge keeper">Keeper</span>
+            <a class="open" href="results/iteration01/design.html" target="_blank" rel="noopener">open ↗</a></div>
+          <p class="take">Draw the price&#x27;s future as a tunnel and watch the live line thread it — the single most iconic, instantly-grokkable, unmistakably-Deriv hook of the whole set, on a stunning neon hero. My #1.</p>
+        </div>
+      </div>
+      <div class="preview">
+        <iframe src="results/iteration01/design.html" scrolling="no" loading="lazy" title="THREADLINE"></iframe>
+        <div class="veil"></div>
+      </div>
+    </article>
+    <article class="row keeper">
+      <div class="info">
+        <div class="rank" style="color:#cfd8e6;text-shadow:0 0 24px #cfd8e677">2</div>
+        <div class="txt">
+          <div class="nm">SLIPSTREAM <span class="badge keeper">Keeper</span>
+            <a class="open" href="results/iteration06/design.html" target="_blank" rel="noopener">open ↗</a></div>
+          <p class="take">Fly the volatility canyon hugging the price rail for multiplier — the most visceral arcade rush and the richest, most alive hero in the gallery.</p>
+        </div>
+      </div>
+      <div class="preview">
+        <iframe src="results/iteration06/design.html" scrolling="no" loading="lazy" title="SLIPSTREAM"></iframe>
+        <div class="veil"></div>
+      </div>
+    </article>
+    <article class="row keeper">
+      <div class="info">
+        <div class="rank" style="color:#e0a46a;text-shadow:0 0 24px #e0a46a77">3</div>
+        <div class="txt">
+          <div class="nm">COREBORE <span class="badge keeper">Keeper</span>
+            <a class="open" href="results/iteration12/design.html" target="_blank" rel="noopener">open ↗</a></div>
+          <p class="take">Drill through price-carved strata and winch out before the cave-in — dense and gorgeous, with a perfectly weighted winch-or-push greed loop.</p>
+        </div>
+      </div>
+      <div class="preview">
+        <iframe src="results/iteration12/design.html" scrolling="no" loading="lazy" title="COREBORE"></iframe>
+        <div class="veil"></div>
+      </div>
+    </article>
+    <article class="row keeper">
+      <div class="info">
+        <div class="rank" >4</div>
+        <div class="txt">
+          <div class="nm">REACTOR <span class="badge keeper">Keeper</span>
+            <a class="open" href="results/iteration02/design.html" target="_blank" rel="noopener">open ↗</a></div>
+          <p class="take">Harvest volatility as plasma, eject before the containment ring blows — a tense, beautiful control-room built around one knife-edge decision.</p>
+        </div>
+      </div>
+      <div class="preview">
+        <iframe src="results/iteration02/design.html" scrolling="no" loading="lazy" title="REACTOR"></iframe>
+        <div class="veil"></div>
+      </div>
+    </article>
+    <article class="row keeper">
+      <div class="info">
+        <div class="rank" >5</div>
+        <div class="txt">
+          <div class="nm">APOAPSIS <span class="badge keeper">Keeper</span>
+            <a class="open" href="results/iteration10/design.html" target="_blank" rel="noopener">open ↗</a></div>
+          <p class="take">Orbit a live-price gravity-star and hold your band on a fuel budget — the most spectacular concept of all; crash inward or fly out, pure skill.</p>
+        </div>
+      </div>
+      <div class="preview">
+        <iframe src="results/iteration10/design.html" scrolling="no" loading="lazy" title="APOAPSIS"></iframe>
+        <div class="veil"></div>
+      </div>
+    </article>
+    <article class="row keeper">
+      <div class="info">
+        <div class="rank" >6</div>
+        <div class="txt">
+          <div class="nm">TOLLGATE <span class="badge keeper">Keeper</span>
+            <a class="open" href="results/iteration08/design.html" target="_blank" rel="noopener">open ↗</a></div>
+          <p class="take">Bid to own price levels, paid when price touches — the most Deriv-native and quietly addictive bet (HOLD the toll or FLIP the claim). Elite mechanic; static hero only muted by its welcome overlay.</p>
+        </div>
+      </div>
+      <div class="preview">
+        <iframe src="results/iteration08/design.html" scrolling="no" loading="lazy" title="TOLLGATE"></iframe>
+        <div class="veil"></div>
+      </div>
+    </article>
+    <article class="row keeper">
+      <div class="info">
+        <div class="rank" >7</div>
+        <div class="txt">
+          <div class="nm">SLINGSHOT VEGA <span class="badge keeper">Keeper</span>
+            <a class="open" href="results/iteration04/design.html" target="_blank" rel="noopener">open ↗</a></div>
+          <p class="take">Wind a slingshot from momentum and fire through a distance-gate ladder — punchy, legible, immediately fun.</p>
+        </div>
+      </div>
+      <div class="preview">
+        <iframe src="results/iteration04/design.html" scrolling="no" loading="lazy" title="SLINGSHOT VEGA"></iframe>
+        <div class="veil"></div>
+      </div>
+    </article>
+    <article class="row keeper">
+      <div class="info">
+        <div class="rank" >8</div>
+        <div class="txt">
+          <div class="nm">DETONATE <span class="badge keeper">Keeper</span>
+            <a class="open" href="results/iteration27/design.html" target="_blank" rel="noopener">open ↗</a></div>
+          <p class="take">Seed charges across price-space and let the live path ignite a chain — a genuinely fresh connectivity bet with a fireworks payoff.</p>
+        </div>
+      </div>
+      <div class="preview">
+        <iframe src="results/iteration27/design.html" scrolling="no" loading="lazy" title="DETONATE"></iframe>
+        <div class="veil"></div>
+      </div>
+    </article>
+    <article class="row keeper">
+      <div class="info">
+        <div class="rank" >9</div>
+        <div class="txt">
+          <div class="nm">RIPTIDE <span class="badge keeper">Keeper</span>
+            <a class="open" href="results/iteration03/design.html" target="_blank" rel="noopener">open ↗</a></div>
+          <p class="take">The live price paints territory in your colour — beautiful liquid ink and an easy &#x27;hold the most ground&#x27; read.</p>
+        </div>
+      </div>
+      <div class="preview">
+        <iframe src="results/iteration03/design.html" scrolling="no" loading="lazy" title="RIPTIDE"></iframe>
+        <div class="veil"></div>
+      </div>
+    </article>
+    <article class="row keeper">
+      <div class="info">
+        <div class="rank" >10</div>
+        <div class="txt">
+          <div class="nm">SILKLINE <span class="badge keeper">Keeper</span>
+            <a class="open" href="results/iteration28/design.html" target="_blank" rel="noopener">open ↗</a></div>
+          <p class="take">Bet the full finishing order of a live market race — the most broadly accessible idea here; photo-finish drama anyone gets in seconds.</p>
+        </div>
+      </div>
+      <div class="preview">
+        <iframe src="results/iteration28/design.html" scrolling="no" loading="lazy" title="SILKLINE"></iframe>
+        <div class="veil"></div>
+      </div>
+    </article>
+    <article class="row keeper">
+      <div class="info">
+        <div class="rank" >11</div>
+        <div class="txt">
+          <div class="nm">WAKELINE <span class="badge keeper">Keeper</span>
+            <a class="open" href="results/iteration16/design.html" target="_blank" rel="noopener">open ↗</a></div>
+          <p class="take">Pre-trace where price goes next, paid on fidelity — a clever &#x27;call the future&#x27; hook with a lovely anticipatory lead-zone.</p>
+        </div>
+      </div>
+      <div class="preview">
+        <iframe src="results/iteration16/design.html" scrolling="no" loading="lazy" title="WAKELINE"></iframe>
+        <div class="veil"></div>
+      </div>
+    </article>
+    <article class="row keeper">
+      <div class="info">
+        <div class="rank" >12</div>
+        <div class="txt">
+          <div class="nm">DEADLOCK <span class="badge keeper">Keeper</span>
+            <a class="open" href="results/iteration05/design.html" target="_blank" rel="noopener">open ↗</a></div>
+          <p class="take">Stake the displacement of a bull/bear tug-of-war knot — clean two-force tension with a satisfying PUSH/LOCK greed lever.</p>
+        </div>
+      </div>
+      <div class="preview">
+        <iframe src="results/iteration05/design.html" scrolling="no" loading="lazy" title="DEADLOCK"></iframe>
+        <div class="veil"></div>
+      </div>
+    </article>
+    <article class="row keeper">
+      <div class="info">
+        <div class="rank" >13</div>
+        <div class="txt">
+          <div class="nm">SUMMIT FLAGS <span class="badge keeper">Keeper</span>
+            <a class="open" href="results/iteration30/design.html" target="_blank" rel="noopener">open ↗</a></div>
+          <p class="take">Call where AND when the peak forms, paid by 2-D proximity — tense, deterministic, and very Deriv-native.</p>
+        </div>
+      </div>
+      <div class="preview">
+        <iframe src="results/iteration30/design.html" scrolling="no" loading="lazy" title="SUMMIT FLAGS"></iframe>
+        <div class="veil"></div>
+      </div>
+    </article>
+    <article class="row keeper">
+      <div class="info">
+        <div class="rank" >14</div>
+        <div class="txt">
+          <div class="nm">STARFORGE <span class="badge keeper">Keeper</span>
+            <a class="open" href="results/iteration11/design.html" target="_blank" rel="noopener">open ↗</a></div>
+          <p class="take">Thread the price-comet through decaying stars to draw a constellation — elegant and rarity-chasing, a touch more cerebral.</p>
+        </div>
+      </div>
+      <div class="preview">
+        <iframe src="results/iteration11/design.html" scrolling="no" loading="lazy" title="STARFORGE"></iframe>
+        <div class="veil"></div>
+      </div>
+    </article>
+    <article class="row keeper">
+      <div class="info">
+        <div class="rank" >15</div>
+        <div class="txt">
+          <div class="nm">SLUICE <span class="badge keeper">Keeper</span>
+            <a class="open" href="results/iteration15/design.html" target="_blank" rel="noopener">open ↗</a></div>
+          <p class="take">Route price-velocity-as-fluid through a pipe network you author — strong build-a-contraption appeal, balancing burst vs dry.</p>
+        </div>
+      </div>
+      <div class="preview">
+        <iframe src="results/iteration15/design.html" scrolling="no" loading="lazy" title="SLUICE"></iframe>
+        <div class="veil"></div>
+      </div>
+    </article>
+    <article class="row keeper">
+      <div class="info">
+        <div class="rank" >16</div>
+        <div class="txt">
+          <div class="nm">BALLAST <span class="badge keeper">Keeper</span>
+            <a class="open" href="results/iteration09/design.html" target="_blank" rel="noopener">open ↗</a></div>
+          <p class="take">Counterweight a beam as price torque and volatility quakes tip it — tactile and tense, banking height before the topple.</p>
+        </div>
+      </div>
+      <div class="preview">
+        <iframe src="results/iteration09/design.html" scrolling="no" loading="lazy" title="BALLAST"></iframe>
+        <div class="veil"></div>
+      </div>
+    </article>
+    <article class="row keeper">
+      <div class="info">
+        <div class="rank" >17</div>
+        <div class="txt">
+          <div class="nm">STOWLINE <span class="badge keeper">Keeper</span>
+            <a class="open" href="results/iteration19/design.html" target="_blank" rel="noopener">open ↗</a></div>
+          <p class="take">Pack market-forged cargo into a vault for density — the comforting Tetris-fit compulsion, with a spill bust.</p>
+        </div>
+      </div>
+      <div class="preview">
+        <iframe src="results/iteration19/design.html" scrolling="no" loading="lazy" title="STOWLINE"></iframe>
+        <div class="veil"></div>
+      </div>
+    </article>
+    <article class="row keeper">
+      <div class="info">
+        <div class="rank" >18</div>
+        <div class="txt">
+          <div class="nm">PULSEPOINT <span class="badge keeper">Keeper</span>
+            <a class="open" href="results/iteration07/design.html" target="_blank" rel="noopener">open ↗</a></div>
+          <p class="take">Tap exactly on price reversals to chain a Flow combo — a tight, juicy rhythm loop (timing games just feel a touch familiar).</p>
+        </div>
+      </div>
+      <div class="preview">
+        <iframe src="results/iteration07/design.html" scrolling="no" loading="lazy" title="PULSEPOINT"></iframe>
+        <div class="veil"></div>
+      </div>
+    </article>
+    <article class="row keeper">
+      <div class="info">
+        <div class="rank" >19</div>
+        <div class="txt">
+          <div class="nm">RAMPART <span class="badge keeper">Keeper</span>
+            <a class="open" href="results/iteration24/design.html" target="_blank" rel="noopener">open ↗</a></div>
+          <p class="take">Fortify price-level walls against a market siege — meaty tower-defense, a little heavier to onboard.</p>
+        </div>
+      </div>
+      <div class="preview">
+        <iframe src="results/iteration24/design.html" scrolling="no" loading="lazy" title="RAMPART"></iframe>
+        <div class="veil"></div>
+      </div>
+    </article>
+    <article class="row keeper">
+      <div class="info">
+        <div class="rank" >20</div>
+        <div class="txt">
+          <div class="nm">OVERTONE <span class="badge keeper">Keeper</span>
+            <a class="open" href="results/iteration18/design.html" target="_blank" rel="noopener">open ↗</a></div>
+          <p class="take">Tune your oscillator to phase-lock the market wave — a beautiful oscilloscope and deep skill, but a more niche fascination.</p>
+        </div>
+      </div>
+      <div class="preview">
+        <iframe src="results/iteration18/design.html" scrolling="no" loading="lazy" title="OVERTONE"></iframe>
+        <div class="veil"></div>
+      </div>
+    </article>
+    <article class="row keeper">
+      <div class="info">
+        <div class="rank" >21</div>
+        <div class="txt">
+          <div class="nm">FLUXYARD <span class="badge keeper">Keeper</span>
+            <a class="open" href="results/iteration17/design.html" target="_blank" rel="noopener">open ↗</a></div>
+          <p class="take">Sort live regime-parcels into the right chutes — clever and fast, though the conveyor reads a little utilitarian.</p>
+        </div>
+      </div>
+      <div class="preview">
+        <iframe src="results/iteration17/design.html" scrolling="no" loading="lazy" title="FLUXYARD"></iframe>
+        <div class="veil"></div>
+      </div>
+    </article>
+    <article class="row keeper">
+      <div class="info">
+        <div class="rank" >22</div>
+        <div class="txt">
+          <div class="nm">ASSAY <span class="badge keeper">Keeper</span>
+            <a class="open" href="results/iteration20/design.html" target="_blank" rel="noopener">open ↗</a></div>
+          <p class="take">Blend price-facets to match a drifting target alloy — gorgeous molten visuals over a more cerebral proportion puzzle.</p>
+        </div>
+      </div>
+      <div class="preview">
+        <iframe src="results/iteration20/design.html" scrolling="no" loading="lazy" title="ASSAY"></iframe>
+        <div class="veil"></div>
+      </div>
+    </article>
+    <article class="row keeper">
+      <div class="info">
+        <div class="rank" >23</div>
+        <div class="txt">
+          <div class="nm">SPREADKEEPER <span class="badge keeper">Keeper</span>
+            <a class="open" href="results/iteration22/design.html" target="_blank" rel="noopener">open ↗</a></div>
+          <p class="take">Make a market: capture the spread, bleed on trends — the cleverest and most Deriv-true, but the most &#x27;trading sim&#x27; and least casual.</p>
+        </div>
+      </div>
+      <div class="preview">
+        <iframe src="results/iteration22/design.html" scrolling="no" loading="lazy" title="SPREADKEEPER"></iframe>
+        <div class="veil"></div>
+      </div>
+    </article>
+    <article class="row keeper">
+      <div class="info">
+        <div class="rank" >24</div>
+        <div class="txt">
+          <div class="nm">EMBERWELL <span class="badge keeper">Keeper</span>
+            <a class="open" href="results/iteration29/design.html" target="_blank" rel="noopener">open ↗</a></div>
+          <p class="take">Place a band and bank the time price dwells inside — a clean original primitive, but the quietest moment-to-moment agency.</p>
+        </div>
+      </div>
+      <div class="preview">
+        <iframe src="results/iteration29/design.html" scrolling="no" loading="lazy" title="EMBERWELL"></iframe>
+        <div class="veil"></div>
+      </div>
+    </article>
+<div class="divider"><span>▼ below the bar — not counted toward the 24 keepers</span></div>
+    <article class="row duplicate">
+      <div class="info">
+        <div class="rank" >25</div>
+        <div class="txt">
+          <div class="nm">PRISMA <span class="badge duplicate">Duplicate</span>
+            <a class="open" href="results/iteration13/design.html" target="_blank" rel="noopener">open ↗</a></div>
+          <p class="take">Refract price-as-light into a claimable spectrum — one of the prettiest of all, but the bet de-skins to TOLLGATE+RIPTIDE, so it&#x27;s a duplicate rather than a keeper.</p>
+        </div>
+      </div>
+      <div class="preview">
+        <iframe src="results/iteration13/design.html" scrolling="no" loading="lazy" title="PRISMA"></iframe>
+        <div class="veil"></div>
+      </div>
+    </article>
+    <article class="row duplicate">
+      <div class="info">
+        <div class="rank" >26</div>
+        <div class="txt">
+          <div class="nm">DEEPLINE <span class="badge duplicate">Duplicate</span>
+            <a class="open" href="results/iteration14/design.html" target="_blank" rel="noopener">open ↗</a></div>
+          <p class="take">Cast, hook and fight the price-fish on a tension line — polished and atmospheric, but a recombination of TOLLGATE&#x27;s touch + DEADLOCK&#x27;s tension.</p>
+        </div>
+      </div>
+      <div class="preview">
+        <iframe src="results/iteration14/design.html" scrolling="no" loading="lazy" title="DEEPLINE"></iframe>
+        <div class="veil"></div>
+      </div>
+    </article>
+    <article class="row below_bar">
+      <div class="info">
+        <div class="rank" >27</div>
+        <div class="txt">
+          <div class="nm">RICOCHET <span class="badge below_bar">Below bar</span>
+            <a class="open" href="results/iteration25/design.html" target="_blank" rel="noopener">open ↗</a></div>
+          <p class="take">Price-driven pinball with a peak-combo payout — fun and slick, but the combo settlement overlaps PULSEPOINT inside a saturated genre.</p>
+        </div>
+      </div>
+      <div class="preview">
+        <iframe src="results/iteration25/design.html" scrolling="no" loading="lazy" title="RICOCHET"></iframe>
+        <div class="veil"></div>
+      </div>
+    </article>
+    <article class="row below_bar">
+      <div class="info">
+        <div class="rank" >28</div>
+        <div class="txt">
+          <div class="nm">TICKER FORGE <span class="badge below_bar">Below bar</span>
+            <a class="open" href="results/iteration26/design.html" target="_blank" rel="noopener">open ↗</a></div>
+          <p class="take">Draft market-minted cards into a hand — sharp UI, but the scoring de-skins straight to poker hand-ranking.</p>
+        </div>
+      </div>
+      <div class="preview">
+        <iframe src="results/iteration26/design.html" scrolling="no" loading="lazy" title="TICKER FORGE"></iframe>
+        <div class="veil"></div>
+      </div>
+    </article>
+    <article class="row below_bar">
+      <div class="info">
+        <div class="rank" >29</div>
+        <div class="txt">
+          <div class="nm">EMBERWATCH <span class="badge below_bar">Below bar</span>
+            <a class="open" href="results/iteration21/design.html" target="_blank" rel="noopener">open ↗</a></div>
+          <p class="take">Triage many decaying embers across markets — a genuinely novel parallel-attention core, sunk by a thin, empty hero.</p>
+        </div>
+      </div>
+      <div class="preview">
+        <iframe src="results/iteration21/design.html" scrolling="no" loading="lazy" title="EMBERWATCH"></iframe>
+        <div class="veil"></div>
+      </div>
+    </article>
+    <article class="row below_bar">
+      <div class="info">
+        <div class="rank" >30</div>
+        <div class="txt">
+          <div class="nm">ECHO LADDER <span class="badge below_bar">Below bar</span>
+            <a class="open" href="results/iteration23/design.html" target="_blank" rel="noopener">open ↗</a></div>
+          <p class="take">Replay a price-authored note chain from memory — at heart a Simon reskin, on a sparse hero; the weakest of the set.</p>
+        </div>
+      </div>
+      <div class="preview">
+        <iframe src="results/iteration23/design.html" scrolling="no" loading="lazy" title="ECHO LADDER"></iframe>
+        <div class="veil"></div>
+      </div>
+    </article>
+  </main>
+  <footer>Editorial order — reasonable people will disagree on the middle. The top five (THREADLINE, SLIPSTREAM, COREBORE, REACTOR, APOAPSIS) are where I'd start a real build.</footer>
+<script>
+  function fit(){document.querySelectorAll('.preview').forEach(function(p){var f=p.querySelector('iframe');if(f)f.style.transform='scale('+(p.clientWidth/1280)+')';});}
+  window.addEventListener('resize',fit);window.addEventListener('load',fit);
+  // refit shortly after load since lazy iframes change height
+  setTimeout(fit,400);setTimeout(fit,1500);fit();
+</script>
+</body></html>
