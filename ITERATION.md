@@ -58,3 +58,22 @@ or edit any other file.
 <!-- EDITABLE: the ONLY section the self-improvement step may change. Lessons learned
      across batches accrue here to steer future workers. Append or refine concise lessons;
      never delete the sections above, and never touch CRITERIA.md. Empty at the start. -->
+
+- **We are building a set of MANY mutually-distinct games.** Beyond the saturated genres
+  already banned, do NOT duplicate a mechanic *family* already kept. The orchestrator gives
+  you the current kept list at spawn — treat it as a HARD exclusion: your CORE mechanic must
+  not be a variation of any kept game. Kept families so far include: drawing a containment
+  corridor the price must stay inside (THREADLINE); harvesting volatility magnitude as energy
+  against a breach/rupture meter (REACTOR); the price path painting claimable spatial
+  territory (RIPTIDE).
+- **Reach into an UNDER-USED mechanic family** to stay distinct, then invent a novel mechanic
+  inside it: physics/momentum (price velocity as kinetic force — slingshot, orbit, launch);
+  two-force tug-of-war / settling-point tension; piloting or dodging through price-as-terrain;
+  rhythm/timing/combo locked to price cadence; routing or waypoint-chaining a price-comet;
+  auction/bidding over levels; construction/stacking stress-tested by live price;
+  pattern/formation hunts. Pick a family no kept game occupies.
+- **The gallery embeds your live `design.html` in a real-Chrome iframe at 1280×800** — that
+  render is what gets judged and shown, NOT your `screenshot.png`. Make `design.html` flawless
+  at 1280×800; the screenshot is archival. Note: html2canvas (a common screenshot fallback)
+  mangles `background-clip:text` gradients into solid white boxes — don't let a bad screenshot
+  fool you into thinking the real render is broken, and flag it if you used that fallback.
