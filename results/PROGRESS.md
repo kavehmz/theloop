@@ -21,3 +21,4 @@ One line per design: name — core mechanic — STATUS
 - FLUXYARD — classify streaming price-regime parcels into BULL/CHOP/BEAR chutes; paid by correct-sort throughput before overflow — KEEPER
 - OVERTONE — tune FREQ/PHASE/GAIN to phase-lock onto the market wave; a Resonance-Q compounds while locked; release to bank — KEEPER
 - STOWLINE — pack market-forged shaped cargo into a vault for coverage density; bust on spill — KEEPER
+- ASSAY — set mixing ratios across live price-facets to match a drifting target compound; paid by closeness at lock — KEEPER

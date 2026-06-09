@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>ASSAY — Live Market Alloy</title>
+<style>
+  :root{
+    --bg0:#06080d; --bg1:#0b1018; --panel:rgba(18,24,34,.72);
+    --ink:#e8eef7; --dim:#8794a8; --line:rgba(120,140,170,.14);
+    --trend:#36e0a6;   /* green */
+    --vol:#ff5d73;     /* red   */
+    --mom:#4d9bff;     /* blue  */
+    --gold:#ffce4d; --goldhot:#ffb52e;
+    --good:#36e0a6; --bad:#ff5d73;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{
+    background:
+      radial-gradient(1200px 700px at 78% -8%, rgba(77,155,255,.10), transparent 60%),
+      radial-gradient(900px 600px at 8% 110%, rgba(255,141,46,.10), transparent 55%),
+      linear-gradient(180deg,var(--bg1),var(--bg0));
+    color:var(--ink);
+    font-family:"Inter",system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased; overflow-x:hidden;
+  }
+  .wrap{max-width:1280px;margin:0 auto;padding:0 22px}
+
+  /* ---------- HERO (first viewport, 1280x800) ---------- */
+  .hero{height:800px;max-height:100vh;display:flex;flex-direction:column;padding-top:14px}
+  .topbar{display:flex;align-items:center;justify-content:space-between;gap:16px;height:48px;flex:0 0 auto}
+  .brand{display:flex;align-items:baseline;gap:12px}
+  .logo{font-weight:800;font-size:24px;letter-spacing:.32em;
+    background:linear-gradient(90deg,#fff,var(--gold));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .tag{color:var(--dim);font-size:12.5px;letter-spacing:.06em}
+  .balance{display:flex;gap:18px;align-items:center}
+  .chip{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:8px 14px;font-size:12px;color:var(--dim);
+    display:flex;flex-direction:column;line-height:1.25}
+  .chip b{color:var(--ink);font-size:16px;font-weight:700;letter-spacing:.02em}
+  .chip b.gold{color:var(--gold)}
+
+  .stage{flex:1 1 auto;display:grid;grid-template-columns:340px 1fr 340px;gap:18px;padding:14px 0 8px;min-height:0}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:18px;position:relative;overflow:hidden;
+    backdrop-filter:blur(6px)}
+  .card h3{margin:0;padding:13px 16px 0;font-size:11px;letter-spacing:.18em;color:var(--dim);font-weight:700;text-transform:uppercase}
+
+  /* left: streams + valves */
+  .left{display:flex;flex-direction:column}
+  .streams{padding:10px 14px 6px;display:flex;flex-direction:column;gap:11px;flex:1 1 auto;justify-content:center}
+  .stream{}
+  .stream .row{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+  .sname{display:flex;align-items:center;gap:9px;font-size:12.5px;font-weight:700;letter-spacing:.04em}
+  .dot{width:11px;height:11px;border-radius:50%;box-shadow:0 0 12px 2px currentColor}
+  .pot{font-size:11px;color:var(--dim)}
+  .pot b{color:var(--ink);font-variant-numeric:tabular-nums}
+  .valve{position:relative;height:30px;border-radius:9px;background:rgba(255,255,255,.05);
+    border:1px solid var(--line);cursor:ew-resize;overflow:hidden;touch-action:none}
+  .fill{position:absolute;left:0;top:0;bottom:0;border-radius:9px 0 0 9px;opacity:.85}
+  .vlabel{position:absolute;right:9px;top:50%;transform:translateY(-50%);font-size:12px;font-weight:800;
+    font-variant-numeric:tabular-nums;color:#0a0d12;mix-blend-mode:screen;text-shadow:0 0 8px rgba(0,0,0,.4)}
+  .knob{position:absolute;top:50%;width:6px;height:40px;transform:translate(-50%,-50%);background:#fff;border-radius:3px;
+    box-shadow:0 0 10px rgba(255,255,255,.7);pointer-events:none}
+  .hint{padding:4px 16px 13px;font-size:11px;color:var(--dim);line-height:1.5}
+
+  /* center: alloy field */
+  .center{display:flex;flex-direction:column}
+  .fieldwrap{flex:1 1 auto;position:relative;min-height:0}
+  #field{width:100%;height:100%;display:block}
+  .lockring{position:absolute;left:50%;top:14px;transform:translateX(-50%);text-align:center}
+  .timer{font-size:13px;letter-spacing:.16em;color:var(--dim);font-weight:700}
+  .timer b{color:var(--ink);font-variant-numeric:tabular-nums;font-size:15px}
+  .castmsg{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;
+    opacity:0;transition:opacity .25s}
+  .castmsg .big{font-size:46px;font-weight:900;letter-spacing:.02em}
+  .castmsg .sub{font-size:14px;color:var(--dim);margin-top:2px;letter-spacing:.04em}
+
+  /* right: crucible + result + bet */
+  .right{display:flex;flex-direction:column}
+  .crucwrap{flex:1 1 auto;position:relative;min-height:0}
+  #cruc{width:100%;height:100%;display:block}
+  .puritybar{padding:0 16px 6px}
+  .pbtrack{height:9px;border-radius:6px;background:rgba(255,255,255,.06);overflow:hidden;position:relative}
+  .pbfill{height:100%;border-radius:6px;transition:width .12s linear, background .2s}
+  .pbthresh{position:absolute;top:-3px;bottom:-3px;width:2px;background:rgba(255,255,255,.5)}
+  .prow{display:flex;justify-content:space-between;font-size:11px;color:var(--dim);padding:6px 16px 2px}
+  .prow b{color:var(--ink);font-variant-numeric:tabular-nums}
+  .betbar{padding:10px 14px 14px;display:flex;gap:8px;align-items:center}
+  .stakebox{flex:1 1 auto;display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.05);border:1px solid var(--line);
+    border-radius:11px;padding:7px 10px}
+  .stakebox span{color:var(--dim);font-size:11px}
+  .stakebox input{flex:1 1 auto;background:transparent;border:0;color:var(--ink);font-size:16px;font-weight:700;width:100%;outline:none;font-variant-numeric:tabular-nums}
+  .lockbtn{flex:0 0 auto;border:0;border-radius:11px;padding:11px 18px;font-weight:800;letter-spacing:.06em;cursor:pointer;
+    background:linear-gradient(180deg,var(--gold),var(--goldhot));color:#15110a;font-size:13px;box-shadow:0 6px 18px rgba(255,181,46,.28)}
+  .lockbtn:active{transform:translateY(1px)}
+  .lockbtn.casting{background:linear-gradient(180deg,#4a5468,#39414f);color:#aab4c4;box-shadow:none;cursor:default}
+
+  /* market strip under hero edge */
+  .stripcard{height:96px;flex:0 0 auto;margin-top:2px;display:flex;align-items:stretch}
+  .stripcard h3{position:absolute}
+  #strip{width:100%;height:100%;display:block}
+  .stripwrap{position:relative;flex:1 1 auto}
+  .stripmeta{position:absolute;right:14px;top:10px;font-size:11px;color:var(--dim);text-align:right;line-height:1.5}
+  .stripmeta b{color:var(--ink);font-variant-numeric:tabular-nums}
+
+  /* ---------- below the fold ---------- */
+  .below{padding:46px 0 70px}
+  .below h2{font-size:13px;letter-spacing:.22em;color:var(--gold);text-transform:uppercase;margin:0 0 18px}
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+  .ex{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px}
+  .ex h4{margin:0 0 8px;font-size:15px}
+  .ex p{margin:0;color:var(--dim);font-size:13px;line-height:1.6}
+  .ex .num{font-size:12px;font-weight:800;color:var(--gold);letter-spacing:.12em}
+  .foot{margin-top:34px;color:var(--dim);font-size:12px;line-height:1.7;max-width:880px}
+  .foot b{color:var(--ink)}
+  .pill{display:inline-block;border:1px solid var(--line);border-radius:999px;padding:3px 10px;margin:3px 6px 3px 0;font-size:11px;color:var(--dim)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <!-- ============ HERO ============ -->
+  <section class="hero">
+    <div class="topbar">
+      <div class="brand">
+        <div class="logo">ASSAY</div>
+        <div class="tag">mix the living market into the master alloy — before the crucible locks</div>
+      </div>
+      <div class="balance">
+        <div class="chip">FEED <b id="feedName">VOL&nbsp;75 INDEX</b></div>
+        <div class="chip">BALANCE <b class="gold" id="bal">$2,500.00</b></div>
+        <div class="chip">STREAK <b id="streak">0</b></div>
+      </div>
+    </div>
+
+    <div class="stage">
+      <!-- LEFT: streams + valves -->
+      <div class="card left">
+        <h3>Streams &amp; Valves</h3>
+        <div class="streams" id="streams"></div>
+        <div class="hint">Each stream's <b>potency</b> is driven live by the market. Your valves set the pour <b>ratio</b> (auto-normalised to 100%). Same valves, shifting potency → moving blend. Stay ahead of it.</div>
+      </div>
+
+      <!-- CENTER: alloy field -->
+      <div class="card center">
+        <h3>Alloy Field — chase the drifting target</h3>
+        <div class="fieldwrap">
+          <canvas id="field"></canvas>
+          <div class="lockring"><div class="timer">LOCK IN <b id="tmr">12.0</b>s</div></div>
+          <div class="castmsg" id="castmsg"><div class="big" id="castbig">—</div><div class="sub" id="castsub"></div></div>
+        </div>
+      </div>
+
+      <!-- RIGHT: crucible + result + bet -->
+      <div class="card right">
+        <h3>Crucible &amp; Cast</h3>
+        <div class="crucwrap"><canvas id="cruc"></canvas></div>
+        <div class="puritybar">
+          <div class="pbtrack"><div class="pbfill" id="pbfill"></div><div class="pbthresh" id="pbthresh"></div></div>
+        </div>
+        <div class="prow"><span>PURITY <b id="purity">0%</b></span><span>PAYOUT <b id="mult">0.00×</b></span></div>
+        <div class="betbar">
+          <div class="stakebox"><span>$</span><input id="stake" type="text" value="25" inputmode="decimal" /></div>
+          <button class="lockbtn" id="lockbtn">LOCK</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- market strip -->
+    <div class="card stripcard">
+      <h3 style="padding:10px 0 0 16px">Live Feed</h3>
+      <div class="stripwrap">
+        <canvas id="strip"></canvas>
+        <div class="stripmeta">PRICE <b id="px">—</b><br>character <b id="charlbl">—</b></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ BELOW THE FOLD ============ -->
+  <section class="below">
+    <h2>How a round works</h2>
+    <div class="grid3">
+      <div class="ex"><div class="num">01 — READ</div><h4>Three facets, one feed</h4>
+        <p>The live feed is split into <b style="color:var(--trend)">Trend</b>, <b style="color:var(--vol)">Volatility</b> and <b style="color:var(--mom)">Momentum</b>. Each becomes a molten stream whose potency rises and falls with the market's character — not its direction.</p></div>
+      <div class="ex"><div class="num">02 — MIX</div><h4>Set the ratios</h4>
+        <p>Drag the three valves to pour your blend. The crucible's colour <b>is</b> your live alloy. A pulsing target swatch drifts as the market moves — steer your blend point onto it inside the alloy field.</p></div>
+      <div class="ex"><div class="num">03 — CAST</div><h4>Lock &amp; settle</h4>
+        <p>At lock, distance between your blend and the target sets <b>purity</b>. Above the line the ingot rings and pays a convex multiplier up to a <b style="color:var(--gold)">flawless 12×</b>; below it, the ingot fractures and the stake is lost.</p></div>
+    </div>
+    <div class="foot">
+      <b>The bet (skin-free):</b> a vector of mixing ratios across multiple live price-driven ingredients, settled by how closely the resulting blend matches a live-drifting target compound at lock.
+      It is proportion-matching in a continuous blend space — not level-claiming, region-drawing, flow-routing, or riding a rising multiplier.
+      <br><br>
+      <span class="pill">live synthetic feed</span><span class="pill">read texture, not direction</span><span class="pill">risk dial = target radius</span><span class="pill">streak jackpots</span><span class="pill">prototype — simulated feed</span>
+    </div>
+  </section>
+</div>
+
+<script>
+"use strict";
+/* ============================================================
+   ASSAY — live market alloy mixing  (vanilla JS prototype)
+   ============================================================ */
+
+// ---------- market simulation ----------
+const N = 240;
+let price = 1000, drift = 0.0, vbase = 0.9;
+const hist = new Array(N).fill(price);
+function stepMarket(){
+  // regime-ish drift + heteroskedastic vol
+  drift += (Math.random()-0.5)*0.06;
+  drift *= 0.95;
+  vbase += (Math.random()-0.5)*0.12; vbase = Math.max(0.35, Math.min(2.6, vbase));
+  const shock = (Math.random()-0.5)*2;
+  price += drift*1.6 + shock*vbase;
+  hist.push(price); if(hist.length>N) hist.shift();
+}
+function ema(arr,p){let k=2/(p+1),e=arr[0];for(let i=1;i<arr.length;i++)e=arr[i]*k+e*(1-k);return e;}
+function slope(arr,p){const a=arr.slice(-p);return (a[a.length-1]-a[0])/p;}
+function stddev(arr,p){const a=arr.slice(-p);const m=a.reduce((x,y)=>x+y,0)/a.length;
+  return Math.sqrt(a.reduce((s,v)=>s+(v-m)*(v-m),0)/a.length);}
+function clamp01(x){return x<0?0:x>1?1:x;}
+
+// facet -> potency (0..1), live
+let pot = {trend:.5, vol:.5, mom:.5};
+let target = {a:.34,b:.33,c:.33};   // ternary target (barycentric, sums~1)
+let tgtSeed = {a:.34,b:.33,c:.33};
+function computeFacets(){
+  const sl = slope(hist,40);
+  const sd = stddev(hist,30);
+  const mo = slope(hist,8)-slope(hist,24);
+  // map to 0..1 with soft squashing
+  const sq=(x,s)=>clamp01(0.5+0.5*Math.tanh(x*s));
+  const tT = sq(Math.abs(sl),0.9);
+  const tV = clamp01((sd-0.6)/3.2);
+  const tM = sq(mo,0.7);
+  // smooth potencies
+  pot.trend += (tT-pot.trend)*0.08;
+  pot.vol   += (tV-pot.vol)*0.08;
+  pot.mom   += (tM-pot.mom)*0.08;
+  // TARGET driven by slower transforms (different windows) -> drifts independently
+  const lT=sq(Math.abs(slope(hist,90)),0.7);
+  const lV=clamp01((stddev(hist,80)-0.6)/3.4);
+  const lM=sq(slope(hist,20)-slope(hist,60),0.6);
+  let s=lT+lV+lM+1e-6;
+  tgtSeed={a:lT/s,b:lV/s,c:lM/s};
+  // drift the live target toward the seed slowly (readable wander)
+  target.a += (tgtSeed.a-target.a)*0.035;
+  target.b += (tgtSeed.b-target.b)*0.035;
+  target.c += (tgtSeed.c-target.c)*0.035;
+}
+
+// ---------- streams / valves ----------
+const streams=[
+  {key:'trend',name:'TREND',  col:getComputedStyle(document.documentElement).getPropertyValue('--trend').trim(), valve:0.34},
+  {key:'vol',  name:'VOLATILITY',col:getComputedStyle(document.documentElement).getPropertyValue('--vol').trim(), valve:0.33},
+  {key:'mom',  name:'MOMENTUM',col:getComputedStyle(document.documentElement).getPropertyValue('--mom').trim(), valve:0.33},
+];
+function normValves(){let s=streams.reduce((x,v)=>x+v.valve,0)||1;streams.forEach(v=>v.valve/=s);}
+normValves();
+
+// blend point in barycentric coords = valve*potency normalised
+function blendBary(){
+  const w=streams.map(s=>s.valve*pot[s.key]);
+  let s=w[0]+w[1]+w[2]+1e-6;
+  return {a:w[0]/s,b:w[1]/s,c:w[2]/s};
+}
+// crucible colour = potency-weighted valve mix of the three stream colours
+function hexToRgb(h){h=h.replace('#','');return [parseInt(h.substr(0,2),16),parseInt(h.substr(2,2),16),parseInt(h.substr(4,2),16)];}
+const RGB=streams.map(s=>hexToRgb(s.col));
+function mixColor(bary){
+  const r=RGB[0][0]*bary.a+RGB[1][0]*bary.b+RGB[2][0]*bary.c;
+  const g=RGB[0][1]*bary.a+RGB[1][1]*bary.b+RGB[2][1]*bary.c;
+  const b=RGB[0][2]*bary.a+RGB[1][2]*bary.b+RGB[2][2]*bary.c;
+  return [r|0,g|0,b|0];
+}
+function baryDist(p,q){ // euclidean in projected ternary plane
+  const P=baryToXY(p), Q=baryToXY(q);
+  return Math.hypot(P.x-Q.x,P.y-Q.y);
+}
+// ternary geometry (equilateral)
+function baryToXY(b){ // returns 0..1 normalised coords
+  // verts: A top, B bottom-left, C bottom-right
+  const Ax=0.5,Ay=0.06, Bx=0.07,By=0.92, Cx=0.93,Cy=0.92;
+  return {x:b.a*Ax+b.b*Bx+b.c*Cx, y:b.a*Ay+b.b*By+b.c*Cy};
+}
+const MAXD = baryDist({a:1,b:0,c:0},{a:0,b:1,c:0}); // max edge dist
+
+// ---------- round state ----------
+const ROUND=12.0; // seconds
+let tLeft=ROUND, casting=false, lastPurity=0, lastMult=0;
+let balance=2500, streak=0, stake=25;
+let blendTrail=[]; let castFlash=0, castWin=false;
+let targetRadius=0.18; // win threshold radius (risk dial baseline)
+
+// ---------- DOM ----------
+const $=id=>document.getElementById(id);
+const streamsEl=$('streams');
+streams.forEach((s,i)=>{
+  const el=document.createElement('div'); el.className='stream';
+  el.innerHTML=`
+    <div class="row">
+      <div class="sname"><span class="dot" style="color:${s.col};background:${s.col}"></span>${s.name}</div>
+      <div class="pot">potency <b id="pot_${s.key}">—</b></div>
+    </div>
+    <div class="valve" data-i="${i}">
+      <div class="fill" id="fill_${i}" style="background:${s.col}"></div>
+      <div class="knob" id="knob_${i}"></div>
+      <div class="vlabel" id="vl_${i}">33%</div>
+    </div>`;
+  streamsEl.appendChild(el);
+});
+// valve drag
+let dragI=-1;
+function setValveFromX(i,clientX,el){
+  const r=el.getBoundingClientRect();
+  let f=clamp01((clientX-r.left)/r.width); f=Math.max(0.02,Math.min(0.98,f));
+  // adjust this valve, keep others proportional
+  const others=streams.filter((_,j)=>j!==i);
+  const rest=1-f; const oSum=others.reduce((x,v)=>x+v.valve,0)||1;
+  streams[i].valve=f; others.forEach(v=>v.valve=rest*(v.valve/oSum));
+  normValves();
+}
+document.querySelectorAll('.valve').forEach(el=>{
+  const i=+el.dataset.i;
+  const down=e=>{dragI=i; const x=(e.touches?e.touches[0].clientX:e.clientX); setValveFromX(i,x,el); e.preventDefault();};
+  el.addEventListener('mousedown',down); el.addEventListener('touchstart',down,{passive:false});
+});
+window.addEventListener('mousemove',e=>{if(dragI>=0){const el=document.querySelector(`.valve[data-i="${dragI}"]`);setValveFromX(dragI,e.clientX,el);}});
+window.addEventListener('touchmove',e=>{if(dragI>=0){const el=document.querySelector(`.valve[data-i="${dragI}"]`);setValveFromX(dragI,e.touches[0].clientX,el);e.preventDefault();}},{passive:false});
+window.addEventListener('mouseup',()=>dragI=-1); window.addEventListener('touchend',()=>dragI=-1);
+
+$('stake').addEventListener('change',()=>{let v=parseFloat($('stake').value);if(!isFinite(v)||v<1)v=1;stake=Math.min(v,balance);$('stake').value=stake;});
+$('lockbtn').addEventListener('click',doCast);
+
+// ---------- payout ----------
+function purityFrom(dist){ return clamp01(1 - dist/(targetRadius*2.6)); }
+function multFrom(p){ if(p<0.55) return 0; return 1.0 + 3.6*Math.pow(p-0.55,1.55)/Math.pow(0.45,1.55)*2.4; }
+// the above gives ~1.0x near threshold up to ~ up to >12x near p=1; cap below
+function multCapped(p){ let m=multFrom(p); return Math.min(m,12.0); }
+
+// ---------- cast ----------
+function doCast(){
+  if(casting) return;
+  casting=true; $('lockbtn').classList.add('casting'); $('lockbtn').textContent='CASTING…';
+  const bp=blendBary();
+  const dist=baryDist(bp,target);
+  const p=purityFrom(dist); lastPurity=p;
+  const m = p>=0.55? multCapped(p):0; lastMult=m;
+  castWin = m>0; castFlash=1.0;
+  const win = stake*m;
+  balance = balance - stake + win;
+  if(castWin){ streak++; } else { streak=0; }
+  spawnCastParticles(castWin);
+  // message
+  const cm=$('castmsg'), big=$('castbig'), sub=$('castsub');
+  if(castWin){
+    big.textContent = (m>=8? 'FLAWLESS' : 'PURE'); big.style.color='var(--gold)';
+    sub.textContent = `${(p*100).toFixed(0)}% purity · +$${win.toFixed(2)} · ${m.toFixed(2)}×`;
+  } else {
+    big.textContent='FRACTURED'; big.style.color='var(--bad)';
+    sub.textContent=`${(p*100).toFixed(0)}% purity · −$${stake.toFixed(2)}`;
+  }
+  cm.style.opacity=1; setTimeout(()=>cm.style.opacity=0,1500);
+  // settle then new round
+  setTimeout(()=>{
+    casting=false; $('lockbtn').classList.remove('casting'); $('lockbtn').textContent='LOCK';
+    tLeft=ROUND;
+    // new risk seed: slight radius wander
+    targetRadius=0.14+Math.random()*0.08;
+    if(stake>balance) stake=Math.max(1,Math.floor(balance));
+    $('stake').value=stake;
+  },1700);
+}
+
+// ---------- particles ----------
+let parts=[];
+function spawnCastParticles(win){
+  const n=win?90:46;
+  for(let i=0;i<n;i++){
+    const ang=Math.random()*Math.PI*2, sp=win?(1.5+Math.random()*5):(1+Math.random()*3);
+    parts.push({x:0.5,y:0.5,vx:Math.cos(ang)*sp*0.012,vy:Math.sin(ang)*sp*0.012-(win?0.006:0.002),
+      life:1, col:win?(Math.random()<0.5?'#ffce4d':'#fff3c4'):'#ff8a96', sz:win?(1.5+Math.random()*2.5):(1+Math.random()*1.8)});
+  }
+}
+
+// ---------- canvases ----------
+const field=$('field'), fctx=field.getContext('2d');
+const cruc=$('cruc'), cctx=cruc.getContext('2d');
+const strip=$('strip'), sctx=strip.getContext('2d');
+function fit(c){const r=c.getBoundingClientRect();const d=Math.min(2,window.devicePixelRatio||1);
+  c.width=Math.max(2,r.width*d);c.height=Math.max(2,r.height*d);return d;}
+let DF=1,DC=1,DS=1;
+function fitAll(){DF=fit(field);DC=fit(cruc);DS=fit(strip);}
+window.addEventListener('resize',fitAll);
+
+// ---------- draw: alloy field (ternary) ----------
+let pulse=0;
+function drawField(){
+  const w=field.width,h=field.height,d=DF; fctx.clearRect(0,0,w,h);
+  const A=baryToXY({a:1,b:0,c:0}),B=baryToXY({a:0,b:1,c:0}),C=baryToXY({a:0,b:0,c:1});
+  const X=p=>p.x*w, Y=p=>p.y*h;
+  // triangle gradient fill (alloy space)
+  // sample grid for colour field
+  const steps=26;
+  for(let i=0;i<=steps;i++){
+    for(let j=0;j<=steps-i;j++){
+      const k=steps-i-j;
+      const ba={a:i/steps,b:j/steps,c:k/steps};
+      const xy=baryToXY(ba), col=mixColor(ba);
+      fctx.fillStyle=`rgba(${col[0]},${col[1]},${col[2]},0.16)`;
+      const cell=(w/steps)*1.25;
+      fctx.fillRect(X(xy)-cell/2, Y(xy)-cell/2, cell, cell);
+    }
+  }
+  // triangle outline
+  fctx.lineWidth=1.4*d; fctx.strokeStyle='rgba(150,170,200,.35)';
+  fctx.beginPath();fctx.moveTo(X(A),Y(A));fctx.lineTo(X(B),Y(B));fctx.lineTo(X(C),Y(C));fctx.closePath();fctx.stroke();
+  // vertex labels
+  fctx.font=`${11*d}px Inter,sans-serif`; fctx.textAlign='center';
+  fctx.fillStyle=streams[0].col; fctx.fillText('TREND',X(A),Y(A)-6*d);
+  fctx.fillStyle=streams[1].col; fctx.textAlign='left';  fctx.fillText('VOL',X(B)+2*d,Y(B)+14*d);
+  fctx.fillStyle=streams[2].col; fctx.textAlign='right'; fctx.fillText('MOM',X(C)-2*d,Y(C)+14*d);
+
+  // target halo + win-zone ring (drawn to MATCH the 0.55-purity threshold)
+  pulse+=0.06;
+  const txy=baryToXY(target);
+  // px-per-bary-unit using the triangle edge (B->C spans bary dist MAXD)
+  const edgePx=Math.hypot(X(B)-X(C),Y(B)-Y(C));
+  const pxPerBary=edgePx/(Math.hypot(B.x-C.x,B.y-C.y));
+  // purity=0.55 <=> dist = 0.45 * (targetRadius*2.6) in bary units
+  const winBaryR=0.45*(targetRadius*2.6);
+  const pr=winBaryR*pxPerBary;
+  const tcol=mixColor(target);
+  const grd=fctx.createRadialGradient(X(txy),Y(txy),2,X(txy),Y(txy),pr);
+  grd.addColorStop(0,`rgba(${tcol[0]},${tcol[1]},${tcol[2]},0.9)`);
+  grd.addColorStop(0.6,`rgba(${tcol[0]},${tcol[1]},${tcol[2]},0.18)`);
+  grd.addColorStop(1,`rgba(${tcol[0]},${tcol[1]},${tcol[2]},0)`);
+  fctx.fillStyle=grd; fctx.beginPath();fctx.arc(X(txy),Y(txy),pr,0,7);fctx.fill();
+  // target ring (the win zone)
+  fctx.lineWidth=1.6*d; fctx.strokeStyle=`rgba(255,255,255,${0.45+0.25*Math.sin(pulse)})`;
+  fctx.setLineDash([5*d,5*d]); fctx.beginPath();fctx.arc(X(txy),Y(txy),pr,0,7);fctx.stroke();
+  fctx.setLineDash([]);
+  // target crosshair
+  fctx.fillStyle='#fff'; fctx.beginPath();fctx.arc(X(txy),Y(txy),3*d,0,7);fctx.fill();
+
+  // blend trail
+  const bp=blendBary(); const bxy=baryToXY(bp);
+  blendTrail.push({x:X(bxy),y:Y(bxy)}); if(blendTrail.length>34) blendTrail.shift();
+  for(let i=0;i<blendTrail.length;i++){
+    const t=i/blendTrail.length; const p=blendTrail[i];
+    fctx.fillStyle=`rgba(255,255,255,${0.04+0.18*t})`;
+    fctx.beginPath();fctx.arc(p.x,p.y,(2+5*t)*d/1.2,0,7);fctx.fill();
+  }
+  // blend point (glowing)
+  const bcol=mixColor(bp);
+  const bg=fctx.createRadialGradient(X(bxy),Y(bxy),1,X(bxy),Y(bxy),16*d);
+  bg.addColorStop(0,'rgba(255,255,255,.95)');
+  bg.addColorStop(0.4,`rgba(${bcol[0]},${bcol[1]},${bcol[2]},.9)`);
+  bg.addColorStop(1,`rgba(${bcol[0]},${bcol[1]},${bcol[2]},0)`);
+  fctx.fillStyle=bg; fctx.beginPath();fctx.arc(X(bxy),Y(bxy),16*d,0,7);fctx.fill();
+  fctx.fillStyle='#fff'; fctx.beginPath();fctx.arc(X(bxy),Y(bxy),3.2*d,0,7);fctx.fill();
+
+  // line connecting blend->target (warmer/colder feedback)
+  const dist=baryDist(bp,target); const close=clamp01(1-dist/MAXD);
+  fctx.lineWidth=1.2*d; fctx.strokeStyle=`rgba(${255*(1-close)+ 54*close},${ 93*(1-close)+224*close},${115*(1-close)+166*close},${0.25+0.4*close})`;
+  fctx.beginPath();fctx.moveTo(X(bxy),Y(bxy));fctx.lineTo(X(txy),Y(txy));fctx.stroke();
+
+  // cast particles (overlay, normalised coords)
+  if(parts.length){
+    for(const p of parts){ fctx.globalAlpha=Math.max(0,p.life);
+      fctx.fillStyle=p.col; fctx.beginPath();fctx.arc(p.x*w,p.y*h,p.sz*d,0,7);fctx.fill();}
+    fctx.globalAlpha=1;
+  }
+}
+
+// ---------- draw: crucible ----------
+let wob=0;
+function drawCruc(){
+  const w=cruc.width,h=cruc.height,d=DC; cctx.clearRect(0,0,w,h);
+  const bp=blendBary(); const col=mixColor(bp);
+  const tcol=mixColor(target);
+  wob+=0.07;
+  // crucible bowl
+  const cx=w/2, cy=h*0.56, rw=w*0.34, rh=h*0.30;
+  // outer glow from molten
+  const og=cctx.createRadialGradient(cx,cy,4,cx,cy,rw*1.7);
+  og.addColorStop(0,`rgba(${col[0]},${col[1]},${col[2]},0.5)`);
+  og.addColorStop(1,'rgba(0,0,0,0)');
+  cctx.fillStyle=og; cctx.fillRect(0,0,w,h);
+  // target swatch (what to match) top
+  cctx.fillStyle='rgba(255,255,255,.5)'; cctx.font=`${10*d}px Inter`; cctx.textAlign='center';
+  cctx.fillText('TARGET ALLOY',cx,h*0.10);
+  roundRect(cctx,cx-rw*0.6,h*0.13,rw*1.2,h*0.085,6*d);
+  cctx.fillStyle=`rgb(${tcol[0]},${tcol[1]},${tcol[2]})`; cctx.fill();
+  cctx.lineWidth=1.4*d; cctx.strokeStyle='rgba(255,255,255,.6)'; cctx.stroke();
+  // streams pouring (3 thin beams)
+  for(let i=0;i<3;i++){
+    const sx=cx + (i-1)*rw*0.7; const scol=RGB[i];
+    const wdt=Math.max(1, streams[i].valve*pot[streams[i].key]*16)*d;
+    const grd=cctx.createLinearGradient(sx,h*0.24,sx,cy-rh*0.4);
+    grd.addColorStop(0,`rgba(${scol[0]},${scol[1]},${scol[2]},0)`);
+    grd.addColorStop(1,`rgba(${scol[0]},${scol[1]},${scol[2]},.85)`);
+    cctx.strokeStyle=grd; cctx.lineWidth=wdt; cctx.lineCap='round';
+    cctx.beginPath();
+    const sway=Math.sin(wob+i)*4*d;
+    cctx.moveTo(sx,h*0.24); cctx.quadraticCurveTo(sx+sway,cy-rh*0.9,cx+ (i-1)*4*d, cy-rh*0.5);
+    cctx.stroke();
+  }
+  // molten pool
+  cctx.save();
+  cctx.beginPath(); cctx.ellipse(cx,cy,rw,rh,0,0,7); cctx.clip();
+  const mg=cctx.createLinearGradient(cx,cy-rh,cx,cy+rh);
+  mg.addColorStop(0,`rgb(${Math.min(255,col[0]+60)},${Math.min(255,col[1]+60)},${Math.min(255,col[2]+60)})`);
+  mg.addColorStop(1,`rgb(${col[0]*0.6|0},${col[1]*0.6|0},${col[2]*0.6|0})`);
+  cctx.fillStyle=mg; cctx.fillRect(cx-rw,cy-rh,rw*2,rh*2);
+  // surface ripples
+  cctx.strokeStyle=`rgba(255,255,255,.18)`; cctx.lineWidth=1*d;
+  for(let i=0;i<3;i++){cctx.beginPath();
+    for(let x=-rw;x<=rw;x+=4*d){const y=cy-rh*0.5+i*rh*0.4+Math.sin((x*0.04)+wob*1.4+i)*3*d;cctx.lineTo(cx+x,y);}cctx.stroke();}
+  cctx.restore();
+  // bowl rim
+  cctx.lineWidth=3*d; cctx.strokeStyle='rgba(180,190,205,.5)';
+  cctx.beginPath();cctx.ellipse(cx,cy,rw,rh,0,0,7);cctx.stroke();
+  cctx.beginPath();cctx.ellipse(cx,cy,rw,rh*0.42,0,0,Math.PI);
+  cctx.strokeStyle='rgba(0,0,0,.3)'; cctx.stroke();
+
+  // match readout dial under crucible
+  const dist=baryDist(bp,target); const p=purityFrom(dist);
+  const cy2=h*0.90;
+  cctx.font=`${11*d}px Inter`; cctx.textAlign='center'; cctx.fillStyle='rgba(255,255,255,.55)';
+  cctx.fillText(p>=0.55?'IN THE PURE ZONE':'OFF-TARGET', cx, cy2);
+
+  // cast flash overlay
+  if(castFlash>0){
+    cctx.fillStyle = castWin? `rgba(255,206,77,${castFlash*0.30})` : `rgba(255,93,115,${castFlash*0.28})`;
+    cctx.fillRect(0,0,w,h);
+  }
+}
+function roundRect(ctx,x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();}
+
+// ---------- draw: market strip ----------
+function drawStrip(){
+  const w=strip.width,h=strip.height,d=DS; sctx.clearRect(0,0,w,h);
+  const mn=Math.min(...hist),mx=Math.max(...hist),rg=(mx-mn)||1;
+  const X=i=>i/(N-1)*w, Y=v=>h-8*d-((v-mn)/rg)*(h-16*d);
+  // area
+  sctx.beginPath(); sctx.moveTo(0,h);
+  hist.forEach((v,i)=>sctx.lineTo(X(i),Y(v))); sctx.lineTo(w,h); sctx.closePath();
+  const ag=sctx.createLinearGradient(0,0,0,h);
+  ag.addColorStop(0,'rgba(255,206,77,.18)'); ag.addColorStop(1,'rgba(255,206,77,0)');
+  sctx.fillStyle=ag; sctx.fill();
+  // line
+  sctx.beginPath(); hist.forEach((v,i)=>i?sctx.lineTo(X(i),Y(v)):sctx.moveTo(X(i),Y(v)));
+  sctx.lineWidth=1.6*d; sctx.strokeStyle='rgba(255,206,77,.9)'; sctx.stroke();
+  // head dot
+  const hx=X(N-1),hy=Y(hist[N-1]);
+  sctx.fillStyle='#fff'; sctx.beginPath();sctx.arc(hx,hy,2.6*d,0,7);sctx.fill();
+  sctx.strokeStyle='rgba(255,206,77,.5)'; sctx.lineWidth=1*d;
+  sctx.beginPath();sctx.moveTo(0,hy);sctx.lineTo(w,hy);sctx.setLineDash([3*d,4*d]);sctx.stroke();sctx.setLineDash([]);
+}
+
+// ---------- UI sync ----------
+function syncUI(){
+  // valves
+  streams.forEach((s,i)=>{
+    const f=$('fill_'+i), k=$('knob_'+i), vl=$('vl_'+i);
+    const pct=(s.valve*100);
+    f.style.width=(s.valve*100)+'%'; k.style.left=(s.valve*100)+'%';
+    vl.textContent=Math.round(pct)+'%';
+    $('pot_'+s.key).textContent=(pot[s.key]*100).toFixed(0)+'%';
+  });
+  // purity bar
+  const bp=blendBary(); const dist=baryDist(bp,target); const p=purityFrom(dist);
+  $('pbfill').style.width=(p*100)+'%';
+  $('pbfill').style.background = p>=0.55? 'linear-gradient(90deg,#ffb52e,#36e0a6)' : 'linear-gradient(90deg,#ff5d73,#ffb52e)';
+  $('pbthresh').style.left='55%';
+  $('purity').textContent=(p*100).toFixed(0)+'%';
+  const m=p>=0.55?multCapped(p):0; $('mult').textContent=m.toFixed(2)+'×';
+  $('mult').style.color = m>0? 'var(--gold)':'var(--bad)';
+  // balance / streak / timer
+  $('bal').textContent='$'+balance.toFixed(2);
+  $('streak').textContent=streak;
+  $('tmr').textContent=tLeft.toFixed(1);
+  $('px').textContent=price.toFixed(2);
+  // character label
+  const dom = pot.trend>pot.vol&&pot.trend>pot.mom?'TRENDING': pot.vol>pot.mom?'VOLATILE':'MOMENTUM';
+  $('charlbl').textContent=dom;
+}
+
+// ---------- loops ----------
+// market + facet update on a setInterval so it survives tab backgrounding
+setInterval(()=>{ stepMarket(); computeFacets(); },120);
+// round timer (independent interval)
+setInterval(()=>{
+  if(!casting){ tLeft-=0.1; if(tLeft<=0){ tLeft=0; doCast(); } }
+},100);
+// particle physics
+setInterval(()=>{
+  for(const p of parts){ p.x+=p.vx; p.y+=p.vy; p.vy+=0.0006; p.life-=0.02; }
+  parts=parts.filter(p=>p.life>0);
+  if(castFlash>0) castFlash-=0.04;
+},33);
+
+// render
+function render(){ drawField(); drawCruc(); drawStrip(); syncUI(); requestAnimationFrame(render); }
+// also drive a slow render via setInterval as a backup when tab is hidden (keeps state coherent)
+setInterval(()=>{ if(document.hidden){ /* state already advances via intervals */ } },500);
+
+// boot
+function boot(){
+  fitAll();
+  // warm up history so chart looks alive on frame 1
+  for(let i=0;i<N;i++){ stepMarket(); }
+  for(let i=0;i<60;i++){ computeFacets(); }
+  requestAnimationFrame(render);
+}
+boot();
+</script>
+</body>
+</html>
