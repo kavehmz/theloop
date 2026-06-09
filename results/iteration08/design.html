@@ -355,8 +355,9 @@
   function updateView(){
     let mn=Infinity,mx=-Infinity;
     for(let i=0;i<hist.length;i++){ if(hist[i]<mn)mn=hist[i]; if(hist[i]>mx)mx=hist[i]; }
-    // include owned/visible gates so ladder + chart share scale
-    gates.forEach(g=>{ if(g.level<mn)mn=g.level; if(g.level>mx)mx=g.level; });
+    // include OWNED gates so ladder + chart share scale (transient gates excluded,
+    // otherwise far stale gates drag the view wide and never get culled)
+    gates.forEach(g=>{ if(!g.owned) return; if(g.level<mn)mn=g.level; if(g.level>mx)mx=g.level; });
     const pad=(mx-mn)*0.18 + 14;
     mn-=pad; mx+=pad;
     viewMin += (mn-viewMin)*0.08;
@@ -701,6 +702,11 @@
     // seed a richer history
     for(let i=0;i<N;i++){ stepPrice(); }
     lastPrice=price;
+    // snap the view to the seeded history range so the comet isn't pinned to an
+    // edge (the easing in updateView lags far behind a trended seed otherwise)
+    let smn=Infinity,smx=-Infinity;
+    for(let i=0;i<hist.length;i++){ if(hist[i]<smn)smn=hist[i]; if(hist[i]>smx)smx=hist[i]; }
+    const spad=(smx-smn)*0.18+14; viewMin=smn-spad; viewMax=smx+spad;
     updateView(); ensureGates(); updateLadder();
     requestAnimationFrame(loop);
   }
@@ -711,7 +717,7 @@
     running=true;
     // auto-buy a demo gate so the board reads instantly
     setTimeout(()=>{
-      const cand = gates.filter(g=>g.level>price && Math.abs(g.level-price)/GAP<=3).sort((a,b)=>a.level-b.level)[0];
+      const cand = gates.filter(g=>g.alive && !g.owned).sort((a,b)=>Math.abs(a.level-price)-Math.abs(b.level-price))[0];
       if(cand) onGateClick(cand);
     },400);
   });
