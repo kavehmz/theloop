@@ -13,3 +13,4 @@ One line per design: name — core mechanic — STATUS
 - BALLAST — stack cargo on a fulcrum beam while price velocity tilts it and volatility quakes; bank height before topple — KEEPER
 - APOAPSIS — orbit a live-price gravity-star; burn fuel to hold a bet-on orbital band, banking per lap; crash-in or escape-out loses — KEEPER
 - STARFORGE — arm a constellation template; the price-comet must thread decaying star-nodes in order to draw the figure; rarity-priced — KEEPER
+- COREBORE — steer a descending drill through price-carved ore seams; extract while volatility builds hazards; winch out before cave-in — KEEPER

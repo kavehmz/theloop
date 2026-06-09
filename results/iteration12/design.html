@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=1280, initial-scale=1" />
+<title>COREBORE — Deriv</title>
+<style>
+  :root{
+    --bg:#070a10;
+    --panel:#0d121c;
+    --panel2:#101826;
+    --line:#1d2638;
+    --cyan:#3fe9ff;
+    --gold:#ffce4a;
+    --molten:#ff8a3c;
+    --red:#ff4d5e;
+    --green:#46f0a8;
+    --txt:#cfe2f2;
+    --dim:#6c8199;
+    --mono:'SF Mono',ui-monospace,'Roboto Mono',Menlo,monospace;
+    --sans:'Inter','Segoe UI',system-ui,-apple-system,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:var(--bg);
+    color:var(--txt);
+    font-family:var(--sans);
+    overflow:hidden;
+    -webkit-font-smoothing:antialiased;
+  }
+  /* ===== HERO: exactly one viewport ===== */
+  .hero{
+    width:100vw;height:100vh;
+    min-height:100vh;
+    display:grid;
+    grid-template-columns: 248px 1fr 280px;
+    grid-template-rows: 52px 1fr 92px;
+    grid-template-areas:
+      "top    top    top"
+      "left   stage  right"
+      "left   dock   right";
+    gap:10px;
+    padding:10px;
+    background:
+      radial-gradient(1100px 620px at 50% -10%, #122036 0%, rgba(18,32,54,0) 60%),
+      radial-gradient(900px 600px at 50% 120%, #1a0e14 0%, rgba(0,0,0,0) 55%),
+      var(--bg);
+  }
+
+  /* top bar */
+  .top{
+    grid-area:top;
+    display:flex;align-items:center;gap:18px;
+    padding:0 16px;
+    background:linear-gradient(180deg,#0e1521,#0a0f18);
+    border:1px solid #1b2638;
+    border-radius:12px;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.04);
+  }
+  .brand{display:flex;align-items:center;gap:11px;font-weight:800;letter-spacing:.16em;font-size:15px}
+  .brand .bit{
+    width:22px;height:22px;border-radius:6px;
+    background:conic-gradient(from 45deg,#ffce4a,#ff8a3c,#ffce4a,#ff8a3c,#ffce4a);
+    box-shadow:0 0 14px rgba(255,160,60,.7);
+    animation:spin 2.4s linear infinite;
+  }
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .brand b{background:linear-gradient(90deg,#ffce4a,#3fe9ff);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .brand .deriv{font-size:10px;letter-spacing:.3em;color:var(--dim);font-weight:700}
+  .ticker{margin-left:auto;display:flex;align-items:center;gap:22px}
+  .tk{display:flex;flex-direction:column;line-height:1.15}
+  .tk .lab{font-size:9px;letter-spacing:.18em;color:var(--dim);font-weight:700}
+  .tk .val{font-family:var(--mono);font-size:15px;font-weight:600}
+  .tk .val.up{color:var(--green)} .tk .val.dn{color:var(--red)}
+  .sym{font-family:var(--mono);font-size:13px;color:var(--cyan);padding:4px 10px;border:1px solid #1d3a44;border-radius:7px;background:rgba(63,233,255,.06)}
+
+  /* left rail: live market */
+  .left{
+    grid-area:left;
+    background:linear-gradient(180deg,#0c121d,#0a0e16);
+    border:1px solid #18222f;border-radius:12px;
+    padding:12px;display:flex;flex-direction:column;gap:10px;overflow:hidden;
+  }
+  .panel-h{font-size:10px;letter-spacing:.2em;color:var(--dim);font-weight:800;text-transform:uppercase}
+  .feed{position:relative;height:128px;border-radius:9px;background:#070b12;border:1px solid #16202d;overflow:hidden}
+  #feed{display:block;width:100%;height:100%}
+  .regime{display:flex;flex-direction:column;gap:9px;margin-top:2px}
+  .meter{}
+  .meter .ml{display:flex;justify-content:space-between;font-size:10px;color:var(--dim);letter-spacing:.08em;margin-bottom:4px}
+  .meter .ml b{font-family:var(--mono);color:var(--txt)}
+  .bar{height:8px;border-radius:5px;background:#10182a;overflow:hidden;border:1px solid #16202d}
+  .bar > i{display:block;height:100%;border-radius:5px;transition:width .12s linear}
+  .trend > i{background:linear-gradient(90deg,#ff8a3c,#ffce4a)}
+  .vol > i{background:linear-gradient(90deg,#3fe9ff,#ff4d5e)}
+  .legend{margin-top:auto;font-size:10.5px;line-height:1.55;color:var(--dim)}
+  .legend .row{display:flex;align-items:center;gap:7px;margin-bottom:3px}
+  .swatch{width:12px;height:12px;border-radius:3px;flex:none}
+  .sw-gold{background:linear-gradient(135deg,#ffce4a,#ff8a3c);box-shadow:0 0 8px rgba(255,180,70,.6)}
+  .sw-cy{background:linear-gradient(135deg,#3fe9ff,#1d7fa0)}
+  .sw-gas{background:radial-gradient(circle,#ff5e6e,#7a1722)}
+
+  /* center stage = the borehole */
+  .stage{
+    grid-area:stage;
+    position:relative;border-radius:14px;overflow:hidden;
+    border:1px solid #1b2638;
+    background:#05080d;
+    box-shadow:inset 0 0 60px rgba(0,0,0,.7), 0 0 0 1px rgba(255,255,255,.02);
+  }
+  #mine{display:block;width:100%;height:100%}
+  .stage-overlay{position:absolute;inset:0;pointer-events:none}
+  /* depth + multiplier HUD on the stage */
+  .hud-depth{position:absolute;top:12px;left:14px;font-family:var(--mono)}
+  .hud-depth .d{font-size:13px;color:var(--cyan);letter-spacing:.05em}
+  .hud-depth .d b{font-size:22px;color:#fff}
+  .hud-mult{position:absolute;top:10px;right:14px;text-align:right}
+  .hud-mult .m{font-family:var(--mono);font-size:34px;font-weight:700;line-height:1;
+    background:linear-gradient(180deg,#ffe27a,#ff8a3c);-webkit-background-clip:text;background-clip:text;color:transparent;
+    text-shadow:0 0 26px rgba(255,170,60,.35)}
+  .hud-mult .ml{font-size:9px;letter-spacing:.22em;color:var(--dim);font-weight:800}
+  .hud-hopper{position:absolute;left:14px;bottom:14px;right:14px}
+  .hud-hopper .hl{display:flex;justify-content:space-between;font-size:10px;color:var(--dim);letter-spacing:.14em;font-weight:700;margin-bottom:5px}
+  .hud-hopper .hl b{font-family:var(--mono);color:var(--gold)}
+  .hopbar{height:11px;border-radius:6px;background:rgba(6,10,18,.7);border:1px solid #2a2110;overflow:hidden;backdrop-filter:blur(2px)}
+  .hopbar > i{display:block;height:100%;width:0;border-radius:6px;
+    background:linear-gradient(90deg,#ff8a3c,#ffce4a,#fff0b0);
+    box-shadow:0 0 14px rgba(255,180,70,.7);transition:width .1s linear}
+  /* pressure ring */
+  .press{position:absolute;left:50%;top:50px;transform:translateX(-50%);width:128px;text-align:center}
+  /* center messages */
+  .flash{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px;
+    pointer-events:none;opacity:0;transition:opacity .25s}
+  .flash.show{opacity:1}
+  .flash .big{font-size:46px;font-weight:800;letter-spacing:.04em}
+  .flash .sub{font-family:var(--mono);font-size:16px;color:var(--txt)}
+  .flash.win .big{color:var(--gold);text-shadow:0 0 30px rgba(255,190,70,.7)}
+  .flash.bust .big{color:var(--red);text-shadow:0 0 30px rgba(255,80,90,.7)}
+
+  /* right rail: bet */
+  .right{
+    grid-area:right;
+    background:linear-gradient(180deg,#0c121d,#0a0e16);
+    border:1px solid #18222f;border-radius:12px;
+    padding:14px;display:flex;flex-direction:column;gap:12px;overflow:hidden;
+  }
+  .stake{}
+  .stake .row{display:flex;align-items:center;gap:8px}
+  .stake input{
+    flex:1;background:#070b12;border:1px solid #1d2a3a;border-radius:9px;
+    color:#fff;font-family:var(--mono);font-size:20px;padding:10px 12px;width:100%;
+  }
+  .stake input:focus{outline:none;border-color:var(--cyan);box-shadow:0 0 0 3px rgba(63,233,255,.12)}
+  .chips{display:flex;gap:6px;margin-top:8px}
+  .chip{flex:1;text-align:center;padding:7px 0;border-radius:8px;background:#0f1726;border:1px solid #1d2a3a;
+    font-family:var(--mono);font-size:12px;color:var(--dim);cursor:pointer;transition:.12s}
+  .chip:hover{border-color:var(--cyan);color:var(--txt)}
+  .payout{background:#0a0f18;border:1px solid #16202d;border-radius:11px;padding:12px}
+  .payout .pr{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:7px}
+  .payout .pr:last-child{margin-bottom:0}
+  .payout .lab{font-size:10px;letter-spacing:.14em;color:var(--dim);font-weight:700}
+  .payout .v{font-family:var(--mono);font-size:16px;color:var(--txt)}
+  .payout .v.big{font-size:30px;font-weight:700;
+    background:linear-gradient(180deg,#a6ffd6,#46f0a8);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .hint{font-size:10.5px;line-height:1.5;color:var(--dim)}
+  .hint kbd{font-family:var(--mono);font-size:10px;background:#11192a;border:1px solid #233348;border-radius:4px;padding:1px 5px;color:var(--txt)}
+
+  /* bottom dock = action buttons */
+  .dock{
+    grid-area:dock;
+    display:flex;gap:12px;align-items:stretch;
+  }
+  .btn{
+    flex:1;border:none;border-radius:13px;cursor:pointer;
+    font-family:var(--sans);font-weight:800;letter-spacing:.06em;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+    position:relative;overflow:hidden;transition:transform .08s, filter .15s, box-shadow .15s;
+    color:#06121a;
+  }
+  .btn:active{transform:translateY(2px)}
+  .btn .big{font-size:21px}
+  .btn .sm{font-size:10px;font-weight:700;letter-spacing:.16em;opacity:.8}
+  .btn:disabled{filter:grayscale(.7) brightness(.5);cursor:not-allowed;box-shadow:none}
+  .btn-bore{background:linear-gradient(180deg,#7ff0c0,#2fcf94);box-shadow:0 0 26px rgba(60,220,150,.4)}
+  .btn-push{background:linear-gradient(180deg,#ffd86b,#ff9b3c);box-shadow:0 0 26px rgba(255,170,60,.42);flex:1.15}
+  .btn-winch{background:linear-gradient(180deg,#7fdcff,#33a6ff);color:#04121f;box-shadow:0 0 26px rgba(60,170,255,.42)}
+  .btn-dwell{background:linear-gradient(180deg,#ff9bd0,#ff5ea0);color:#1c0612;box-shadow:0 0 26px rgba(255,90,160,.4)}
+  .btn .pulse{position:absolute;inset:0;background:radial-gradient(circle at 50% 120%,rgba(255,255,255,.5),transparent 60%);opacity:0;}
+  .btn:not(:disabled):hover .pulse{opacity:.5}
+
+  /* below the fold: explainer */
+  .below{padding:42px 7vw 80px;background:linear-gradient(180deg,#070a10,#0a0e16)}
+  .below h2{font-size:13px;letter-spacing:.26em;color:var(--cyan);margin-bottom:26px;text-transform:uppercase}
+  .steps{display:grid;grid-template-columns:repeat(4,1fr);gap:20px}
+  .step{background:#0c121d;border:1px solid #18222f;border-radius:13px;padding:20px}
+  .step .n{font-family:var(--mono);font-size:11px;color:var(--molten);letter-spacing:.2em;margin-bottom:9px}
+  .step h3{font-size:15px;margin-bottom:7px}
+  .step p{font-size:12.5px;line-height:1.6;color:var(--dim)}
+  .scrollcue{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);font-size:10px;letter-spacing:.2em;color:#33465c;pointer-events:none}
+</style>
+</head>
+<body>
+
+<section class="hero">
+  <!-- TOP -->
+  <header class="top">
+    <div class="brand">
+      <span class="bit"></span>
+      <span><b>COREBORE</b></span>
+      <span class="deriv">▎ DERIV</span>
+    </div>
+    <div class="ticker">
+      <span class="sym" id="sym">VOL 75 INDEX</span>
+      <div class="tk"><span class="lab">LAST</span><span class="val" id="t-last">—</span></div>
+      <div class="tk"><span class="lab">Δ TICK</span><span class="val" id="t-chg">—</span></div>
+      <div class="tk"><span class="lab">SESSION P/L</span><span class="val" id="t-pl">+0.00</span></div>
+    </div>
+  </header>
+
+  <!-- LEFT: live market read-out -->
+  <aside class="left">
+    <div class="panel-h">Live market feed</div>
+    <div class="feed"><canvas id="feed" width="448" height="256"></canvas></div>
+
+    <div class="regime">
+      <div class="meter trend">
+        <div class="ml"><span>SEAM GRADE · trend</span><b id="m-trend">0%</b></div>
+        <div class="bar"><i id="b-trend" style="width:20%"></i></div>
+      </div>
+      <div class="meter vol">
+        <div class="ml"><span>SHAFT PRESSURE · vol</span><b id="m-vol">0%</b></div>
+        <div class="bar"><i id="b-vol" style="width:10%"></i></div>
+      </div>
+    </div>
+
+    <div class="legend">
+      <div class="panel-h" style="margin-bottom:8px">Strata legend</div>
+      <div class="row"><span class="swatch sw-gold"></span> Mother-lode gold — strong trend</div>
+      <div class="row"><span class="swatch sw-cy"></span> Low-grade scatter — chop</div>
+      <div class="row"><span class="swatch sw-gas"></span> Gas pocket — vol spike, avoid</div>
+    </div>
+  </aside>
+
+  <!-- CENTER: the borehole -->
+  <div class="stage">
+    <canvas id="mine" width="724" height="612"></canvas>
+    <div class="stage-overlay">
+      <div class="hud-depth"><div class="d">DEPTH <b id="h-depth">0</b> m</div></div>
+      <div class="hud-mult"><div class="m" id="h-mult">1.00×</div><div class="ml">DEPTH MULTIPLIER</div></div>
+      <div class="hud-hopper">
+        <div class="hl"><span>HOPPER · extracted ore</span><b id="h-hop">0%</b></div>
+        <div class="hopbar"><i id="hopfill"></i></div>
+      </div>
+      <div class="flash" id="flash"><div class="big" id="flash-big"></div><div class="sub" id="flash-sub"></div></div>
+    </div>
+    <div class="scrollcue">▼ HOW IT WORKS</div>
+  </div>
+
+  <!-- RIGHT: bet -->
+  <aside class="right">
+    <div class="stake">
+      <div class="panel-h" style="margin-bottom:8px">Stake (USD)</div>
+      <div class="row"><input id="stake" value="10.00" /></div>
+      <div class="chips">
+        <div class="chip" data-s="5">5</div>
+        <div class="chip" data-s="10">10</div>
+        <div class="chip" data-s="25">25</div>
+        <div class="chip" data-s="100">100</div>
+      </div>
+    </div>
+
+    <div class="payout">
+      <div class="pr"><span class="lab">CURRENT MULTIPLIER</span><span class="v" id="p-mult">1.00×</span></div>
+      <div class="pr"><span class="lab">HOPPER FILL</span><span class="v" id="p-hop">0%</span></div>
+      <div class="pr" style="border-top:1px solid #16202d;padding-top:9px;margin-top:2px">
+        <span class="lab">WINCH NOW BANKS</span><span class="v big" id="p-cash">$0.00</span>
+      </div>
+    </div>
+
+    <div class="hint">
+      <div class="panel-h" style="margin-bottom:7px">Controls</div>
+      Steer the bit with <kbd>◀</kbd> <kbd>▶</kbd> or drag on the shaft.<br>
+      <kbd>SPACE</kbd> = DWELL to extract.<br>
+      <kbd>↑</kbd> / WINCH = bank & surface.<br><br>
+      The <b>live price</b> carves the ore seam's position; <b>volatility</b> raises pressure & spawns gas. Push deeper for a bigger multiplier — but a cave-in buries un-winched ore.
+    </div>
+  </aside>
+
+  <!-- DOCK -->
+  <div class="dock">
+    <button class="btn btn-bore" id="btn-bore"><span class="big">▼ START BORE</span><span class="sm">SINK THE SHAFT</span><span class="pulse"></span></button>
+    <button class="btn btn-dwell" id="btn-dwell" disabled><span class="big">⛏ DWELL</span><span class="sm">HOLD TO EXTRACT</span><span class="pulse"></span></button>
+    <button class="btn btn-winch" id="btn-winch" disabled><span class="big">▲ WINCH OUT</span><span class="sm">BANK YOUR HAUL</span><span class="pulse"></span></button>
+  </div>
+</section>
+
+<!-- BELOW THE FOLD -->
+<section class="below">
+  <h2>How COREBORE works</h2>
+  <div class="steps">
+    <div class="step"><div class="n">01 · SINK</div><h3>The bit descends</h3><p>Your tungsten drill head sinks continuously down a living rock face. You steer left/right; depth is driven by how far the live market price travels.</p></div>
+    <div class="step"><div class="n">02 · CARVE</div><h3>Price draws the gold</h3><p>Each tick carves a new rock slice. The price's level sets where the ore vein sits laterally; sustained trends lay rich mother-lode gold, chop lays low-grade scatter.</p></div>
+    <div class="step"><div class="n">03 · EXTRACT</div><h3>Dwell on the seam</h3><p>Overlap a vein and DWELL — the extraction beam pumps ore into your hopper. Richer seams and longer dwell fill it faster, but burn descent budget and let pressure build.</p></div>
+    <div class="step"><div class="n">04 · WINCH</div><h3>Bank before the cave-in</h3><p>Volatility fills shaft pressure and spawns gas pockets. WINCH to bank stake × depth-multiplier × hopper-fill. Push deeper for more — but a cave-in buries everything un-winched.</p></div>
+  </div>
+</section>
+
+<script>
+(() => {
+  // ---------- canvases ----------
+  const mine = document.getElementById('mine'), mx = mine.getContext('2d');
+  const feed = document.getElementById('feed'), fx = feed.getContext('2d');
+  const DPR = Math.min(2, window.devicePixelRatio || 1);
+  function fit(cv, ctx){
+    const r = cv.getBoundingClientRect();
+    cv.width = Math.max(2, r.width*DPR); cv.height = Math.max(2, r.height*DPR);
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+    return {w:r.width, h:r.height};
+  }
+  let M = fit(mine, mx), F = fit(feed, fx);
+  window.addEventListener('resize', () => { M = fit(mine,mx); F = fit(feed,fx); });
+
+  // ---------- market sim (live-ish synthetic index) ----------
+  let price = 1000, dprice = 0;
+  let drift = 0;                 // momentum
+  const hist = [];               // recent prices for feed chart
+  let trendStr = 0.2;            // 0..1 seam grade
+  let volStr = 0.12;             // 0..1 pressure source
+  let realizedVol = 0;
+  // regime cycling to make it feel alive
+  let regimePhase = 0;
+  function stepMarket(dt){
+    regimePhase += dt*0.06;
+    // base drift oscillates between trending and choppy regimes
+    const want = Math.sin(regimePhase)*0.6 + Math.sin(regimePhase*0.37+1.3)*0.4;
+    drift += (want*0.9 - drift)*0.04;
+    // volatility envelope (occasional spikes)
+    const spike = Math.max(0, Math.sin(regimePhase*0.9+2.0)) ** 6;
+    const volEnv = 0.5 + 0.5*Math.sin(regimePhase*0.5);
+    const noise = (Math.random()-0.5);
+    const sigma = 1.4 + volEnv*2.6 + spike*9;
+    dprice = drift*1.6 + noise*sigma;
+    price += dprice;
+    hist.push(price); if(hist.length>160) hist.shift();
+    // realized vol = rolling abs change
+    realizedVol += (Math.abs(dprice) - realizedVol)*0.08;
+    volStr += (Math.min(1, realizedVol/7) - volStr)*0.06;
+    // trend strength = persistence of drift sign over noise
+    const tgtTrend = Math.min(1, Math.abs(drift)/0.72);
+    trendStr += (tgtTrend - trendStr)*0.05;
+  }
+
+  // normalized price position 0..1 across shaft (rolling window)
+  function priceX(){
+    if(hist.length<6) return 0.5;
+    let lo=Infinity, hi=-Infinity;
+    for(let i=Math.max(0,hist.length-90); i<hist.length; i++){ const v=hist[i]; if(v<lo)lo=v; if(v>hi)hi=v; }
+    if(hi-lo<1e-6) return 0.5;
+    return (price-lo)/(hi-lo);
+  }
+
+  // ---------- game state ----------
+  const ST = {IDLE:0, BORING:1, RESULT:2};
+  let state = ST.IDLE;
+  let depth = 0;            // meters
+  let mult = 1;             // depth multiplier
+  let hopper = 0;           // 0..1
+  let pressure = 0;         // 0..1
+  let stake = 10;
+  let sessionPL = 0;
+  let bitX = 0.5;           // 0..1 lateral target
+  let bitXr = 0.5;          // rendered (smoothed)
+  let dwelling = false;
+  let extractGlow = 0;
+  let lastVeinHit = 0;
+
+  // strata: scrolling bands. Each carved slice records vein center + grade.
+  // We render a vertical column; the bit is fixed near vertical center, world scrolls up.
+  let scroll = 0;           // world depth at bit == depth (worldY units / meters)
+  const SLICE_H = 13;       // px per worldY unit on screen
+  const LOOKAHEAD = 20;     // worldY units of strata carved ahead/below the bit
+  let seams = [];           // {y(worldDepth), cx, grade, type, w}
+  let hazards = [];         // {y, x, r, kind:'gas'|'fault'}
+  let carryDepth = 0;       // accumulator -> when crosses SLICE_H, carve a slice
+  let nextHazAt = 40;
+
+  // particles
+  let parts = [];
+  function spark(x,y,col,n,spd){
+    for(let i=0;i<n;i++){
+      const a=Math.random()*Math.PI*2, s=Math.random()*spd+0.4;
+      parts.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s - (Math.random()*1.2),life:1,col,sz:Math.random()*2.4+0.8});
+    }
+  }
+  let oreFlow = []; // particles sucked up into hopper
+  let shake = 0;
+
+  // ---------- DOM ----------
+  const $ = id => document.getElementById(id);
+  const elBore=$('btn-bore'), elDwell=$('btn-dwell'), elWinch=$('btn-winch');
+  const elStake=$('stake');
+
+  function setStakeFromInput(){ const v=parseFloat(elStake.value); stake = isFinite(v)&&v>0? v: 10; }
+  elStake.addEventListener('change', setStakeFromInput);
+  document.querySelectorAll('.chip').forEach(c=>c.addEventListener('click',()=>{ elStake.value=parseFloat(c.dataset.s).toFixed(2); setStakeFromInput(); }));
+
+  function depthMultiplier(d){
+    // smooth, accelerating: ~1.0 at surface up to ~24x deep
+    return 1 + Math.pow(d/180, 1.55)*3.2;
+  }
+
+  function startBore(){
+    if(state===ST.BORING) return;
+    setStakeFromInput();
+    state = ST.BORING;
+    depth=0; mult=1; hopper=0; pressure=0; bitX=0.5; bitXr=0.5;
+    seams=[]; hazards=[]; parts=[]; oreFlow=[]; scroll=0; carryDepth=0; nextHazAt=45;
+    dwelling=false;
+    // pre-carve strata from above the bit down through the lookahead zone so the
+    // full rock face is filled from frame 1 (carve from y=-40 up to y=+LOOKAHEAD).
+    for(let y=-40; y<=LOOKAHEAD; y++){ stepMarket(0.5); carveSlice(y); }
+    elBore.disabled=true; elDwell.disabled=false; elWinch.disabled=false;
+    hideFlash();
+  }
+
+  function winchOut(){
+    if(state!==ST.BORING) return;
+    const fill = hopper;
+    const banked = stake * mult * (0.15 + 0.85*fill); // hopper scales realized portion
+    sessionPL += (banked - stake);
+    state = ST.RESULT;
+    dwelling=false;
+    elBore.disabled=false; elDwell.disabled=true; elWinch.disabled=true;
+    spark(bitXr*M.w, M.h*0.42, '#ffce4a', 60, 4);
+    showFlash('win', `+$${banked.toFixed(2)}`, `${mult.toFixed(2)}× · hopper ${(fill*100|0)}% · banked`);
+    coinShower();
+  }
+
+  function caveIn(kind){
+    state = ST.RESULT;
+    dwelling=false; shake = 26;
+    elBore.disabled=false; elDwell.disabled=true; elWinch.disabled=true;
+    sessionPL -= stake;
+    spark(bitXr*M.w, M.h*0.42, '#ff5e6e', 90, 6);
+    const msg = kind==='flood'?'SHAFT FLOODED':'CAVE-IN';
+    showFlash('bust', msg, `-$${stake.toFixed(2)} · ${(hopper*100|0)}% ore buried`);
+  }
+
+  let coins=[];
+  function coinShower(){ coins=[]; for(let i=0;i<26;i++){ coins.push({x:0.5+(Math.random()-0.5)*0.5, y:0.3, vy:-(Math.random()*2+1), vx:(Math.random()-0.5)*1.4, life:1});} }
+
+  // flash
+  const elFlash=$('flash'), elFB=$('flash-big'), elFS=$('flash-sub');
+  let flashT=0;
+  function showFlash(cls,big,sub){ elFlash.className='flash show '+cls; elFB.textContent=big; elFS.textContent=sub; flashT=2.6; }
+  function hideFlash(){ elFlash.className='flash'; }
+
+  // ---------- input ----------
+  let keyL=false, keyR=false;
+  window.addEventListener('keydown', e=>{
+    if(e.code==='ArrowLeft'){keyL=true;}
+    if(e.code==='ArrowRight'){keyR=true;}
+    if(e.code==='Space'){ e.preventDefault(); dwelling=true; }
+    if(e.code==='ArrowUp'){ e.preventDefault(); winchOut(); }
+    if(e.code==='Enter' && state!==ST.BORING){ startBore(); }
+  });
+  window.addEventListener('keyup', e=>{
+    if(e.code==='ArrowLeft'){keyL=false;}
+    if(e.code==='ArrowRight'){keyR=false;}
+    if(e.code==='Space'){ dwelling=false; }
+  });
+  // drag steer
+  let dragging=false;
+  function pointX(e){ const r=mine.getBoundingClientRect(); const cx=(e.touches?e.touches[0].clientX:e.clientX); return Math.max(0,Math.min(1,(cx-r.left)/r.width)); }
+  mine.addEventListener('pointerdown', e=>{ if(state===ST.BORING){dragging=true; bitX=pointX(e); dwelling=true;} });
+  window.addEventListener('pointermove', e=>{ if(dragging){ bitX=pointX(e);} });
+  window.addEventListener('pointerup', ()=>{ if(dragging){dragging=false; dwelling=false;} });
+  elBore.addEventListener('click', startBore);
+  elWinch.addEventListener('click', winchOut);
+  elDwell.addEventListener('mousedown', ()=>{ dwelling=true; });
+  elDwell.addEventListener('mouseup', ()=>{ dwelling=false; });
+  elDwell.addEventListener('mouseleave', ()=>{ dwelling=false; });
+  elDwell.addEventListener('touchstart', e=>{ e.preventDefault(); dwelling=true; });
+  elDwell.addEventListener('touchend', ()=>{ dwelling=false; });
+
+  // ---------- carve a slice from current market ----------
+  function carveSlice(worldY){
+    const cx = priceX();
+    const grade = trendStr;             // 0..1
+    const type = grade>0.46 ? 'gold' : (grade>0.22? 'mid':'scatter');
+    const w = 0.10 + grade*0.16;        // richer trend => wider seam
+    seams.push({y:worldY, cx, grade, type, w});
+    // hazards from volatility
+    if(worldY>nextHazAt){
+      // probability scales with vol
+      if(Math.random() < 0.16 + volStr*0.5){
+        const kind = volStr>0.55 && Math.random()<0.6 ? 'gas' : 'fault';
+        const hx = Math.max(0.08,Math.min(0.92, cx + (Math.random()-0.5)*0.7));
+        hazards.push({y:worldY, x:hx, r: kind==='gas'? (9+volStr*16):(7+Math.random()*8), kind});
+      }
+      nextHazAt = worldY + (10 + (1-volStr)*26);
+    }
+    // prune old
+    if(seams.length>240) seams.splice(0, seams.length-240);
+    hazards = hazards.filter(h=> h.y > scroll-60);
+  }
+
+  // ---------- main update ----------
+  let last=performance.now();
+  function sim(dt){
+    // step market a few sub-steps for liveliness
+    stepMarket(dt*60/3); stepMarket(dt*60/3); stepMarket(dt*60/3);
+
+    // smooth bit lateral
+    if(state===ST.BORING && !dragging){
+      if(keyL) bitX -= 1.6*dt;
+      if(keyR) bitX += 1.6*dt;
+      bitX = Math.max(0.04, Math.min(0.96, bitX));
+    }
+    bitXr += (bitX - bitXr)*Math.min(1, dt*12);
+
+    if(state===ST.BORING){
+      // descent rate from price travel + base sink (worldY units == meters)
+      const travel = Math.abs(dprice);
+      const sink = (3.6 + travel*1.1) * (dwelling? 0.45 : 1.0); // dwell slows descent
+      const dY = sink*dt;          // worldY advance this frame
+      depth += dY;
+      scroll = depth;              // scroll IS depth in worldY units
+      carryDepth += dY;
+      // carve fresh strata AHEAD of the bit (LOOKAHEAD worldY below) so the bit
+      // descends through each seam and can mine it as it passes.
+      while(carryDepth >= 1){ carveSlice(depth + LOOKAHEAD - carryDepth + 1); carryDepth -= 1; }
+
+      mult = depthMultiplier(depth);
+
+      // PRESSURE: mainly driven by realized volatility; dwelling adds a little heat.
+      // A calm market bleeds faster than it builds, so steady mining is survivable;
+      // genuine vol spikes are what threaten a cave-in.
+      const build = volStr*volStr*0.16 + (dwelling?0.018:0.0);
+      const bleed = 0.045 * (1 - volStr*0.7);  // bleeds well when calm, barely when wild
+      pressure += (build - bleed) * dt;
+      pressure = Math.max(0, Math.min(1, pressure));
+
+      // EXTRACTION: mine the seam currently at the bit's tip (the band just below it).
+      const bitWorldY = scroll;
+      extractGlow *= 0.85;
+      for(let i=seams.length-1;i>=0;i--){
+        const s=seams[i];
+        const dy = s.y - bitWorldY;          // >0 => below the bit
+        if(dy >= -0.6 && dy < 3.2){          // the active tip band (forgiving window)
+          if(Math.abs(s.cx - bitXr) < s.w){  // bit is laterally on the vein
+            if(dwelling){
+              const gain = (0.18 + s.grade*1.25)*dt; // base + grade-scaled extraction
+              hopper = Math.min(1, hopper + gain);
+              extractGlow = 1; lastVeinHit = performance.now();
+              if(Math.random()<0.6) oreFlow.push({x:bitXr*M.w + (Math.random()-0.5)*22, y:M.h*0.42, t:0, col: s.type==='gold'?'#ffce4a':'#7fe6ff'});
+            }
+          }
+        }
+      }
+
+      // HAZARD collision
+      for(const h of hazards){
+        const dy = h.y - bitWorldY;
+        if(dy> -1.5 && dy<2.2){
+          const dx = Math.abs(h.x - bitXr)*M.w;
+          if(dx < h.r+10){
+            if(h.kind==='gas'){ caveIn('gas'); break; }
+            else { // fault: shear beam, lose a little hopper, jolt
+              if(dwelling){ hopper=Math.max(0,hopper-0.06); shake=Math.max(shake,8); pressure=Math.min(1,pressure+0.06); }
+            }
+          }
+        }
+      }
+
+      // flood: sustained high pressure raises water; pressure==1 => cave/flood
+      if(pressure>=1){ caveIn(volStr>0.6?'flood':'gas'); }
+    }
+
+    // particles
+    for(const p of parts){ p.x+=p.vx; p.y+=p.vy; p.vy+=0.12; p.life-=dt*1.6; }
+    parts = parts.filter(p=>p.life>0);
+    for(const o of oreFlow){ o.t+=dt*2.4; }
+    oreFlow = oreFlow.filter(o=>o.t<1);
+    for(const c of coins){ c.x+=c.vx*0.01; c.y+=c.vy*0.01; c.vy+=0.07; c.life-=dt*0.8; }
+    coins = coins.filter(c=>c.life>0);
+
+    if(shake>0) shake*=0.86;
+    if(flashT>0){ flashT-=dt; }
+  }
+  function render(){ drawMine(); drawFeed(); syncHUD(); }
+  function update(now){
+    const dt = Math.min(0.05,(now-last)/1000); last=now;
+    sim(dt);
+    render();
+    requestAnimationFrame(update);
+  }
+  // Hidden-tab fallback: rAF pauses when the tab is backgrounded, so keep the
+  // simulation advancing on a timer too (render is cheap to skip while hidden).
+  setInterval(()=>{
+    if(document.hidden){ sim(0.05); }
+  }, 50);
+  // Debug hook for headless verification (harmless; advances frames deterministically).
+  window.__cb = {
+    state:()=>({state, depth:+depth.toFixed(2), mult:+mult.toFixed(2), hopper:+hopper.toFixed(3),
+                pressure:+pressure.toFixed(3), seams:seams.length, hazards:hazards.length,
+                bitX:+bitXr.toFixed(2), sessionPL:+sessionPL.toFixed(2)}),
+    start:()=>startBore(),
+    step:(n)=>{ for(let i=0;i<(n||1);i++) sim(0.05); render(); return window.__cb.state(); },
+    setBit:(x)=>{ bitX=x; },
+    dwell:(b)=>{ dwelling=!!b; },
+    winch:()=>winchOut()
+  };
+
+  // ---------- render: borehole ----------
+  function drawMine(){
+    const w=M.w, h=M.h;
+    mx.save();
+    const sh = shake>0.4? shake:0;
+    if(sh) mx.translate((Math.random()-0.5)*sh, (Math.random()-0.5)*sh);
+
+    // background gradient (gets darker/redder deeper)
+    const deepT = Math.min(1, depth/180);
+    const g = mx.createLinearGradient(0,0,0,h);
+    g.addColorStop(0, '#0b1422');
+    g.addColorStop(0.5, `rgb(${14+deepT*30},${16-deepT*6},${24-deepT*8})`);
+    g.addColorStop(1, `rgb(${20+deepT*60},${8},${10+deepT*4})`);
+    mx.fillStyle=g; mx.fillRect(0,0,w,h);
+
+    const bitWorldY = scroll;
+    const bitScreenY = h*0.42;       // bit sits here; world scrolls up past it
+    // map worldY -> screenY: screenY = bitScreenY - (s.y - bitWorldY)*SLICE_H  (deeper seams below)
+    const wy2sy = wy => bitScreenY + (wy - bitWorldY)*SLICE_H;
+
+    // strata bands (parallax horizontal rock layers) — pass 1: rock + dark veins
+    mx.globalAlpha=1;
+    const tipY = bitWorldY;  // seam at/just below this is being mined
+    const glowSeams = [];
+    for(const s of seams){
+      const sy = wy2sy(s.y);
+      if(sy<-14||sy>h+14) continue;
+      // layered rock slice with embossed top edge for a chiselled stratum look
+      const band = (Math.floor(s.y/6))%4;
+      const baseCol = band===0? '#161d2b': band===1? '#1b1726': band===2? '#121a28':'#1d2230';
+      mx.fillStyle = baseCol;
+      mx.fillRect(0, sy, w, SLICE_H+0.6);
+      // top highlight + bottom shadow → readable layering
+      mx.fillStyle='rgba(255,255,255,0.045)'; mx.fillRect(0, sy, w, 1);
+      mx.fillStyle='rgba(0,0,0,0.30)';        mx.fillRect(0, sy+SLICE_H-1, w, 1.4);
+      // ore vein
+      const cx = s.cx*w, vw = s.w*w;
+      let c1,c2;
+      if(s.type==='gold'){ c1='rgba(255,210,90,'; c2='rgba(255,130,50,'; }
+      else if(s.type==='mid'){ c1='rgba(120,225,255,'; c2='rgba(60,170,205,'; }
+      else { c1='rgba(95,165,195,'; c2='rgba(45,100,130,'; }
+      const a = 0.5 + s.grade*0.45;
+      const vg = mx.createLinearGradient(cx-vw,0,cx+vw,0);
+      vg.addColorStop(0, c1+'0)');
+      vg.addColorStop(0.5, c1+a+')');
+      vg.addColorStop(1, c2+'0)');
+      mx.fillStyle=vg;
+      mx.fillRect(cx-vw, sy, vw*2, SLICE_H+0.6);
+      // bright core
+      mx.fillStyle = c1 + Math.min(1,a*1.05) + ')';
+      mx.fillRect(cx-vw*0.16, sy+1, vw*0.32, SLICE_H-1);
+      // sparkle flecks for gold
+      if(s.type==='gold' && ((s.y|0)%2===0)){
+        mx.fillStyle='rgba(255,245,200,0.85)';
+        mx.fillRect(cx-vw*0.5+(s.y*7%vw), sy+2, 1.6,1.6);
+      }
+      glowSeams.push({sy, cx, vw, c1, a, type:s.type});
+    }
+    // pass 2: additive bloom over the veins (makes gold molten, cyan electric)
+    mx.save(); mx.globalCompositeOperation='lighter';
+    for(const gs of glowSeams){
+      const bloom = mx.createLinearGradient(gs.cx-gs.vw*1.6,0,gs.cx+gs.vw*1.6,0);
+      const ba = gs.type==='gold'? gs.a*0.5 : gs.type==='mid'? gs.a*0.32 : gs.a*0.16;
+      bloom.addColorStop(0, gs.c1+'0)');
+      bloom.addColorStop(0.5, gs.c1+ba+')');
+      bloom.addColorStop(1, gs.c1+'0)');
+      mx.fillStyle=bloom;
+      mx.fillRect(gs.cx-gs.vw*1.6, gs.sy-3, gs.vw*3.2, SLICE_H+6);
+    }
+    mx.restore();
+
+    // hazards
+    for(const hz of hazards){
+      const sy=wy2sy(hz.y); if(sy<-30||sy>h+30) continue;
+      const hx=hz.x*w;
+      if(hz.kind==='gas'){
+        const pulse = 0.6+0.4*Math.sin(performance.now()*0.006+hz.x*20);
+        const rg=mx.createRadialGradient(hx,sy,1,hx,sy,hz.r);
+        rg.addColorStop(0,`rgba(255,90,100,${0.85*pulse})`);
+        rg.addColorStop(0.6,`rgba(200,40,60,${0.4*pulse})`);
+        rg.addColorStop(1,'rgba(120,20,30,0)');
+        mx.fillStyle=rg; mx.beginPath(); mx.arc(hx,sy,hz.r,0,7); mx.fill();
+        mx.strokeStyle=`rgba(255,120,130,${pulse})`; mx.lineWidth=1.2;
+        mx.beginPath(); mx.arc(hx,sy,hz.r*0.55,0,7); mx.stroke();
+      } else { // fault: jagged dark crack with cyan edge
+        mx.strokeStyle='rgba(120,200,255,0.5)'; mx.lineWidth=2;
+        mx.beginPath();
+        let yy=sy-hz.r, x0=hx-hz.r;
+        mx.moveTo(x0,yy);
+        for(let k=1;k<=5;k++){ mx.lineTo(x0 + (hz.r*2)*(k/5), sy + (Math.sin(k*2.1+hz.x*9)*hz.r*0.5)); }
+        mx.stroke();
+      }
+    }
+
+    // mining line (the active tip slice) faint guide
+    mx.strokeStyle='rgba(63,233,255,0.10)'; mx.lineWidth=1;
+    mx.beginPath(); mx.moveTo(0,bitScreenY+SLICE_H); mx.lineTo(w,bitScreenY+SLICE_H); mx.stroke();
+
+    // shaft (carved tunnel above the bit) — a faint vertical lit channel following bit path
+    mx.save();
+    mx.globalCompositeOperation='lighter';
+    const sx=bitXr*w;
+    const shaftGrad=mx.createLinearGradient(0,0,0,bitScreenY);
+    shaftGrad.addColorStop(0,'rgba(63,233,255,0.05)');
+    shaftGrad.addColorStop(1,'rgba(63,233,255,0.13)');
+    mx.fillStyle=shaftGrad;
+    mx.beginPath();
+    mx.moveTo(sx-16,0); mx.lineTo(sx+16,0); mx.lineTo(sx+22,bitScreenY); mx.lineTo(sx-22,bitScreenY); mx.closePath(); mx.fill();
+    mx.restore();
+
+    // extraction beam
+    if(extractGlow>0.02 && state===ST.BORING){
+      mx.save();
+      mx.globalCompositeOperation='lighter';
+      const by=bitScreenY+SLICE_H*1.3;
+      const bg=mx.createRadialGradient(sx,by,2,sx,by,80*extractGlow+30);
+      bg.addColorStop(0,`rgba(255,220,120,${0.5*extractGlow})`);
+      bg.addColorStop(1,'rgba(255,180,60,0)');
+      mx.fillStyle=bg; mx.beginPath(); mx.arc(sx,by,80*extractGlow+30,0,7); mx.fill();
+      // cone up to bit
+      mx.fillStyle=`rgba(255,210,110,${0.18*extractGlow})`;
+      mx.beginPath(); mx.moveTo(sx-6,bitScreenY); mx.lineTo(sx+6,bitScreenY);
+      mx.lineTo(sx+24,by+18); mx.lineTo(sx-24,by+18); mx.closePath(); mx.fill();
+      mx.restore();
+    }
+
+    // ore flow particles -> up toward hopper bar
+    mx.save(); mx.globalCompositeOperation='lighter';
+    for(const o of oreFlow){
+      const ty=h-26; // hopper bar area
+      const yy=o.y + (ty-o.y)*(o.t*o.t);
+      const xx=o.x + (w*0.5-o.x)*(o.t*o.t)*0.3;
+      mx.fillStyle=o.col; mx.globalAlpha=1-o.t;
+      mx.beginPath(); mx.arc(xx,yy,2.4*(1-o.t)+0.8,0,7); mx.fill();
+    }
+    mx.restore();
+
+    // THE BIT
+    drawBit(sx, bitScreenY);
+
+    // generic spark particles
+    mx.save(); mx.globalCompositeOperation='lighter';
+    for(const p of parts){ mx.globalAlpha=Math.max(0,p.life); mx.fillStyle=p.col; mx.beginPath(); mx.arc(p.x,p.y,p.sz,0,7); mx.fill(); }
+    mx.restore();
+
+    // coin shower on win
+    if(coins.length){ mx.save();
+      for(const c of coins){ mx.globalAlpha=Math.max(0,c.life);
+        mx.fillStyle='#ffce4a'; mx.beginPath(); mx.arc(c.x*w,c.y*h,4,0,7); mx.fill();
+        mx.fillStyle='#fff3c0'; mx.beginPath(); mx.arc(c.x*w-1,c.y*h-1,1.5,0,7); mx.fill();
+      } mx.restore();
+    }
+
+    // pressure ring (top-center)
+    drawPressure(w*0.5, 56);
+
+    // vignette
+    const vg=mx.createRadialGradient(w/2,h/2,h*0.3,w/2,h/2,h*0.8);
+    vg.addColorStop(0,'rgba(0,0,0,0)'); vg.addColorStop(1,'rgba(0,0,0,0.55)');
+    mx.fillStyle=vg; mx.fillRect(0,0,w,h);
+
+    // flood water rising from bottom when pressure high & vol high
+    if(state===ST.BORING && pressure>0.45){
+      const lvl = (pressure-0.45)/0.55; // 0..1
+      const wy = h - h*lvl*0.5;
+      mx.save(); mx.globalCompositeOperation='lighter';
+      const fg=mx.createLinearGradient(0,wy,0,h);
+      fg.addColorStop(0,'rgba(40,120,200,0.0)');
+      fg.addColorStop(1,`rgba(40,130,210,${0.18+0.18*lvl})`);
+      mx.fillStyle=fg; mx.fillRect(0,wy,w,h-wy);
+      mx.strokeStyle=`rgba(120,200,255,${0.3+0.4*lvl})`; mx.lineWidth=1.5;
+      mx.beginPath();
+      for(let xx=0;xx<=w;xx+=10){ const yy=wy+Math.sin(xx*0.05+performance.now()*0.004)*3; xx===0?mx.moveTo(xx,yy):mx.lineTo(xx,yy);}
+      mx.stroke(); mx.restore();
+    }
+
+    mx.restore();
+
+    if(state===ST.IDLE){
+      mx.save();
+      mx.fillStyle='rgba(207,226,242,0.9)'; mx.textAlign='center'; mx.font='600 17px Inter,system-ui';
+      mx.fillText('Press  ▼ START BORE  to sink the shaft', w/2, h*0.42-44);
+      mx.fillStyle='rgba(108,129,153,0.9)'; mx.font='400 12px Inter,system-ui';
+      mx.fillText('Steer the bit under the gold the price carves. Dwell to extract. Winch out before a cave-in.', w/2, h*0.42-22);
+      mx.restore();
+    }
+  }
+
+  function drawBit(x,y){
+    mx.save();
+    // dust plume
+    mx.globalCompositeOperation='lighter';
+    const dg=mx.createRadialGradient(x,y+10,1,x,y+10,30);
+    dg.addColorStop(0,'rgba(255,180,90,0.20)'); dg.addColorStop(1,'rgba(255,150,60,0)');
+    mx.fillStyle=dg; mx.beginPath(); mx.arc(x,y+10,30,0,7); mx.fill();
+    mx.globalCompositeOperation='source-over';
+    // cable up
+    mx.strokeStyle='rgba(150,170,190,0.5)'; mx.lineWidth=2;
+    mx.beginPath(); mx.moveTo(x,0); mx.lineTo(x,y-9); mx.stroke();
+    // drill head body
+    const rot = performance.now()*0.02;
+    mx.translate(x,y);
+    // glow
+    const bg=mx.createRadialGradient(0,0,2,0,0,26);
+    bg.addColorStop(0,'rgba(255,210,120,0.9)'); bg.addColorStop(0.5,'rgba(255,150,60,0.4)'); bg.addColorStop(1,'rgba(255,120,40,0)');
+    mx.fillStyle=bg; mx.beginPath(); mx.arc(0,0,26,0,7); mx.fill();
+    // body
+    mx.fillStyle='#cdd6e0';
+    mx.beginPath(); mx.moveTo(-9,-12); mx.lineTo(9,-12); mx.lineTo(7,4); mx.lineTo(-7,4); mx.closePath(); mx.fill();
+    // drill tip (rotating triangle)
+    mx.rotate(rot);
+    mx.fillStyle='#ffce4a';
+    mx.beginPath(); for(let i=0;i<3;i++){const a=i/3*Math.PI*2; mx.lineTo(Math.cos(a)*9, 8+Math.sin(a)*9);} mx.closePath(); mx.fill();
+    mx.rotate(-rot);
+    mx.fillStyle='#fff7da'; mx.fillRect(-2,-9,4,3);
+    mx.restore();
+  }
+
+  function drawPressure(cx,cy){
+    const r=24;
+    mx.save();
+    mx.lineWidth=5;
+    mx.strokeStyle='rgba(255,255,255,0.08)';
+    mx.beginPath(); mx.arc(cx,cy,r,-Math.PI*0.75, Math.PI*0.75); mx.stroke();
+    const a0=-Math.PI*0.75, a1=a0 + (Math.PI*1.5)*pressure;
+    const danger = pressure>0.7;
+    const col = pressure<0.5? '#3fe9ff' : pressure<0.78? '#ffce4a':'#ff4d5e';
+    mx.strokeStyle=col;
+    mx.shadowColor=col; mx.shadowBlur= danger? 16+8*Math.sin(performance.now()*0.02):8;
+    mx.beginPath(); mx.arc(cx,cy,r,a0,a1); mx.stroke();
+    mx.shadowBlur=0;
+    mx.fillStyle=col; mx.textAlign='center'; mx.font='700 11px '+'SF Mono,monospace';
+    mx.fillText((pressure*100|0)+'', cx, cy+3);
+    mx.fillStyle='rgba(108,129,153,0.9)'; mx.font='700 7px Inter'; mx.fillText('PRESSURE', cx, cy+15);
+    mx.restore();
+  }
+
+  // ---------- render: feed (left) ----------
+  function drawFeed(){
+    const w=F.w,h=F.h;
+    fx.clearRect(0,0,w,h);
+    fx.fillStyle='#070b12'; fx.fillRect(0,0,w,h);
+    // grid
+    fx.strokeStyle='rgba(255,255,255,0.04)'; fx.lineWidth=1;
+    for(let i=1;i<4;i++){ fx.beginPath(); fx.moveTo(0,h*i/4); fx.lineTo(w,h*i/4); fx.stroke(); }
+    if(hist.length<2) return;
+    const view = hist.slice(-120);
+    let lo=Infinity,hi=-Infinity; for(const v of view){if(v<lo)lo=v;if(v>hi)hi=v;}
+    if(hi-lo<1e-6){hi+=1;lo-=1;}
+    const X=i=>i/(view.length-1)*w;
+    const Y=v=>h-8-((v-lo)/(hi-lo))*(h-16);
+    // area
+    const up = view[view.length-1]>=view[0];
+    const col = up? '#46f0a8':'#ff4d5e';
+    const ag=fx.createLinearGradient(0,0,0,h);
+    ag.addColorStop(0, up?'rgba(70,240,168,0.28)':'rgba(255,77,94,0.28)');
+    ag.addColorStop(1,'rgba(0,0,0,0)');
+    fx.beginPath(); fx.moveTo(0,h);
+    for(let i=0;i<view.length;i++) fx.lineTo(X(i),Y(view[i]));
+    fx.lineTo(w,h); fx.closePath(); fx.fillStyle=ag; fx.fill();
+    // line
+    fx.beginPath();
+    for(let i=0;i<view.length;i++){ const x=X(i),y=Y(view[i]); i?fx.lineTo(x,y):fx.moveTo(x,y);}
+    fx.strokeStyle=col; fx.lineWidth=1.8; fx.shadowColor=col; fx.shadowBlur=8; fx.stroke(); fx.shadowBlur=0;
+    // head dot
+    const lx=X(view.length-1), ly=Y(view[view.length-1]);
+    fx.fillStyle=col; fx.beginPath(); fx.arc(lx,ly,3,0,7); fx.fill();
+    fx.fillStyle='rgba(255,255,255,0.9)'; fx.beginPath(); fx.arc(lx,ly,1.3,0,7); fx.fill();
+    // price->shaft column indicator (where seam will carve)
+    const px=priceX()*w;
+    fx.strokeStyle='rgba(255,206,74,0.5)'; fx.setLineDash([3,3]); fx.lineWidth=1;
+    fx.beginPath(); fx.moveTo(px,0); fx.lineTo(px,h); fx.stroke(); fx.setLineDash([]);
+    fx.fillStyle='rgba(255,206,74,0.9)'; fx.font='700 8px SF Mono,monospace'; fx.textAlign='center';
+    fx.fillText('SEAM', px, 10);
+  }
+
+  // ---------- HUD sync ----------
+  let lastTick=price;
+  function syncHUD(){
+    $('h-depth').textContent = depth.toFixed(0);
+    $('h-mult').textContent = mult.toFixed(2)+'×';
+    $('p-mult').textContent = mult.toFixed(2)+'×';
+    $('h-hop').textContent = (hopper*100|0)+'%';
+    $('p-hop').textContent = (hopper*100|0)+'%';
+    $('hopfill').style.width = (hopper*100)+'%';
+    const cash = stake*mult*(0.15+0.85*hopper);
+    $('p-cash').textContent = '$'+ (state===ST.BORING? cash:0).toFixed(2);
+    // ticker
+    $('t-last').textContent = price.toFixed(2);
+    const ch = price-lastTick; lastTick=price;
+    const elc=$('t-chg'); elc.textContent=(ch>=0?'+':'')+ch.toFixed(2); elc.className='val '+(ch>=0?'up':'dn');
+    const elp=$('t-pl'); elp.textContent=(sessionPL>=0?'+':'')+sessionPL.toFixed(2); elp.className='val '+(sessionPL>=0?'up':'dn');
+    // regime bars
+    $('b-trend').style.width=(20+trendStr*80)+'%'; $('m-trend').textContent=(trendStr*100|0)+'%';
+    $('b-vol').style.width=(10+volStr*90)+'%'; $('m-vol').textContent=(volStr*100|0)+'%';
+  }
+
+  // seed feed
+  for(let i=0;i<60;i++){ stepMarket(0.5); }
+  requestAnimationFrame(update);
+
+  // auto-demo nudge: if idle for a while, gently show the bit responding — keep idle until user starts.
+})();
+</script>
+</body>
+</html>
