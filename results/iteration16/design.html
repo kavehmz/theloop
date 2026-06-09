@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>WAKELINE — Get there first</title>
+<style>
+  :root{
+    --bg0:#05070e; --bg1:#0a1020; --bg2:#0d1830;
+    --cyan:#34e7ff; --cyan2:#11bfe0; --amber:#ffb24d; --amber2:#ff8a1e;
+    --green:#39ffa6; --red:#ff4d6d; --ink:#cfe6ff; --muted:#6f86a8;
+    --gold:#ffd76a;
+    --font:'Inter','Segoe UI',system-ui,-apple-system,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:radial-gradient(1200px 700px at 70% -10%,#13213f 0%,var(--bg0) 60%),var(--bg0);
+    color:var(--ink); font-family:var(--font); overflow-x:hidden;
+    -webkit-font-smoothing:antialiased;
+  }
+  /* ============ HERO (above the fold, full-bleed) ============ */
+  .hero{
+    position:relative; width:100%; height:100vh; min-height:760px;
+    display:flex; flex-direction:column; overflow:hidden;
+  }
+  .topbar{
+    position:relative; z-index:6; display:flex; align-items:center; justify-content:space-between;
+    padding:16px 26px; flex:0 0 auto;
+  }
+  .brand{display:flex;align-items:center;gap:12px}
+  .logo{
+    width:30px;height:30px;border-radius:8px;position:relative;
+    background:linear-gradient(135deg,var(--cyan),var(--amber));
+    box-shadow:0 0 22px rgba(52,231,255,.55);
+  }
+  .logo:after{content:"";position:absolute;inset:6px;border-radius:4px;background:var(--bg0);}
+  .logo:before{content:"";position:absolute;inset:0;border-radius:8px;
+    background:conic-gradient(from 0deg,transparent,rgba(255,255,255,.5),transparent);
+    animation:spin 4s linear infinite;-webkit-mask:radial-gradient(circle,transparent 60%,#000 61%);mask:radial-gradient(circle,transparent 60%,#000 61%);}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .wordmark{font-weight:800;letter-spacing:3px;font-size:19px}
+  .wordmark b{color:var(--cyan)}
+  .tagline{font-size:12px;color:var(--muted);letter-spacing:1px}
+  .pill{font-size:11px;color:var(--muted);border:1px solid rgba(111,134,168,.3);
+    padding:6px 12px;border-radius:20px;letter-spacing:1px}
+  .pill b{color:var(--amber)}
+
+  /* stage */
+  .stage{position:relative;flex:1 1 auto;min-height:0}
+  #chart{position:absolute;inset:0;width:100%;height:100%;display:block;cursor:none;touch-action:none}
+
+  /* HUD overlays */
+  .hud{position:absolute;z-index:5;pointer-events:none}
+  .hud-left{top:18px;left:26px;display:flex;flex-direction:column;gap:14px}
+  .dial-wrap{display:flex;align-items:center;gap:14px}
+  .dial{position:relative;width:104px;height:104px}
+  .dial svg{transform:rotate(-90deg)}
+  .dial .val{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+  .dial .num{font-size:26px;font-weight:800;line-height:1;color:#fff;text-shadow:0 0 16px rgba(52,231,255,.6)}
+  .dial .lbl{font-size:9px;letter-spacing:2px;color:var(--muted);margin-top:3px}
+  .stat{display:flex;flex-direction:column}
+  .stat .k{font-size:10px;letter-spacing:2px;color:var(--muted)}
+  .stat .v{font-size:22px;font-weight:800}
+  .streak .v{color:var(--amber)}
+  .mult .v{color:var(--green)}
+  .streakflame{display:inline-block;font-size:15px;filter:drop-shadow(0 0 6px var(--amber))}
+
+  .hud-right{top:18px;right:26px;text-align:right;display:flex;flex-direction:column;gap:12px;align-items:flex-end}
+  .timer{font-variant-numeric:tabular-nums;font-size:15px;letter-spacing:1px;color:var(--muted)}
+  .timer b{color:#fff;font-size:18px}
+  .multibig{font-size:60px;font-weight:900;line-height:.9;
+    background:linear-gradient(180deg,#fff,var(--gold));-webkit-background-clip:text;background-clip:text;color:transparent;
+    text-shadow:0 0 40px rgba(255,215,106,.25)}
+  .multibig .x{font-size:30px;font-weight:800;color:var(--gold);-webkit-text-fill-color:var(--gold)}
+  .payout{font-size:13px;color:var(--muted)}
+  .payout b{color:var(--green);font-size:16px}
+
+  /* center prompt / lead label near now-line drawn on canvas; tooltip */
+  .hint{
+    position:absolute;z-index:5;left:50%;bottom:96px;transform:translateX(-50%);
+    font-size:12.5px;color:var(--ink);background:rgba(8,14,28,.66);border:1px solid rgba(52,231,255,.22);
+    padding:9px 16px;border-radius:22px;letter-spacing:.3px;backdrop-filter:blur(6px);
+    box-shadow:0 6px 28px rgba(0,0,0,.4);pointer-events:none;
+    transition:opacity .4s; display:flex;gap:9px;align-items:center}
+  .hint .dot{width:8px;height:8px;border-radius:50%;background:var(--amber);box-shadow:0 0 10px var(--amber);animation:pulse 1.3s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+
+  /* control deck */
+  .deck{position:absolute;z-index:6;left:0;right:0;bottom:0;
+    display:flex;align-items:center;justify-content:center;gap:14px;
+    padding:14px 22px 18px;
+    background:linear-gradient(180deg,transparent,rgba(5,7,14,.82)38%,rgba(5,7,14,.96));}
+  .seg{display:flex;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);
+    border-radius:13px;overflow:hidden}
+  .seg .lab{font-size:9px;letter-spacing:2px;color:var(--muted);align-self:center;padding:0 13px}
+  .seg button{background:transparent;border:none;color:var(--muted);font-family:var(--font);
+    font-weight:700;font-size:13px;padding:11px 15px;cursor:pointer;transition:.18s;border-left:1px solid rgba(255,255,255,.05)}
+  .seg button.on{color:#04121c;background:linear-gradient(180deg,var(--cyan),var(--cyan2));box-shadow:0 0 22px rgba(52,231,255,.45) inset}
+  .seg.lead button.on{background:linear-gradient(180deg,var(--amber),var(--amber2));box-shadow:0 0 22px rgba(255,160,60,.45) inset}
+  .seg button:hover{color:#fff}
+  .stake{display:flex;align-items:center;gap:0}
+  .play{font-family:var(--font);font-weight:900;letter-spacing:1.5px;font-size:15px;
+    color:#04121c;border:none;border-radius:13px;padding:14px 30px;cursor:pointer;
+    background:linear-gradient(135deg,var(--green),#16d98a);
+    box-shadow:0 0 30px rgba(57,255,166,.5),0 8px 20px rgba(0,0,0,.4);transition:.16s}
+  .play:hover{transform:translateY(-1px);box-shadow:0 0 44px rgba(57,255,166,.7),0 10px 24px rgba(0,0,0,.5)}
+  .play.lock{background:linear-gradient(135deg,var(--gold),var(--amber2));box-shadow:0 0 30px rgba(255,180,77,.55),0 8px 20px rgba(0,0,0,.4)}
+  .play:disabled{opacity:.4;cursor:default;box-shadow:none;transform:none}
+
+  /* result toast */
+  .toast{position:absolute;z-index:8;left:50%;top:42%;transform:translate(-50%,-50%) scale(.8);
+    text-align:center;opacity:0;pointer-events:none;transition:.45s cubic-bezier(.2,.9,.3,1.3)}
+  .toast.show{opacity:1;transform:translate(-50%,-50%) scale(1)}
+  .toast .big{font-size:78px;font-weight:900;line-height:1;
+    background:linear-gradient(180deg,#fff,var(--gold));-webkit-background-clip:text;background-clip:text;color:transparent;
+    text-shadow:0 0 60px rgba(255,215,106,.5)}
+  .toast .big.miss{background:linear-gradient(180deg,#fff,var(--red));-webkit-background-clip:text;background-clip:text}
+  .toast .sub{font-size:15px;color:var(--ink);letter-spacing:2px;margin-top:6px}
+
+  /* ============ BELOW FOLD ============ */
+  .below{max-width:1180px;margin:0 auto;padding:70px 30px 90px}
+  .below h2{font-size:13px;letter-spacing:4px;color:var(--cyan);font-weight:800;margin-bottom:8px}
+  .below h3{font-size:30px;font-weight:800;margin-bottom:34px;letter-spacing:-.5px}
+  .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+  .card{background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.01));
+    border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:24px}
+  .card .ic{width:42px;height:42px;border-radius:11px;display:flex;align-items:center;justify-content:center;
+    font-size:20px;margin-bottom:14px;background:rgba(52,231,255,.1);border:1px solid rgba(52,231,255,.25)}
+  .card h4{font-size:17px;margin-bottom:8px}
+  .card p{font-size:13.5px;color:var(--muted);line-height:1.6}
+  .foot{text-align:center;color:var(--muted);font-size:12px;margin-top:60px;letter-spacing:1px}
+  .scrollcue{position:absolute;left:50%;bottom:8px;transform:translateX(-50%);color:var(--muted);font-size:10px;letter-spacing:2px;z-index:6;opacity:.6}
+</style>
+</head>
+<body>
+<section class="hero">
+  <div class="topbar">
+    <div class="brand">
+      <div class="logo"></div>
+      <div>
+        <div class="wordmark">WAKE<b>LINE</b></div>
+        <div class="tagline">DON'T FOLLOW THE MARKET — GET THERE FIRST</div>
+      </div>
+    </div>
+    <div class="pill">SYNTHETIC · VOL 75 &nbsp;|&nbsp; LEAD ECHO &nbsp;|&nbsp; <b>LIVE</b></div>
+  </div>
+
+  <div class="stage">
+    <canvas id="chart"></canvas>
+
+    <!-- left HUD -->
+    <div class="hud hud-left">
+      <div class="dial-wrap">
+        <div class="dial">
+          <svg width="104" height="104" viewBox="0 0 104 104">
+            <circle cx="52" cy="52" r="44" fill="none" stroke="rgba(255,255,255,.07)" stroke-width="9"/>
+            <circle id="dialArc" cx="52" cy="52" r="44" fill="none" stroke="url(#g1)" stroke-width="9"
+              stroke-linecap="round" stroke-dasharray="276.5" stroke-dashoffset="276.5"/>
+            <defs><linearGradient id="g1" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#39ffa6"/><stop offset="1" stop-color="#34e7ff"/></linearGradient></defs>
+          </svg>
+          <div class="val"><div class="num" id="fidNum">0</div><div class="lbl">FIDELITY %</div></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div class="stat streak"><span class="k">STREAK</span><span class="v"><span class="streakflame">🔥</span> <span id="streakNum">0</span></span></div>
+          <div class="stat mult"><span class="k">SMOOTH</span><span class="v" id="smoothNum">—</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- right HUD -->
+    <div class="hud hud-right">
+      <div class="timer">ROUND <b id="timeNum">20.0</b>s</div>
+      <div class="multibig"><span id="multNum">1.00</span><span class="x">×</span></div>
+      <div class="payout">PAYOUT <b id="payNum">$0.00</b></div>
+    </div>
+
+    <div class="hint" id="hint"><span class="dot"></span><span id="hintText">Move your cursor in the amber LEAD ZONE — pre-trace where price will be</span></div>
+    <div class="scrollcue">▾ HOW IT PLAYS</div>
+  </div>
+
+  <div class="deck">
+    <div class="seg lead">
+      <span class="lab">LEAD</span>
+      <button data-lead="0.3">0.3s</button>
+      <button data-lead="0.5" class="on">0.5s</button>
+      <button data-lead="0.8">0.8s</button>
+    </div>
+    <div class="seg stake">
+      <span class="lab">STAKE</span>
+      <button data-stake="5">$5</button>
+      <button data-stake="10" class="on">$10</button>
+      <button data-stake="25">$25</button>
+      <button data-stake="100">$100</button>
+    </div>
+    <button class="play" id="playBtn">START TRACE</button>
+  </div>
+
+  <!-- result toast -->
+  <div class="toast" id="toast"><div class="big" id="toastBig">+ $0</div><div class="sub" id="toastSub"></div></div>
+</section>
+
+<section class="below">
+  <h2>THE LOOP</h2>
+  <h3>Pre-trace the price. Score on fidelity, not direction.</h3>
+  <div class="cards">
+    <div class="card"><div class="ic">✦</div><h4>1 · Read the wake</h4>
+      <p>The live price prints a glowing cyan ribbon scrolling toward the NOW scan-line. Everything right of NOW is the future — empty, unwritten.</p></div>
+    <div class="card"><div class="ic">↗</div><h4>2 · Draw ahead</h4>
+      <p>Steer your amber orb in the LEAD ZONE to pre-trace where you think price will be when it arrives. A longer lead pays more but commits you earlier, with less information.</p></div>
+    <div class="card"><div class="ic">◎</div><h4>3 · Bank fidelity</h4>
+      <p>When your drawn wake crosses NOW it's compared to the real price. Tight overlap welds green and grows your streak; misses tear a red rift. Payout = stake × your anticipatory fidelity.</p></div>
+  </div>
+  <div class="foot">WAKELINE — a Deriv original concept. Simulated market, illustrative payouts. Settled on continuous gesture-fidelity, never on up/down.</div>
+</section>
+
+<script>
+(function(){
+  "use strict";
+  var cv=document.getElementById('chart'), ctx=cv.getContext('2d');
+  var DPR=Math.max(1,Math.min(2,window.devicePixelRatio||1));
+  var W=0,H=0;
+  function resize(){
+    var r=cv.getBoundingClientRect();
+    W=r.width; H=r.height;
+    cv.width=W*DPR; cv.height=H*DPR;
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+  }
+  window.addEventListener('resize',resize); resize();
+
+  // ---- layout geometry ----
+  function nowX(){ return W*0.46; }          // NOW scan-line x
+  var PX_PER_S = 150;                          // horizontal scroll speed (px/sec)
+
+  // ---- price model (synthetic, lively) ----
+  var price=0;                                  // centered value, ~ -1..1 visual range
+  var vel=0;
+  var t0=performance.now();
+  // history of {x, p} world points; we store as price samples with timestamps
+  var samples=[];                               // {t, p}  most recent last
+  var lastSampleT=performance.now();
+  // user wake: array of {t (target time it should match NOW), y(price-space)} stored by time
+  var userPts=[];                               // {t, p}  p in price-space, t = projected NOW-arrival time
+  // matched slices for rendering welds: {x, py, uy, err, t}
+  var matches=[];
+  var sparks=[];
+  var goldBurst=[];
+
+  // game state
+  var state='idle';                             // idle | running | done
+  var lead=0.5, stake=10;
+  var roundLen=20.0, timeLeft=20.0;
+  var fidSum=0, fidCount=0, fidInst=0, fidDisp=0;
+  var streak=0, peakStreak=0, smoothAcc=1, smoothDisp=1;
+  var mult=1, payout=0;
+  var mouseY=null, mouseActive=false, lastMouseY=null, jitterAcc=0;
+
+  // map price-space (-1..1) to screen y
+  function pToY(p){ return H*0.5 - p*H*0.30; }
+  function yToP(y){ return (H*0.5 - y)/(H*0.30); }
+
+  // simulate one physics step (dt seconds) — lively, multi-frequency, readable
+  var phase=Math.random()*99;
+  function stepPrice(dt){
+    phase+=dt;
+    // smooth oscillatory backbone (two waves) gives sweeping, traceable swings
+    var wave = 0.62*Math.sin(phase*1.05) + 0.34*Math.sin(phase*0.43+1.7);
+    // momentum-driven noise rides on top for unpredictability
+    var noise=(Math.random()*2-1);
+    var revert = (wave - price)*4.2;     // pull toward the moving backbone
+    vel += (revert + noise*3.1)*dt;
+    vel *= Math.pow(0.22, dt);           // lighter damping → sustained motion
+    // occasional impulse kick (volatility spike)
+    if(Math.random()<dt*1.1){ vel += (Math.random()*2-1)*3.4; }
+    price += vel*dt;
+    if(price>1.18){price=1.18;vel*=-0.5;}
+    if(price<-1.18){price=-1.18;vel*=-0.5;}
+  }
+
+  // idle ambient price always runs so hero is ALIVE on load
+  function pushSample(now){
+    samples.push({t:now,p:price});
+    // keep ~ 8s of history
+    var cutoff=now-9000;
+    while(samples.length>2 && samples[0].t<cutoff) samples.shift();
+  }
+
+  // interpolate price-sample at time tt
+  function priceAt(tt){
+    if(samples.length===0) return 0;
+    if(tt<=samples[0].t) return samples[0].p;
+    if(tt>=samples[samples.length-1].t) return samples[samples.length-1].p;
+    // binary-ish linear search from end (recent)
+    for(var i=samples.length-1;i>0;i--){
+      if(samples[i-1].t<=tt && tt<=samples[i].t){
+        var a=samples[i-1],b=samples[i];
+        var f=(tt-a.t)/(b.t-a.t||1);
+        return a.p+(b.p-a.p)*f;
+      }
+    }
+    return samples[samples.length-1].p;
+  }
+
+  // x position for a given time relative to now (time in ms, now in ms)
+  function tToX(tt, now){ return nowX() + (tt-now)/1000*PX_PER_S; }
+
+  // ---- input ----
+  function setMouse(e){
+    var r=cv.getBoundingClientRect();
+    var cx=(e.touches?e.touches[0].clientX:e.clientX)-r.left;
+    var cy=(e.touches?e.touches[0].clientY:e.clientY)-r.top;
+    mouseY=cy; mouseX=cx; mouseActive=true;
+  }
+  var mouseX=null;
+  cv.addEventListener('mousemove',setMouse);
+  cv.addEventListener('mouseenter',function(){mouseActive=true;});
+  cv.addEventListener('mouseleave',function(){mouseActive=false;});
+  cv.addEventListener('touchstart',function(e){setMouse(e);e.preventDefault();},{passive:false});
+  cv.addEventListener('touchmove',function(e){setMouse(e);e.preventDefault();},{passive:false});
+  // keyboard fallback
+  var kbY=H*0.5, kbVel=0, keys={};
+  window.addEventListener('keydown',function(e){ if(['ArrowUp','ArrowDown','w','s'].includes(e.key)){keys[e.key]=true;mouseActive=true;e.preventDefault();}});
+  window.addEventListener('keyup',function(e){ keys[e.key]=false; });
+
+  // ---- controls ----
+  function bindSeg(sel,attr,cb){
+    document.querySelectorAll(sel+' button').forEach(function(b){
+      b.addEventListener('click',function(){
+        document.querySelectorAll(sel+' button').forEach(function(x){x.classList.remove('on');});
+        b.classList.add('on'); cb(b.getAttribute(attr));
+      });
+    });
+  }
+  bindSeg('.seg.lead','data-lead',function(v){ lead=parseFloat(v); });
+  bindSeg('.seg.stake','data-stake',function(v){ stake=parseFloat(v); });
+
+  var playBtn=document.getElementById('playBtn');
+  playBtn.addEventListener('click',function(){
+    if(state==='running'){ endRound(true); }
+    else startRound();
+  });
+
+  function startRound(){
+    state='running'; timeLeft=roundLen;
+    fidSum=0; fidCount=0; fidInst=0; streak=0; peakStreak=0; smoothAcc=1; jitterAcc=0;
+    mult=1; payout=0; matches.length=0; userPts.length=0; goldBurst.length=0;
+    playBtn.textContent='LOCK IN'; playBtn.classList.add('lock');
+    document.getElementById('hintText').textContent='Trace AHEAD of price — your amber wake meets NOW where the cyan line will be';
+  }
+
+  function endRound(early){
+    state='done';
+    var meanFid = fidCount? fidSum/fidCount : 0;
+    var leadMult = lead<=0.3?1.0 : lead<=0.5?1.35 : 1.8;
+    var sb = Math.max(0.85, Math.min(1.25, smoothAcc));
+    mult = Math.max(0, Math.pow(meanFid,1.4) * (1+0.04*peakStreak) * sb * leadMult);
+    payout = stake*mult;
+    var win = payout>=stake;
+    showToast(win, payout, meanFid);
+    if(win) spawnGold();
+    playBtn.textContent='TRACE AGAIN'; playBtn.classList.remove('lock');
+    document.getElementById('hintText').textContent = win
+      ? 'Nice wake. Raise your LEAD for a bigger multiplier — or play again.'
+      : 'Smooth, anticipatory strokes score higher. Try a shorter lead first.';
+    setTimeout(function(){ if(state==='done'){ state='idle'; playBtn.textContent='START TRACE'; } },1700);
+  }
+
+  function showToast(win,pay,fid){
+    var t=document.getElementById('toast'), big=document.getElementById('toastBig'), sub=document.getElementById('toastSub');
+    big.classList.toggle('miss',!win);
+    big.textContent=(win?'+ $':'$')+pay.toFixed(2);
+    sub.textContent=(win?'FIDELITY ':'LOW FIDELITY ')+Math.round(fid*100)+'%  ·  '+mult.toFixed(2)+'×';
+    t.classList.add('show');
+    setTimeout(function(){t.classList.remove('show');},1600);
+  }
+
+  function spawnGold(){
+    for(var i=0;i<60;i++){
+      goldBurst.push({x:nowX()+(Math.random()*2-1)*120, y:pToY(price)+(Math.random()*2-1)*60,
+        vx:(Math.random()*2-1)*2.4, vy:-Math.random()*3-1, life:1, r:Math.random()*2.5+1});
+    }
+  }
+
+  // dial circumference
+  var DIAL_C=2*Math.PI*44;
+
+  // ---- main update (drives sim; uses setInterval so it survives backgrounding) ----
+  var lastUpd=performance.now();
+  function update(){
+    var now=performance.now();
+    var dt=Math.min(0.05,(now-lastUpd)/1000); lastUpd=now;
+
+    stepPrice(dt);
+    pushSample(now);
+
+    // keyboard cursor integration
+    if(keys['ArrowUp']||keys['w']) kbVel-=900*dt;
+    if(keys['ArrowDown']||keys['s']) kbVel+=900*dt;
+    kbVel*=Math.pow(0.02,dt); kbY+=kbVel*dt;
+    if(kbY<20)kbY=20; if(kbY>H-20)kbY=H-20;
+
+    // determine active cursor Y: mouse if in lead zone else keyboard
+    var curY=null;
+    if(mouseActive && mouseY!=null && mouseX!=null && mouseX>nowX()-30){ curY=mouseY; }
+    else if(mouseActive && (keys['ArrowUp']||keys['ArrowDown']||keys['w']||keys['s'])){ curY=kbY; }
+    else if(mouseActive && mouseY!=null){ curY=mouseY; }
+
+    if(state==='running' && curY!=null){
+      // record a user point whose target NOW-arrival time = now + lead*1000
+      var targetT = now + lead*1000;
+      userPts.push({t:targetT, p:yToP(curY), drawnAt:now});
+      // jitter accounting for smoothness
+      if(lastMouseY!=null){ jitterAcc += Math.abs(curY-lastMouseY); }
+      lastMouseY=curY;
+      // cap stored userPts ~ lead+1s ahead and a little history
+      var cutoff=now-500;
+      while(userPts.length>2 && userPts[0].t<cutoff) userPts.shift();
+    } else { lastMouseY=null; }
+
+    // SETTLEMENT: any userPts whose target time has reached/passed NOW gets scored
+    if(state==='running'){
+      // we score by sampling at NOW for the slice that just crossed
+      // find userPts with t <= now (their predicted moment is now) and not yet scored
+      for(var i=0;i<userPts.length;i++){
+        var up=userPts[i];
+        if(!up.scored && up.t<=now){
+          up.scored=true;
+          var actual=priceAt(up.t);       // real price at that moment
+          var err=Math.abs(up.p-actual);  // price-space error
+          // tolerance: tighter band → high pay. band ~0.55 price units
+          var band=0.55;
+          var f=Math.max(0, 1 - err/band); // 1 perfect → 0
+          f=Math.pow(f,1.1);
+          fidInst = fidInst*0.7 + f*0.3;
+          fidSum += f; fidCount++;
+          // streak
+          if(f>0.62){ streak++; if(streak>peakStreak)peakStreak=streak; }
+          else if(f<0.4){ streak=Math.max(0,streak-3); }
+          // store match for render
+          matches.push({x:nowX(), uy:pToY(up.p), py:pToY(actual), err:err, f:f, life:1});
+          // sparks on good weld
+          if(f>0.7){
+            for(var s=0;s<3;s++) sparks.push({x:nowX(),y:pToY(actual),vx:(Math.random()*2-1)*1.5,vy:(Math.random()*2-1)*1.5,life:1,good:true});
+          } else if(f<0.35){
+            for(var s2=0;s2<2;s2++) sparks.push({x:nowX(),y:(pToY(up.p)+pToY(actual))/2,vx:(Math.random()*2-1)*1.2,vy:(Math.random()*2-1)*1.2,life:1,good:false});
+          }
+        }
+      }
+      // smoothness: low jitter per second → bonus near 1.2; high → 0.85
+      // sampled gently
+      smoothAcc = smoothAcc*0.985 + (jitterAcc<1.6?1.22:(jitterAcc<5?1.05:0.86))*0.015;
+      jitterAcc*=0.6;
+
+      // timer
+      timeLeft-=dt;
+      mult = (function(){
+        var mf=fidCount?fidSum/fidCount:0;
+        var lm=lead<=0.3?1.0:lead<=0.5?1.35:1.8;
+        var sb=Math.max(0.85,Math.min(1.25,smoothAcc));
+        return Math.max(0,Math.pow(mf,1.4)*(1+0.04*peakStreak)*sb*lm);
+      })();
+      payout=stake*mult;
+      if(timeLeft<=0){ timeLeft=0; endRound(false); }
+    }
+
+    // age matches
+    for(var m=matches.length-1;m>=0;m--){ matches[m].life-=dt*0.8; if(matches[m].life<=0) matches.splice(m,1); }
+    for(var p2=sparks.length-1;p2>=0;p2--){ var sp=sparks[p2]; sp.x+=sp.vx;sp.y+=sp.vy;sp.vy+=0.06;sp.life-=dt*2.2; if(sp.life<=0)sparks.splice(p2,1); }
+    for(var g=goldBurst.length-1;g>=0;g--){ var gb=goldBurst[g]; gb.x+=gb.vx;gb.y+=gb.vy;gb.vy+=0.07;gb.life-=dt*0.9; if(gb.life<=0)goldBurst.splice(g,1); }
+
+    // smoothed displays
+    fidDisp += ((state==='running'?fidInst:fidDisp*0.96) - fidDisp)*0.15;
+    smoothDisp += (smoothAcc-smoothDisp)*0.1;
+    updateHUD();
+  }
+
+  function updateHUD(){
+    document.getElementById('fidNum').textContent = Math.round((state==='running'?fidInst:0)*100);
+    var off = DIAL_C*(1-(state==='running'?fidInst:0));
+    document.getElementById('dialArc').setAttribute('stroke-dashoffset',off);
+    document.getElementById('streakNum').textContent = streak;
+    document.getElementById('smoothNum').textContent = state==='running'? (smoothDisp>=1.12?'A+':smoothDisp>=1.0?'A':smoothDisp>=0.92?'B':'C') : '—';
+    document.getElementById('timeNum').textContent = timeLeft.toFixed(1);
+    document.getElementById('multNum').textContent = mult.toFixed(2);
+    document.getElementById('payNum').textContent = '$'+payout.toFixed(2);
+  }
+
+  // ---- render (rAF for smoothness) ----
+  function draw(){
+    var now=performance.now();
+    ctx.clearRect(0,0,W,H);
+
+    // bg grid
+    drawGrid();
+
+    var nx=nowX();
+
+    // ===== future shaded LEAD ZONE =====
+    var lzGrad=ctx.createLinearGradient(nx,0,W,0);
+    lzGrad.addColorStop(0,'rgba(255,160,60,.10)');
+    lzGrad.addColorStop(1,'rgba(255,160,60,.02)');
+    ctx.fillStyle=lzGrad; ctx.fillRect(nx,0,W-nx,H);
+
+    // ===== price ribbon (left of now) with bloom =====
+    drawRibbon(now);
+
+    // ===== matched welds at NOW =====
+    for(var i=0;i<matches.length;i++){
+      var m=matches[i]; var a=m.life;
+      var good=m.f>0.55;
+      var grad=ctx.createLinearGradient(0,m.uy,0,m.py);
+      var col= good? '57,255,166' : (m.f>0.35?'255,200,80':'255,77,109');
+      grad.addColorStop(0,'rgba('+col+','+(0.5*a)+')');
+      grad.addColorStop(1,'rgba('+col+','+(0.5*a)+')');
+      ctx.strokeStyle=grad; ctx.lineWidth=good?(3+m.f*5):3; ctx.lineCap='round';
+      ctx.shadowBlur=good?22*a:14*a; ctx.shadowColor='rgba('+col+',.9)';
+      ctx.beginPath(); ctx.moveTo(nx,m.uy); ctx.lineTo(nx,m.py); ctx.stroke();
+      ctx.shadowBlur=0;
+    }
+
+    // ===== user wake in the future (lead zone) =====
+    drawUserWake(now);
+
+    // ===== NOW scan-line =====
+    var pulse = matches.length? Math.min(1,matches[matches.length-1].life) : 0;
+    ctx.save();
+    var ng=ctx.createLinearGradient(0,0,0,H);
+    ng.addColorStop(0,'rgba(255,255,255,0)');
+    ng.addColorStop(.5,'rgba(255,255,255,'+(0.5+0.4*pulse)+')');
+    ng.addColorStop(1,'rgba(255,255,255,0)');
+    ctx.strokeStyle=ng; ctx.lineWidth=1.5+pulse*2.5; ctx.shadowBlur=12+pulse*20; ctx.shadowColor='rgba(255,255,255,.7)';
+    ctx.beginPath(); ctx.moveTo(nx,0); ctx.lineTo(nx,H); ctx.stroke();
+    ctx.restore();
+    // NOW label
+    ctx.fillStyle='rgba(255,255,255,.55)'; ctx.font='700 10px Inter,sans-serif'; ctx.textAlign='center';
+    ctx.fillText('NOW',nx,H-12);
+    // LEAD ZONE label
+    ctx.fillStyle='rgba(255,160,60,.55)'; ctx.font='700 10px Inter,sans-serif'; ctx.textAlign='center';
+    ctx.fillText('◀ LEAD ZONE · PRE-TRACE THE FUTURE',(nx+W)/2,26);
+
+    // current price dot
+    var cpY=pToY(price);
+    ctx.beginPath(); ctx.arc(nx,cpY,5,0,7); ctx.fillStyle='#34e7ff';
+    ctx.shadowBlur=22; ctx.shadowColor='#34e7ff'; ctx.fill(); ctx.shadowBlur=0;
+    ctx.beginPath(); ctx.arc(nx,cpY,11,0,7); ctx.strokeStyle='rgba(52,231,255,.4)'; ctx.lineWidth=1.5; ctx.stroke();
+
+    // cursor orb
+    drawCursor();
+
+    // sparks
+    for(var s=0;s<sparks.length;s++){ var sp=sparks[s];
+      ctx.beginPath(); ctx.arc(sp.x,sp.y,1.6,0,7);
+      ctx.fillStyle=(sp.good?'rgba(57,255,166,':'rgba(255,77,109,')+sp.life+')';
+      ctx.shadowBlur=8; ctx.shadowColor=ctx.fillStyle; ctx.fill(); ctx.shadowBlur=0; }
+    // gold burst
+    for(var g=0;g<goldBurst.length;g++){ var gb=goldBurst[g];
+      ctx.beginPath(); ctx.arc(gb.x,gb.y,gb.r,0,7);
+      ctx.fillStyle='rgba(255,215,106,'+gb.life+')'; ctx.shadowBlur=12; ctx.shadowColor='rgba(255,215,106,.9)'; ctx.fill(); ctx.shadowBlur=0; }
+
+    requestAnimationFrame(draw);
+  }
+
+  function drawGrid(){
+    ctx.strokeStyle='rgba(120,160,220,.05)'; ctx.lineWidth=1;
+    for(var y=H*0.18;y<H;y+=H*0.16){ ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+    for(var x=W;x>0;x-=120){ ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
+    // center line
+    ctx.strokeStyle='rgba(120,160,220,.08)'; ctx.setLineDash([4,8]);
+    ctx.beginPath(); ctx.moveTo(0,H*0.5); ctx.lineTo(W,H*0.5); ctx.stroke(); ctx.setLineDash([]);
+  }
+
+  function drawRibbon(now){
+    if(samples.length<2) return;
+    var nx=nowX();
+    // build path from oldest to now
+    ctx.lineJoin='round'; ctx.lineCap='round';
+    // glow underlay
+    ctx.beginPath();
+    for(var i=0;i<samples.length;i++){
+      var s=samples[i]; var x=tToX(s.t,now); var y=pToY(s.p);
+      if(x>nx+1) continue;
+      if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+    }
+    ctx.strokeStyle='rgba(52,231,255,.18)'; ctx.lineWidth=12; ctx.shadowBlur=26; ctx.shadowColor='rgba(52,231,255,.6)';
+    ctx.stroke(); ctx.shadowBlur=0;
+    // core line
+    ctx.beginPath();
+    for(var j=0;j<samples.length;j++){
+      var s2=samples[j]; var x2=tToX(s2.t,now); var y2=pToY(s2.p);
+      if(x2>nx+1) continue;
+      if(j===0) ctx.moveTo(x2,y2); else ctx.lineTo(x2,y2);
+    }
+    var rg=ctx.createLinearGradient(0,0,nx,0);
+    rg.addColorStop(0,'rgba(52,231,255,.25)'); rg.addColorStop(1,'rgba(160,245,255,1)');
+    ctx.strokeStyle=rg; ctx.lineWidth=2.6; ctx.stroke();
+    // soft area fill under price
+    ctx.beginPath();
+    var firstX=null;
+    for(var k=0;k<samples.length;k++){
+      var s3=samples[k]; var x3=tToX(s3.t,now); var y3=pToY(s3.p);
+      if(x3>nx+1) continue;
+      if(firstX===null){firstX=x3; ctx.moveTo(x3,y3);} else ctx.lineTo(x3,y3);
+    }
+    if(firstX!==null){
+      ctx.lineTo(nx,H); ctx.lineTo(firstX,H); ctx.closePath();
+      var ag=ctx.createLinearGradient(0,H*0.2,0,H);
+      ag.addColorStop(0,'rgba(52,231,255,.10)'); ag.addColorStop(1,'rgba(52,231,255,0)');
+      ctx.fillStyle=ag; ctx.fill();
+    }
+  }
+
+  function drawUserWake(now){
+    if(userPts.length<2) return;
+    var nx=nowX();
+    ctx.beginPath();
+    var started=false;
+    for(var i=0;i<userPts.length;i++){
+      var up=userPts[i];
+      var x=tToX(up.t,now); var y=pToY(up.p);
+      if(x<nx-2) continue;       // only the future portion glows as the wake
+      if(!started){ ctx.moveTo(x,y); started=true; } else ctx.lineTo(x,y);
+    }
+    if(!started) return;
+    // glow
+    ctx.strokeStyle='rgba(255,160,60,.85)'; ctx.lineWidth=3; ctx.lineJoin='round'; ctx.lineCap='round';
+    ctx.shadowBlur=20; ctx.shadowColor='rgba(255,160,60,.8)'; ctx.stroke();
+    ctx.shadowBlur=0;
+    // dashed projection from last wake point to cursor handled by cursor draw
+  }
+
+  function drawCursor(){
+    var nx=nowX();
+    var cx=null,cy=null;
+    if(mouseActive && mouseX!=null && mouseY!=null && mouseX>nx-30){ cx=mouseX; cy=mouseY; }
+    else if(mouseActive){ cx=Math.max(nx+lead*PX_PER_S, nx+60); cy=kbY; }
+    if(cx==null){
+      // idle ghost cursor: gentle drifting demo orb to keep hero alive
+      cx = nx + (0.5)*PX_PER_S + Math.sin(performance.now()/700)*40 + 110;
+      cy = pToY(price) - 30 + Math.sin(performance.now()/520)*40;
+    }
+    // tail
+    ctx.beginPath(); ctx.arc(cx,cy,7,0,7);
+    ctx.fillStyle='#ffb24d'; ctx.shadowBlur=26; ctx.shadowColor='#ff9a2e'; ctx.fill(); ctx.shadowBlur=0;
+    ctx.beginPath(); ctx.arc(cx,cy,15,0,7); ctx.strokeStyle='rgba(255,178,77,.35)'; ctx.lineWidth=2; ctx.stroke();
+    // crosshair
+    ctx.strokeStyle='rgba(255,178,77,.5)'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(cx-22,cy); ctx.lineTo(cx-12,cy); ctx.moveTo(cx+12,cy); ctx.lineTo(cx+22,cy); ctx.stroke();
+  }
+
+  // ---- run loops ----
+  setInterval(update,1000/60);  // sim survives backgrounding
+  requestAnimationFrame(draw);
+
+  // seed a little history so it looks alive instantly
+  (function seed(){
+    var tnow=performance.now();
+    for(var i=60;i>=0;i--){ stepPrice(0.05); samples.push({t:tnow-i*50,p:price}); }
+  })();
+})();
+</script>
+</body>
+</html>

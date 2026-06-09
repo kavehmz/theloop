@@ -17,3 +17,4 @@ One line per design: name — core mechanic — STATUS
 - PRISMA — price-as-light refracts through a prism into a spectrum; claim demand-priced wavelength bands, paid by share of dispersed light — DUPLICATE
 - DEEPLINE — cast a hook to a price-depth; strike on touch, then win a two-force line-tension reel-fight before snap — DUPLICATE
 - SLUICE — route price-velocity-as-fluid through an authored branching pipe network into multiplier basins; balance burst vs dry — KEEPER
+- WAKELINE — pre-trace where price will go in a lead zone; paid by the fidelity of your anticipatory line vs the actual path — KEEPER
