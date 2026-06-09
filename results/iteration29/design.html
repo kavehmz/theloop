@@ -307,7 +307,7 @@ armb.addEventListener('click',()=>{
 });
 recb.addEventListener('click',()=>{
   if(phase==='armed' && recasts>0){ recasts--; heat=Math.max(0,heat-RECAST_TAX);
-    spark(p2y(well.cy)+CHART_LEFT*0, (chartL()+chartR())/2, '#9fe9ff',26,5,0.7);
+    spark((chartL()+chartR())/2, p2y(well.cy), '#9fe9ff',26,5,0.7);
     flashRing();
     if(recasts===0) recb.disabled=true; syncUI();
   }
