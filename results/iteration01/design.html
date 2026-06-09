@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>THREADLINE — thread the price through your ribbon</title>
+<style>
+  :root{
+    --bg0:#04060d; --bg1:#070b16; --bg2:#0b1326;
+    --cyan:#36e6ff; --cyan-soft:#7af3ff;
+    --mag:#ff3df0; --violet:#9b5cff; --vio2:#5b3bff;
+    --gold:#ffd54a; --green:#27f5a3; --red:#ff3b5c;
+    --ink:#e8f0ff; --muted:#7f8db5; --muted2:#54618a;
+    --panel:rgba(12,18,36,.72);
+    --stroke:rgba(120,150,220,.14);
+    --font:'Segoe UI',-apple-system,BlinkMacSystemFont,Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    font-family:var(--font); color:var(--ink);
+    background:
+      radial-gradient(1200px 700px at 78% -8%, rgba(155,92,255,.20), transparent 60%),
+      radial-gradient(1000px 600px at 8% 110%, rgba(54,230,255,.13), transparent 60%),
+      linear-gradient(180deg,var(--bg1),var(--bg0) 70%);
+    overflow-x:hidden; -webkit-font-smoothing:antialiased;
+  }
+  /* ============ HERO (above the fold) ============ */
+  .stage{
+    position:relative; width:100%; height:100vh; min-height:720px;
+    display:grid; grid-template-rows:auto 1fr auto; overflow:hidden;
+  }
+  .top{ display:flex; align-items:center; gap:18px; padding:16px 26px 12px; z-index:6; }
+  .brand{display:flex;align-items:center;gap:12px}
+  .logo{
+    width:34px;height:34px;border-radius:9px;position:relative;
+    background:linear-gradient(135deg,var(--mag),var(--vio2));
+    box-shadow:0 0 22px rgba(155,92,255,.6), inset 0 0 12px rgba(255,255,255,.25);
+  }
+  .logo:before{
+    content:"";position:absolute;inset:0;border-radius:9px;
+    background:linear-gradient(90deg,transparent 44%, rgba(54,230,255,.95) 45%, rgba(54,230,255,.95) 47%, transparent 48%);
+    mix-blend-mode:screen; filter:blur(.3px);
+  }
+  .brand h1{font-size:20px;letter-spacing:4px;font-weight:800}
+  .brand h1 b{color:var(--cyan)}
+  .brand .tag{font-size:11px;letter-spacing:2px;color:var(--muted);margin-top:2px}
+  .top .spacer{flex:1}
+  .pill{
+    display:flex;flex-direction:column;align-items:flex-end;
+    background:var(--panel);border:1px solid var(--stroke);
+    border-radius:12px;padding:7px 15px;backdrop-filter:blur(8px);
+  }
+  .pill .k{font-size:10px;letter-spacing:1.5px;color:var(--muted)}
+  .pill .v{font-size:18px;font-weight:800;letter-spacing:.5px}
+  .pill .v.bal{color:var(--gold)}
+  .market{
+    display:flex;align-items:center;gap:9px;
+    background:var(--panel);border:1px solid var(--stroke);
+    border-radius:12px;padding:7px 14px;backdrop-filter:blur(8px);
+  }
+  .market .dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 10px var(--green);animation:bp 1.6s infinite}
+  @keyframes bp{0%,100%{opacity:1}50%{opacity:.35}}
+  .market .nm{font-size:13px;font-weight:700}
+  .market .px{font-size:13px;color:var(--cyan);font-variant-numeric:tabular-nums;min-width:74px;text-align:right}
+
+  .board{position:relative;margin:0 22px;border-radius:16px;overflow:hidden;
+    border:1px solid var(--stroke);
+    box-shadow:0 24px 80px rgba(0,0,0,.55), inset 0 0 80px rgba(10,16,40,.6);
+    background:linear-gradient(180deg, rgba(10,16,34,.6), rgba(5,8,18,.6));
+    cursor:crosshair;
+  }
+  canvas{display:block;width:100%;height:100%}
+  #fx{position:absolute;inset:0;pointer-events:none}
+
+  .phase{
+    position:absolute;left:50%;top:18px;transform:translateX(-50%);
+    display:flex;align-items:center;gap:10px;z-index:5;
+    font-size:12.5px;letter-spacing:2.5px;font-weight:700;
+    padding:8px 18px;border-radius:30px;
+    background:rgba(8,12,26,.6);border:1px solid var(--stroke);backdrop-filter:blur(6px);
+    transition:.25s;
+  }
+  .phase .pd{width:9px;height:9px;border-radius:50%;background:var(--cyan);box-shadow:0 0 12px var(--cyan)}
+  .phase.draw{color:var(--cyan-soft);border-color:rgba(54,230,255,.4)}
+  .phase.draw .pd{background:var(--cyan);box-shadow:0 0 14px var(--cyan)}
+  .phase.live{color:#fff;border-color:rgba(255,61,240,.5);box-shadow:0 0 30px rgba(255,61,240,.25)}
+  .phase.live .pd{background:var(--mag);box-shadow:0 0 14px var(--mag);animation:bp .8s infinite}
+  .phase.win{color:var(--gold);border-color:rgba(255,213,74,.6);box-shadow:0 0 34px rgba(255,213,74,.3)}
+  .phase.win .pd{background:var(--gold);box-shadow:0 0 14px var(--gold)}
+  .phase.lose{color:var(--red);border-color:rgba(255,59,92,.6)}
+  .phase.lose .pd{background:var(--red);box-shadow:0 0 14px var(--red)}
+
+  .mult{
+    position:absolute;z-index:5;pointer-events:none;
+    font-weight:900;font-variant-numeric:tabular-nums;
+    text-shadow:0 0 18px rgba(0,0,0,.85); transition:opacity .2s; opacity:0;
+  }
+  .mult .x{font-size:34px;letter-spacing:.5px}
+  .mult .sub{display:block;font-size:10px;letter-spacing:2px;font-weight:700;opacity:.8;margin-top:-3px}
+
+  .liveHud{
+    position:absolute;left:18px;bottom:16px;z-index:5;display:none;
+    align-items:center;gap:14px;
+  }
+  .charge{
+    width:190px;height:10px;border-radius:8px;overflow:hidden;
+    background:rgba(255,255,255,.08);border:1px solid var(--stroke);
+  }
+  .charge i{display:block;height:100%;width:0%;
+    background:linear-gradient(90deg,var(--mag),var(--violet),var(--cyan));
+    box-shadow:0 0 16px rgba(155,92,255,.8);transition:width .08s linear}
+  .liveHud .pay{font-size:13px;color:var(--muted);letter-spacing:1px}
+  .liveHud .pay b{font-size:22px;color:#fff;font-weight:900;font-variant-numeric:tabular-nums;margin-left:6px}
+
+  .splash{
+    position:absolute;inset:0;z-index:7;display:none;
+    align-items:center;justify-content:center;flex-direction:column;pointer-events:none;
+  }
+  .splash .big{font-size:66px;font-weight:900;letter-spacing:7px;
+    text-shadow:0 0 44px currentColor; transform:scale(.7);opacity:0}
+  .splash .amt{font-size:27px;font-weight:800;margin-top:6px;font-variant-numeric:tabular-nums;
+    transform:translateY(14px);opacity:0}
+  .splash.show .big{animation:pop .5s cubic-bezier(.2,1.4,.4,1) forwards}
+  .splash.show .amt{animation:rise .5s .12s ease forwards}
+  @keyframes pop{to{transform:scale(1);opacity:1}}
+  @keyframes rise{to{transform:translateY(0);opacity:1}}
+
+  .deck{ z-index:6; display:flex;align-items:center;gap:14px; padding:14px 24px 18px; flex-wrap:wrap; }
+  .ctrl{display:flex;flex-direction:column;gap:5px}
+  .ctrl .lab{font-size:10px;letter-spacing:1.6px;color:var(--muted);font-weight:700}
+  .stakes{display:flex;gap:7px}
+  .chip{
+    cursor:pointer;border:1px solid var(--stroke);background:rgba(255,255,255,.03);
+    color:var(--ink);border-radius:9px;padding:8px 13px;font-weight:800;font-size:13px;
+    transition:.15s;font-variant-numeric:tabular-nums;
+  }
+  .chip:hover{border-color:rgba(54,230,255,.5);background:rgba(54,230,255,.08)}
+  .chip.sel{border-color:var(--cyan);background:rgba(54,230,255,.16);box-shadow:0 0 16px rgba(54,230,255,.25);color:#fff}
+  .widthwrap{display:flex;align-items:center;gap:10px;min-width:220px}
+  input[type=range]{-webkit-appearance:none;appearance:none;height:6px;border-radius:6px;width:170px;
+    background:linear-gradient(90deg,var(--mag),var(--violet),var(--cyan));outline:none;cursor:pointer}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;
+    background:#fff;box-shadow:0 0 14px rgba(255,255,255,.7),0 2px 6px rgba(0,0,0,.5);cursor:pointer;border:2px solid var(--violet)}
+  .wval{font-size:13px;font-weight:800;color:var(--cyan-soft);min-width:64px;font-variant-numeric:tabular-nums}
+  .spacerflex{flex:1}
+  .btn{
+    cursor:pointer;border:none;border-radius:12px;padding:13px 26px;font-weight:900;font-size:14px;
+    letter-spacing:1.5px;transition:.15s;position:relative;overflow:hidden;color:#04060d;
+    background:linear-gradient(135deg,var(--cyan),#19b6ff);
+    box-shadow:0 0 26px rgba(54,230,255,.45), inset 0 0 12px rgba(255,255,255,.3);
+  }
+  .btn:hover{transform:translateY(-1px);box-shadow:0 0 36px rgba(54,230,255,.7)}
+  .btn:active{transform:translateY(0)}
+  .btn.commit{background:linear-gradient(135deg,var(--mag),var(--violet));color:#fff;
+    box-shadow:0 0 26px rgba(255,61,240,.5), inset 0 0 12px rgba(255,255,255,.25)}
+  .btn.commit:hover{box-shadow:0 0 40px rgba(255,61,240,.8)}
+  .btn.cut{background:linear-gradient(135deg,var(--gold),#ff9d2e);color:#1a1200}
+  .btn.cut:hover{box-shadow:0 0 38px rgba(255,213,74,.75)}
+  .btn:disabled{opacity:.32;cursor:not-allowed;transform:none;filter:grayscale(.4)}
+  .hint{font-size:12px;color:var(--muted);letter-spacing:.4px;max-width:330px;line-height:1.5}
+  .hint b{color:var(--cyan-soft)}
+
+  .below{max-width:1180px;margin:0 auto;padding:54px 28px 90px}
+  .below h2{font-size:13px;letter-spacing:3px;color:var(--muted);font-weight:800;margin-bottom:22px;text-transform:uppercase}
+  .steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:18px}
+  .card{
+    background:linear-gradient(180deg,rgba(16,22,44,.6),rgba(8,12,26,.6));
+    border:1px solid var(--stroke);border-radius:16px;padding:22px;position:relative;overflow:hidden;
+  }
+  .card:before{content:"";position:absolute;inset:0;background:radial-gradient(400px 200px at 100% -20%,rgba(155,92,255,.12),transparent 60%)}
+  .card .n{font-size:12px;font-weight:900;color:var(--violet);letter-spacing:2px}
+  .card h3{font-size:17px;margin:10px 0 8px;font-weight:800}
+  .card p{font-size:13.5px;line-height:1.6;color:var(--muted)}
+  .card p b{color:var(--cyan-soft)}
+  .why{margin-top:50px;display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  @media(max-width:720px){.why{grid-template-columns:1fr}}
+  .why .card h3{color:var(--gold)}
+  .foot{text-align:center;color:var(--muted2);font-size:12px;margin-top:60px;letter-spacing:1px}
+  .foot b{color:var(--muted)}
+</style>
+</head>
+<body>
+
+<section class="stage">
+  <div class="top">
+    <div class="brand">
+      <div class="logo"></div>
+      <div>
+        <h1>THREAD<b>LINE</b></h1>
+        <div class="tag">DRAW THE ROUTE · THREAD THE PRICE</div>
+      </div>
+    </div>
+    <div class="spacer"></div>
+    <div class="market">
+      <span class="dot"></span>
+      <span class="nm">Volatility 75 Index</span>
+      <span class="px" id="px">—</span>
+    </div>
+    <div class="pill"><span class="k">BALANCE</span><span class="v bal" id="bal">$1,000.00</span></div>
+  </div>
+
+  <div class="board" id="board">
+    <canvas id="cv"></canvas>
+    <canvas id="fx"></canvas>
+    <div class="phase draw" id="phase"><span class="pd"></span><span id="phaseTxt">DRAW YOUR THREAD</span></div>
+    <div class="mult" id="mult"><span class="x">1.00×</span><span class="sub">MULTIPLIER</span></div>
+    <div class="liveHud" id="liveHud">
+      <div class="charge"><i id="chargeFill"></i></div>
+      <div class="pay">LIVE PAYOUT<b id="livePay">$0.00</b></div>
+    </div>
+    <div class="splash" id="splash">
+      <div class="big" id="splashBig">LANDED</div>
+      <div class="amt" id="splashAmt">+$0.00</div>
+    </div>
+  </div>
+
+  <div class="deck">
+    <div class="ctrl">
+      <span class="lab">STAKE</span>
+      <div class="stakes" id="stakes">
+        <button class="chip" data-s="5">$5</button>
+        <button class="chip sel" data-s="10">$10</button>
+        <button class="chip" data-s="25">$25</button>
+        <button class="chip" data-s="50">$50</button>
+      </div>
+    </div>
+    <div class="ctrl">
+      <span class="lab">THREAD WIDTH · risk dial</span>
+      <div class="widthwrap">
+        <input type="range" id="width" min="6" max="60" value="30" />
+        <span class="wval" id="wval">±30 pts</span>
+      </div>
+    </div>
+    <div class="spacerflex"></div>
+    <span class="hint" id="hint"><b>Drag</b> across the dim future grid to draw your route. Thinner ribbon &amp; bolder path = bigger multiplier.</span>
+    <button class="btn commit" id="commitBtn" disabled>COMMIT THREAD</button>
+    <button class="btn cut" id="cutBtn" style="display:none">CUT &amp; BANK</button>
+  </div>
+</section>
+
+<section class="below">
+  <h2>How a round flows</h2>
+  <div class="steps">
+    <div class="card"><div class="n">01 · DRAW</div><h3>Author your route</h3>
+      <p>The dim grid to the right is <b>the next 8 seconds</b>. Drag a freehand centre-line where you think price will travel. A glowing ribbon inflates around it at your chosen <b>width</b>.</p></div>
+    <div class="card"><div class="n">02 · PRICE</div><h3>Width is your greed dial</h3>
+      <p>The multiplier updates every frame from <b>1 / width × reach × boldness</b>. A hair-thin thread through a sharp move pays huge; a fat lazy thread pays a little. Shave one more pixel… or don't.</p></div>
+    <div class="card"><div class="n">03 · THREAD</div><h3>Hold your breath</h3>
+      <p>Commit and a <b>now-line</b> sweeps across your tunnel as live ticks print. Stay inside the walls and the charge bar fills, the ribbon glows hotter, payout climbs.</p></div>
+    <div class="card"><div class="n">04 · SNAP / LAND</div><h3>Bank it or break it</h3>
+      <p>Touch a wall and the thread <b>SNAPS</b> — gone. Reach the end inside and it <b>LANDS</b> for stake × multiplier. Or <b>CUT</b> early to bank the partial. Your call, every second.</p></div>
+  </div>
+
+  <div class="why">
+    <div class="card"><h3>Why it's a Deriv game</h3>
+      <p>THREADLINE is a <b>path-shaped option</b>: it generalises Deriv's "stays-between / ends-between / touch" barrier contracts into a freehand, time-varying corridor the player draws themselves. It needs only the live synthetic-index tick feed and the volatility model Deriv already runs to price width → multiplier.</p></div>
+    <div class="card"><h3>Why it's original</h3>
+      <p>Every saturated casino game bets a <b>scalar</b> — a number, a side, a multiplier-before-crash. THREADLINE bets a <b>freehand 2-D shape over future time</b>, scored by containment of the realised price path inside a player-drawn corridor whose width is a live continuous risk dial. You predict the <b>route</b>, not the result.</p></div>
+  </div>
+
+  <div class="foot">THREADLINE · concept prototype · simulated Volatility 75 feed · <b>not a real money product</b></div>
+</section>
+
+<script>
+/* ============================================================
+   THREADLINE — clean implementation
+   Model:
+   - A live synthetic price chart scrolls right->left during IDLE/DRAW.
+   - "now" sits at PAST_FRAC of board width; future grid to the right.
+   - DRAW: user drags a centreline into the future zone (stored as
+     {ahead: seconds-into-future, price}). A ribbon of half-width inflates.
+   - COMMIT: chart FREEZES its framing. A sweep-line starts at the now-x
+     and advances rightward across the static tunnel as real ticks print.
+     The live price filament is drawn from now-x rightward, sample by sample,
+     pinned to the sweep position. Containment tested each tick.
+   - LAND if sweep reaches tunnel end inside; SNAP if filament exits a wall.
+   ============================================================ */
+(function(){
+  const cv = document.getElementById('cv');
+  const fx = document.getElementById('fx');
+  const ctx = cv.getContext('2d');
+  const fxc = fx.getContext('2d');
+  const board = document.getElementById('board');
+
+  let W=0,H=0,DPR=Math.min(window.devicePixelRatio||1,2);
+  function resize(){
+    const r=board.getBoundingClientRect();
+    W=r.width;H=r.height;
+    [cv,fx].forEach(c=>{c.width=W*DPR;c.height=H*DPR;});
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+    fxc.setTransform(DPR,0,0,DPR,0,0);
+  }
+  window.addEventListener('resize',resize);
+
+  // ---- layout / time ----
+  const PAST_FRAC=0.40;
+  const HISTORY_SECONDS=12;
+  const FUTURE_SECONDS=8;
+  const TICK_MS=80;
+  function nowX(){return W*PAST_FRAC;}
+  function pxPerSec(){return (W*(1-PAST_FRAC))/FUTURE_SECONDS;}
+
+  // ---- market sim ----
+  let price=1043.726, vol=1.0;
+  let hist=[];           // recent prices {t,p} for the scrolling history line
+  let lastTick=performance.now();
+  function stepPrice(){
+    vol+=(Math.random()-0.5)*0.06; vol=Math.max(0.55,Math.min(2.2,vol));
+    const shock=(Math.random()<0.045)?(Math.random()-0.5)*9*vol:0;
+    price+=(Math.random()-0.5)*2.5*vol+shock+Math.sin(performance.now()/2400)*0.22;
+  }
+  (function seed(){
+    const now=performance.now();
+    for(let i=Math.floor(HISTORY_SECONDS*1000/TICK_MS);i>=0;i--){
+      vol+=(Math.random()-0.5)*0.06;vol=Math.max(.6,Math.min(1.8,vol));
+      price+=(Math.random()-0.5)*2.3*vol;
+      hist.push({t:now-i*TICK_MS,p:price});
+    }
+  })();
+
+  // ---- y domain (history-anchored, hard-bounded — no runaway) ----
+  let priceMin=0,priceMax=0;
+  function refDomain(){
+    // 1) hard reference from real price history only
+    let hlo=Infinity,hhi=-Infinity;
+    for(const k of hist){if(k.p<hlo)hlo=k.p;if(k.p>hhi)hhi=k.p;}
+    if(!isFinite(hlo)){hlo=price-20;hhi=price+20;}
+    const hmid=(hlo+hhi)/2;
+    const histSpan=Math.max(20,hhi-hlo);
+    // 2) target window centred on history, allowed to grow for the tunnel,
+    //    but capped at 3x the history span so it can never explode.
+    let lo=hlo, hi=hhi;
+    if(thread.committed){
+      for(const pt of thread.pts){if(pt.price<lo)lo=pt.price;if(pt.price>hi)hi=pt.price;}
+      lo-=thread.widthPts;hi+=thread.widthPts;
+    }
+    if((state===STATE.LIVE||state===STATE.RESULT)){
+      for(const f of filament){if(f.price<lo)lo=f.price;if(f.price>hi)hi=f.price;}
+    }
+    const maxSpan=histSpan*3.2;
+    let span=hi-lo;
+    if(span>maxSpan){ const m=(lo+hi)/2; lo=m-maxSpan/2; hi=m+maxSpan/2; span=maxSpan; }
+    const minSpan=24;
+    if(span<minSpan){ const m=(lo+hi)/2; lo=m-minSpan/2; hi=m+minSpan/2; }
+    const pad=(hi-lo)*0.16+4; lo-=pad; hi+=pad;
+    if(priceMin===0){priceMin=lo;priceMax=hi;return;}
+    if(state===STATE.LIVE||state===STATE.RESULT) return;   // freeze during a round
+    const s=0.10; priceMin+=(lo-priceMin)*s; priceMax+=(hi-priceMax)*s;
+  }
+  function dom(){return Math.max(1e-3,priceMax-priceMin);}
+  function priceToY(p){return H-((p-priceMin)/dom())*H;}
+  function yToPrice(y){return priceMin+(1-y/H)*dom();}
+  function ptsPerPx(){return dom()/H;}
+
+  // ---- state ----
+  const STATE={IDLE:'idle',DRAWING:'drawing',ARMED:'armed',LIVE:'live',RESULT:'result'};
+  let state=STATE.IDLE;
+  let balance=1000, stake=10, widthPts=30;
+
+  const thread={
+    raw:[],          // {x,y} screen pts while drawing
+    pts:[],          // committed {ahead:sec, price}
+    widthPts:30,
+    mult:1.0,
+    committed:false,
+    duration:0,
+  };
+  // LIVE
+  let commitWall=0;        // performance.now at commit
+  let liveCharge=0, livePayout=0, alive=true;
+  let filament=[];         // committed-phase price samples {ahead:sec-from-commit, price}
+  let snapPt=null;
+
+  // ---- DOM ----
+  const $=id=>document.getElementById(id);
+  const elPx=$('px'),elBal=$('bal'),elPhase=$('phase'),elPhaseTxt=$('phaseTxt');
+  const elMult=$('mult'),elMultX=elMult.querySelector('.x');
+  const elWidth=$('width'),elWval=$('wval');
+  const elCommit=$('commitBtn'),elCut=$('cutBtn'),elHint=$('hint');
+  const elLiveHud=$('liveHud'),elCharge=$('chargeFill'),elLivePay=$('livePay');
+  const elSplash=$('splash'),elSplashBig=$('splashBig'),elSplashAmt=$('splashAmt');
+
+  $('stakes').addEventListener('click',e=>{
+    const b=e.target.closest('.chip');if(!b||state===STATE.LIVE)return;
+    document.querySelectorAll('.chip').forEach(c=>c.classList.remove('sel'));
+    b.classList.add('sel');stake=+b.dataset.s; bump();
+  });
+  elWidth.addEventListener('input',()=>{
+    widthPts=+elWidth.value; elWval.textContent='±'+widthPts+' pts';
+    if(state===STATE.DRAWING||state===STATE.ARMED){thread.widthPts=widthPts;recalcMult();}
+    bump();
+  });
+  function setPhase(cls,txt){elPhase.className='phase '+cls;elPhaseTxt.textContent=txt;}
+
+  // ---- multiplier model ----
+  function recalcMult(){
+    if(thread.raw.length<2){thread.mult=1;showMult(false);return;}
+    const reachPx=Math.max(...thread.raw.map(p=>p.x))-nowX();
+    const reachFrac=Math.min(1,Math.max(0.1,reachPx/pxPerSec()/FUTURE_SECONDS));
+    let travel=0;
+    for(let i=1;i<thread.raw.length;i++)
+      travel+=Math.abs(yToPrice(thread.raw[i].y)-yToPrice(thread.raw[i-1].y));
+    const boldness=Math.min(2.6,1+travel/(widthPts*4));
+    const tight=Math.pow(34/Math.max(8,widthPts),1.18);
+    let m=1+(tight-0.5)*(0.5+reachFrac*1.5)*boldness;
+    thread.mult=Math.max(1.02,m);
+    elMultX.textContent=thread.mult.toFixed(2)+'×';
+    showMult(true);positionMult();
+  }
+  function showMult(on){elMult.style.opacity=on?1:0;}
+  function positionMult(){
+    let ax,ay;
+    if(state===STATE.LIVE){ ax=W-150; ay=24; }
+    else{
+      if(thread.raw.length<1)return;
+      const last=thread.raw[thread.raw.length-1];
+      ax=Math.min(W-150,Math.max(8,last.x+14));
+      ay=Math.min(H-80,Math.max(8,last.y-50));
+    }
+    elMult.style.left=ax+'px';elMult.style.top=ay+'px';
+    const m=thread.mult;
+    elMultX.style.color=m>8?'var(--gold)':m>3?'var(--mag)':'var(--cyan-soft)';
+  }
+
+  // ---- drawing ----
+  let drawing=false;
+  function localPt(ev){
+    const r=board.getBoundingClientRect();
+    const t=ev.touches?ev.touches[0]:ev;
+    return {x:t.clientX-r.left,y:t.clientY-r.top};
+  }
+  function startDraw(ev){
+    if(state===STATE.LIVE||state===STATE.RESULT)return;
+    const p=localPt(ev);
+    if(p.x<nowX()-8)return;
+    ev.preventDefault();bump();
+    drawing=true;state=STATE.DRAWING;thread.committed=false;
+    thread.raw=[{x:Math.max(p.x,nowX()),y:p.y}];thread.widthPts=widthPts;
+    setPhase('draw','DRAWING ROUTE…');
+    elSplash.classList.remove('show');elSplash.style.display='none';
+    elCommit.disabled=true;
+  }
+  function moveDraw(ev){
+    if(!drawing)return;
+    const p=localPt(ev);
+    const last=thread.raw[thread.raw.length-1];
+    const x=Math.max(last.x+2,Math.min(W-4,p.x));
+    const y=Math.max(8,Math.min(H-8,p.y));
+    if(x>last.x){thread.raw.push({x,y});recalcMult();}
+  }
+  function endDraw(){
+    if(!drawing)return;drawing=false;
+    if(thread.raw.length>=3){
+      state=STATE.ARMED;setPhase('draw','THREAD READY · COMMIT TO LOCK');
+      elCommit.disabled=false;
+      elHint.innerHTML='Looks good? <b>COMMIT</b> to lock the ribbon and thread it — or redraw.';
+    }else{state=STATE.IDLE;thread.raw=[];showMult(false);elCommit.disabled=true;}
+  }
+  board.addEventListener('mousedown',startDraw);
+  window.addEventListener('mousemove',moveDraw);
+  window.addEventListener('mouseup',endDraw);
+  board.addEventListener('touchstart',startDraw,{passive:false});
+  board.addEventListener('touchmove',moveDraw,{passive:false});
+  board.addEventListener('touchend',endDraw);
+  board.addEventListener('wheel',e=>{
+    if(state===STATE.DRAWING||state===STATE.ARMED){
+      e.preventDefault();
+      let v=+elWidth.value+(e.deltaY>0?2:-2);v=Math.max(6,Math.min(60,v));
+      elWidth.value=v;widthPts=v;elWval.textContent='±'+v+' pts';
+      thread.widthPts=v;recalcMult();bump();
+    }
+  },{passive:false});
+
+  // ---- commit ----
+  elCommit.addEventListener('click',()=>{
+    if(state!==STATE.ARMED||stake>balance)return;bump();
+    thread.pts=thread.raw.map(rp=>({ahead:(rp.x-nowX())/pxPerSec(),price:yToPrice(rp.y)}));
+    thread.duration=thread.pts[thread.pts.length-1].ahead;
+    thread.widthPts=widthPts;thread.committed=true;
+    frozenHist=hist.slice();
+    balance-=stake;updateBal();
+    state=STATE.LIVE;alive=true;liveCharge=0;livePayout=0;filament=[];snapPt=null;
+    commitWall=performance.now();
+    setPhase('live','THREADING… HOLD!');
+    elCommit.disabled=true;elCommit.style.display='none';
+    elCut.style.display='block';elCut.disabled=false;
+    elLiveHud.style.display='flex';
+    elHint.innerHTML='Price is threading your ribbon. <b>CUT &amp; BANK</b> anytime, or hold for the full multiplier.';
+    burst(nowX(),priceToY(price),'#ff3df0',26);
+  });
+  elCut.addEventListener('click',()=>{
+    if(state!==STATE.LIVE||!alive)return;bump();
+    endRound(true,stake*thread.mult*liveCharge,'BANKED',true);
+  });
+
+  // centre price at a given "ahead" seconds along committed thread
+  function centreAt(a){
+    const p=thread.pts;
+    if(a<=p[0].ahead)return p[0].price;
+    if(a>=p[p.length-1].ahead)return p[p.length-1].price;
+    for(let i=1;i<p.length;i++){
+      if(a<=p[i].ahead){const x=p[i-1],y=p[i];const f=(a-x.ahead)/((y.ahead-x.ahead)||1);return x.price+(y.price-x.price)*f;}
+    }
+    return p[p.length-1].price;
+  }
+
+  // ---- result ----
+  function endRound(won,amount,label,isCut){
+    state=STATE.RESULT;alive=false;
+    elCut.style.display='none';elLiveHud.style.display='none';
+    const fp=filament.length?filamentScreen(filament[filament.length-1]):{x:nowX(),y:H/2};
+    if(won){
+      balance+=amount;updateBal();
+      setPhase('win',isCut?'BANKED':'LANDED');
+      elSplashBig.textContent=label;elSplashBig.style.color='var(--gold)';
+      elSplashAmt.textContent='+$'+amount.toFixed(2);elSplashAmt.style.color='var(--green)';
+      goldBurst(fp.x,fp.y);shake(7,420);
+    }else{
+      setPhase('lose','SNAPPED');
+      elSplashBig.textContent='SNAPPED';elSplashBig.style.color='var(--red)';
+      elSplashAmt.textContent='−$'+stake.toFixed(2);elSplashAmt.style.color='var(--red)';
+      snapBurst(fp.x,fp.y);shake(13,520);
+    }
+    elSplash.style.display='flex';
+    requestAnimationFrame(()=>elSplash.classList.add('show'));
+    showMult(false);
+    setTimeout(resetRound,2200);
+  }
+  function resetRound(){
+    elSplash.classList.remove('show');
+    setTimeout(()=>elSplash.style.display='none',300);
+    thread.committed=false;thread.raw=[];thread.pts=[];filament=[];snapPt=null;
+    state=STATE.IDLE;
+    elCommit.style.display='block';elCommit.disabled=true;
+    setPhase('draw','DRAW YOUR THREAD');
+    elHint.innerHTML='<b>Drag</b> across the dim future grid to draw your route. Thinner ribbon &amp; bolder path = bigger multiplier.';
+  }
+  function updateBal(){elBal.textContent='$'+balance.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});}
+
+  // ---- particles ----
+  let parts=[],rings=[];
+  function burst(x,y,c,n){for(let i=0;i<n;i++){const a=Math.random()*6.283,sp=1+Math.random()*3.5;parts.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,life:1,color:c,r:1.5+Math.random()*2.5});}}
+  function goldBurst(x,y){for(let i=0;i<80;i++){const a=Math.random()*6.283,sp=2+Math.random()*8;parts.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-1,life:1,color:Math.random()<.5?'#ffd54a':'#27f5a3',r:1.5+Math.random()*3.5,grav:.06});}ring(x,y,'#ffd54a');ring(x,y,'#27f5a3');}
+  function snapBurst(x,y){for(let i=0;i<64;i++){const a=Math.random()*6.283,sp=2+Math.random()*8;parts.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,life:1,color:Math.random()<.6?'#ff3b5c':'#ff7a3d',r:1.5+Math.random()*3,grav:.05});}ring(x,y,'#ff3b5c');}
+  function ring(x,y,c){rings.push({x,y,r:6,color:c,life:1});}
+  let shakeAmt=0,shakeUntil=0;
+  function shake(a,ms){shakeAmt=a;shakeUntil=performance.now()+ms;}
+
+  // ---- ribbon drawing from screen points ----
+  function ribbon(scrPts,halfPx,glow,bright){
+    if(scrPts.length<2)return;
+    ctx.save();ctx.lineJoin='round';ctx.lineCap='round';
+    ctx.beginPath();
+    for(let i=0;i<scrPts.length;i++){const p=scrPts[i];i?ctx.lineTo(p.x,p.y-halfPx):ctx.moveTo(p.x,p.y-halfPx);}
+    for(let i=scrPts.length-1;i>=0;i--){const p=scrPts[i];ctx.lineTo(p.x,p.y+halfPx);}
+    ctx.closePath();
+    const g=ctx.createLinearGradient(scrPts[0].x,0,scrPts[scrPts.length-1].x,0);
+    g.addColorStop(0,'rgba(255,61,240,'+(.10+glow*.16)+')');
+    g.addColorStop(1,'rgba(123,72,255,'+(.16+glow*.20)+')');
+    ctx.fillStyle=g;ctx.fill();
+    // walls
+    ctx.shadowColor='rgba(255,80,243,'+(.5+glow*.5)+')';ctx.shadowBlur=8+glow*18;
+    ctx.strokeStyle='rgba(255,108,247,'+(.7+glow*.3)+')';ctx.lineWidth=bright?2:1.6;
+    ctx.beginPath();scrPts.forEach((p,i)=>i?ctx.lineTo(p.x,p.y-halfPx):ctx.moveTo(p.x,p.y-halfPx));ctx.stroke();
+    ctx.beginPath();scrPts.forEach((p,i)=>i?ctx.lineTo(p.x,p.y+halfPx):ctx.moveTo(p.x,p.y+halfPx));ctx.stroke();
+    ctx.shadowBlur=0;
+    // centre guide
+    ctx.strokeStyle='rgba(122,243,255,'+(.30+glow*.4)+')';ctx.lineWidth=1.2;ctx.setLineDash([4,5]);
+    ctx.beginPath();scrPts.forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
+  }
+
+  // committed thread -> screen pts (static; anchored at now-x)
+  function committedScreen(){
+    return thread.pts.map(p=>({x:nowX()+p.ahead*pxPerSec(),y:priceToY(p.price)}));
+  }
+  function filamentScreen(f){return {x:nowX()+f.ahead*pxPerSec(),y:priceToY(f.price)};}
+
+  // ---- grid ----
+  function drawGrid(){
+    const nx=nowX();
+    const fg=ctx.createLinearGradient(nx,0,W,0);
+    fg.addColorStop(0,'rgba(155,92,255,.05)');fg.addColorStop(1,'rgba(91,59,255,.11)');
+    ctx.fillStyle=fg;ctx.fillRect(nx,0,W-nx,H);
+    ctx.fillStyle='rgba(54,230,255,.02)';ctx.fillRect(0,0,nx,H);
+    ctx.lineWidth=1;ctx.font='10px '+getComputedStyle(document.body).fontFamily;
+    for(let s=-HISTORY_SECONDS;s<=FUTURE_SECONDS;s++){
+      const x=nx+s*pxPerSec();if(x<-2||x>W+2)continue;
+      ctx.strokeStyle=s>0?'rgba(120,150,220,.06)':'rgba(120,150,220,.05)';
+      ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();
+    }
+    for(let i=0;i<=6;i++){
+      const y=i/6*H;
+      ctx.strokeStyle='rgba(120,150,220,.05)';
+      ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();
+      ctx.fillStyle='rgba(127,141,181,.45)';
+      ctx.fillText(yToPrice(y).toFixed(1),8,(y-4>10?y-4:12));
+    }
+  }
+  function drawNowLine(){
+    const x=nowX();
+    ctx.save();
+    ctx.strokeStyle='rgba(255,61,240,.5)';ctx.lineWidth=1.4;ctx.setLineDash([5,6]);
+    ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();ctx.setLineDash([]);
+    ctx.fillStyle='rgba(255,61,240,.9)';ctx.font='10px '+getComputedStyle(document.body).fontFamily;
+    ctx.fillText('NOW',x+5,14);
+    ctx.fillStyle='rgba(127,141,181,.55)';
+    ctx.fillText('FUTURE →',x+5,H-10);ctx.fillText('← HISTORY',x-66,H-10);
+    ctx.restore();
+  }
+  // history line. During IDLE/DRAW it scrolls so newest is at now-x.
+  function drawHistory(){
+    if(hist.length<2)return;
+    const newest=hist[hist.length-1].t;
+    ctx.save();ctx.lineJoin='round';ctx.lineCap='round';
+    ctx.shadowColor='rgba(54,230,255,.7)';ctx.shadowBlur=13;
+    ctx.strokeStyle='rgba(54,230,255,.95)';ctx.lineWidth=2.2;
+    ctx.beginPath();let st=false;
+    for(const k of hist){
+      const x=nowX()+((k.t-newest)/1000)*pxPerSec();
+      const y=priceToY(k.p);
+      if(x<-4)continue;
+      st?ctx.lineTo(x,y):ctx.moveTo(x,y);st=true;
+    }
+    ctx.stroke();ctx.shadowBlur=0;
+    // comet head at now-x (only when not live; in live the filament owns the head)
+    if(state!==STATE.LIVE && state!==STATE.RESULT){
+      const hx=nowX(),hy=priceToY(price);
+      const rg=ctx.createRadialGradient(hx,hy,0,hx,hy,16);
+      rg.addColorStop(0,'rgba(255,255,255,.95)');rg.addColorStop(.4,'rgba(122,243,255,.8)');rg.addColorStop(1,'rgba(54,230,255,0)');
+      ctx.fillStyle=rg;ctx.beginPath();ctx.arc(hx,hy,16,0,7);ctx.fill();
+      ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(hx,hy,3,0,7);ctx.fill();
+    }
+    ctx.restore();
+  }
+  // frozen history snapshot for live phase (left of now-x)
+  let frozenHist=null;
+  function drawFrozenHistory(){
+    if(!frozenHist||frozenHist.length<2)return;
+    const newest=frozenHist[frozenHist.length-1].t;
+    ctx.save();ctx.lineJoin='round';ctx.lineCap='round';
+    ctx.shadowColor='rgba(54,230,255,.5)';ctx.shadowBlur=10;
+    ctx.strokeStyle='rgba(54,230,255,.7)';ctx.lineWidth=2;
+    ctx.beginPath();let st=false;
+    for(const k of frozenHist){
+      const x=nowX()+((k.t-newest)/1000)*pxPerSec();
+      if(x<-4)continue;const y=priceToY(k.p);
+      st?ctx.lineTo(x,y):ctx.moveTo(x,y);st=true;
+    }
+    ctx.stroke();ctx.restore();
+  }
+  // live filament: from now-x rightward following sweep
+  function drawFilament(){
+    if(filament.length<1)return;
+    const pts=filament.map(filamentScreen);
+    ctx.save();ctx.lineJoin='round';ctx.lineCap='round';
+    ctx.shadowColor=alive?'rgba(255,255,255,.95)':'rgba(255,59,92,.9)';ctx.shadowBlur=18;
+    ctx.strokeStyle=alive?'#ffffff':'#ff5a78';ctx.lineWidth=2.8;
+    ctx.beginPath();
+    if(pts.length<3){ pts.forEach((s,i)=>i?ctx.lineTo(s.x,s.y):ctx.moveTo(s.x,s.y)); }
+    else{
+      ctx.moveTo(pts[0].x,pts[0].y);
+      for(let i=1;i<pts.length-1;i++){
+        const mx=(pts[i].x+pts[i+1].x)/2, my=(pts[i].y+pts[i+1].y)/2;
+        ctx.quadraticCurveTo(pts[i].x,pts[i].y,mx,my);
+      }
+      ctx.lineTo(pts[pts.length-1].x,pts[pts.length-1].y);
+    }
+    ctx.stroke();
+    const head=filamentScreen(filament[filament.length-1]);
+    const rg=ctx.createRadialGradient(head.x,head.y,0,head.x,head.y,15);
+    rg.addColorStop(0,'rgba(255,255,255,1)');rg.addColorStop(1,'rgba(255,255,255,0)');
+    ctx.shadowBlur=0;ctx.fillStyle=rg;ctx.beginPath();ctx.arc(head.x,head.y,15,0,7);ctx.fill();
+    ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(head.x,head.y,2.5,0,7);ctx.fill();
+    ctx.restore();
+  }
+  // sweep line during live
+  function drawSweep(sx){
+    ctx.save();
+    const g=ctx.createLinearGradient(sx-22,0,sx,0);
+    g.addColorStop(0,'rgba(255,213,74,0)');g.addColorStop(1,'rgba(255,213,74,.35)');
+    ctx.fillStyle=g;ctx.fillRect(sx-22,0,22,H);
+    ctx.strokeStyle='rgba(255,213,74,.85)';ctx.lineWidth=2;ctx.shadowColor='rgba(255,213,74,.8)';ctx.shadowBlur=14;
+    ctx.beginPath();ctx.moveTo(sx,0);ctx.lineTo(sx,H);ctx.stroke();
+    ctx.restore();
+  }
+
+  function tickFX(){
+    fxc.clearRect(0,0,W,H);
+    for(let i=parts.length-1;i>=0;i--){
+      const p=parts[i];p.x+=p.vx;p.y+=p.vy;if(p.grav)p.vy+=p.grav;p.vx*=.97;p.vy*=.97;p.life-=0.022;
+      if(p.life<=0){parts.splice(i,1);continue;}
+      fxc.globalAlpha=Math.max(0,p.life);fxc.fillStyle=p.color;fxc.shadowColor=p.color;fxc.shadowBlur=8;
+      fxc.beginPath();fxc.arc(p.x,p.y,p.r*p.life,0,7);fxc.fill();
+    }
+    fxc.globalAlpha=1;fxc.shadowBlur=0;
+    for(let i=rings.length-1;i>=0;i--){
+      const r=rings[i];r.r+=6;r.life-=0.04;
+      if(r.life<=0){rings.splice(i,1);continue;}
+      fxc.globalAlpha=Math.max(0,r.life);fxc.strokeStyle=r.color;fxc.lineWidth=3;fxc.shadowColor=r.color;fxc.shadowBlur=12;
+      fxc.beginPath();fxc.arc(r.x,r.y,r.r,0,7);fxc.stroke();
+    }
+    fxc.globalAlpha=1;fxc.shadowBlur=0;
+  }
+
+  // ---- LIVE update ----
+  function updateLive(now){
+    const elapsed=(now-commitWall)/1000;
+    liveCharge=Math.min(1,elapsed/thread.duration);
+    livePayout=stake*thread.mult*liveCharge;
+    elCharge.style.width=(liveCharge*100).toFixed(1)+'%';
+    elLivePay.textContent='$'+livePayout.toFixed(2);
+    // record filament sample at current ahead
+    const ahead=Math.min(elapsed,thread.duration);
+    filament.push({ahead,price});
+    // containment test
+    const c=centreAt(ahead);
+    if(Math.abs(price-c)>thread.widthPts){ endRound(false,0,'SNAPPED',false); return; }
+    if(elapsed>=thread.duration){ endRound(true,stake*thread.mult,'LANDED',false); }
+  }
+
+  // ---- main loop ----
+  function frame(){
+    const now=performance.now();
+    while(now-lastTick>=TICK_MS){
+      lastTick+=TICK_MS;stepPrice();
+      hist.push({t:lastTick,p:price});
+      const cutoff=lastTick-(HISTORY_SECONDS+2)*1000;
+      while(hist.length>2&&hist[0].t<cutoff)hist.shift();
+    }
+    elPx.textContent=price.toFixed(3);
+
+    refDomain();
+
+    let ox=0,oy=0;
+    if(now<shakeUntil){const k=shakeAmt*((shakeUntil-now)/300);ox=(Math.random()-.5)*k;oy=(Math.random()-.5)*k;}
+    ctx.save();ctx.translate(ox,oy);
+    ctx.clearRect(-30,-30,W+60,H+60);
+
+    drawGrid();
+
+    if(thread.committed){
+      const scr=committedScreen();
+      const glow=state===STATE.LIVE?(0.45+0.45*Math.sin(now/180))+liveCharge*0.4:0.35;
+      ribbon(scr,thread.widthPts/ptsPerPx(),Math.min(1,glow),true);
+      // tunnel end target marker
+      const end=scr[scr.length-1];
+      ctx.save();ctx.strokeStyle='rgba(255,213,74,.5)';ctx.setLineDash([3,4]);ctx.lineWidth=1.4;
+      ctx.beginPath();ctx.moveTo(end.x,end.y-thread.widthPts/ptsPerPx());ctx.lineTo(end.x,end.y+thread.widthPts/ptsPerPx());ctx.stroke();
+      ctx.setLineDash([]);ctx.restore();
+    }
+
+    if(state===STATE.LIVE||state===STATE.RESULT){
+      drawFrozenHistory();
+      drawFilament();
+      if(state===STATE.LIVE){
+        const elapsed=(now-commitWall)/1000;
+        const sx=nowX()+Math.min(elapsed,thread.duration)*pxPerSec();
+        drawSweep(sx);
+      }
+    }else{
+      drawHistory();
+    }
+
+    drawNowLine();
+
+    if((state===STATE.DRAWING||state===STATE.ARMED)&&thread.raw.length>=2){
+      ribbon(thread.raw,widthPts/ptsPerPx(),0.4,true);
+      positionMult();
+    }
+
+    ctx.restore();
+
+    if(state===STATE.LIVE){ positionMult(); updateLive(now); }
+
+    tickFX();
+    requestAnimationFrame(frame);
+  }
+
+  // ---- AUTO DEMO (idle attractor) ----
+  let lastInteract=performance.now();
+  function bump(){lastInteract=performance.now();}
+  ['mousedown','touchstart','wheel','click'].forEach(ev=>board.addEventListener(ev,bump));
+  function maybeDemo(){
+    if(state===STATE.IDLE && performance.now()-lastInteract>2400) autoDraw();
+  }
+  function autoDraw(){
+    // build the route in PRICE space, anchored to the live price (never screen-space,
+    // so a corrupted domain can never bake bad prices into the thread)
+    state=STATE.DRAWING;setPhase('draw','AUTO-DEMO · DRAWING…');
+    const histSpan=Math.max(20,priceMax-priceMin);
+    const anchor=price;
+    const n=28;
+    const dir=Math.random()<0.5?-1:1;
+    const totalDrift=dir*(histSpan*0.10+Math.random()*histSpan*0.16);
+    const wob=histSpan*0.018+Math.random()*histSpan*0.03;
+    const w=[16,24,30,36][Math.floor(Math.random()*4)];
+    elWidth.value=w;widthPts=w;elWval.textContent='±'+w+' pts';
+    const dur=5.5+Math.random()*2;
+    const raw=[];
+    for(let i=0;i<=n;i++){
+      const f=i/n, sec=f*dur;
+      const pr=anchor+totalDrift*f+Math.sin(i*0.5+1)*wob+Math.sin(i*0.17)*wob*0.6;
+      raw.push({x:nowX()+sec*pxPerSec(), y:priceToY(pr)});
+    }
+    thread.raw=raw;thread.widthPts=w;recalcMult();
+    state=STATE.ARMED;
+    setTimeout(()=>{if(state===STATE.ARMED){elCommit.disabled=false;elCommit.click();}},900);
+  }
+  setInterval(maybeDemo,900);
+
+  // ---- boot ----
+  resize();updateBal();setPhase('draw','DRAW YOUR THREAD');
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
