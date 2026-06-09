@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>STOWLINE — market-forged cargo packing</title>
+<style>
+  :root{
+    --bg0:#070b14; --bg1:#0b1322; --glass:rgba(20,32,54,.55);
+    --line:rgba(120,160,220,.14);
+    --up:#27e0a6; --down:#ff5d73; --amber:#ffb84d;
+    --gold:#ffd479; --txt:#e8f0ff; --dim:#8aa0c4;
+    --glow:#5ad1ff;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:
+      radial-gradient(1200px 700px at 78% -10%, rgba(46,90,160,.22), transparent 60%),
+      radial-gradient(900px 600px at 10% 110%, rgba(120,60,180,.18), transparent 55%),
+      linear-gradient(180deg,var(--bg1),var(--bg0));
+    color:var(--txt);
+    font-family:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,system-ui,sans-serif;
+    overflow:hidden;
+    -webkit-font-smoothing:antialiased;
+  }
+  .stage{
+    position:relative; width:100vw; height:100vh;
+    display:grid;
+    grid-template-columns: 320px 1fr 320px;
+    grid-template-rows: 56px 1fr 92px;
+    gap:14px; padding:14px;
+  }
+
+  /* ---- top bar ---- */
+  .topbar{
+    grid-column:1 / -1; display:flex; align-items:center; gap:18px;
+    background:var(--glass); border:1px solid var(--line); border-radius:14px;
+    padding:0 18px; backdrop-filter:blur(10px);
+  }
+  .brand{display:flex; align-items:baseline; gap:10px}
+  .brand b{font-size:21px; letter-spacing:3px;
+    background:linear-gradient(90deg,#fff,#9fe3ff 60%,#5ad1ff);
+    -webkit-background-clip:text; background-clip:text; color:transparent;}
+  .brand span{font-size:11px; color:var(--dim); letter-spacing:.5px}
+  .tape{
+    flex:1; overflow:hidden; height:30px; position:relative;
+    -webkit-mask-image:linear-gradient(90deg,transparent,#000 6%,#000 94%,transparent);
+            mask-image:linear-gradient(90deg,transparent,#000 6%,#000 94%,transparent);
+  }
+  .tape .row{position:absolute; white-space:nowrap; top:5px; font:600 12px/1 ui-monospace,monospace; color:var(--dim)}
+  .tape .row b{color:var(--txt)}
+  .symbol{font:700 13px/1 ui-monospace,monospace; color:var(--gold); letter-spacing:1px}
+  .last{font:800 16px/1 ui-monospace,monospace}
+
+  /* ---- panels ---- */
+  .panel{
+    background:var(--glass); border:1px solid var(--line); border-radius:16px;
+    backdrop-filter:blur(10px); padding:16px; display:flex; flex-direction:column;
+  }
+  .panel h3{font-size:11px; letter-spacing:2px; color:var(--dim); text-transform:uppercase; margin-bottom:12px; font-weight:700}
+
+  /* left: mini chart + forge */
+  #chartWrap{position:relative; height:150px; border-radius:12px; overflow:hidden;
+    background:linear-gradient(180deg,rgba(10,18,34,.6),rgba(8,14,26,.3)); border:1px solid var(--line)}
+  #chart{position:absolute; inset:0; width:100%; height:100%}
+  .forgeBox{margin-top:16px; flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px}
+  .forgeLabel{font-size:10px; letter-spacing:2px; color:var(--dim); text-transform:uppercase}
+  #forgeCanvas{width:170px; height:130px}
+  .winChip{display:flex; gap:8px; flex-wrap:wrap; justify-content:center}
+  .chip{font:600 10px/1 ui-monospace,monospace; padding:5px 9px; border-radius:20px;
+    border:1px solid var(--line); color:var(--dim); background:rgba(255,255,255,.03)}
+  .chip b{color:var(--txt)}
+
+  /* center: vault */
+  .vaultPanel{align-items:center; justify-content:flex-start; position:relative; overflow:hidden}
+  .vaultHead{display:flex; align-items:center; justify-content:space-between; width:100%; margin-bottom:6px}
+  .vaultHead .ttl{font-size:11px; letter-spacing:2px; color:var(--dim); text-transform:uppercase; font-weight:700}
+  .hint{font-size:11px; color:var(--dim)}
+  .hint kbd{background:rgba(255,255,255,.08); border:1px solid var(--line); border-radius:5px; padding:1px 6px; font:600 10px/1.4 ui-monospace,monospace; color:var(--txt)}
+  #vault{flex:1; width:100%; cursor:grab}
+  #vault.drag{cursor:grabbing}
+  .flash{position:absolute; inset:0; pointer-events:none; opacity:0; border-radius:16px}
+
+  /* right: coverage dial + bet */
+  .dialWrap{display:flex; flex-direction:column; align-items:center; gap:6px; margin-bottom:10px}
+  #dial{width:210px; height:210px}
+  .dialCenter{position:relative; height:0}
+  .covNum{position:relative; top:-138px; text-align:center; pointer-events:none}
+  .covNum .big{font:800 40px/1 ui-monospace,monospace; letter-spacing:-1px}
+  .covNum .sub{font:600 10px/1 ui-monospace,monospace; color:var(--dim); letter-spacing:2px; margin-top:4px}
+  .payRow{display:flex; justify-content:space-between; align-items:baseline; padding:10px 2px; border-top:1px solid var(--line)}
+  .payRow .k{font-size:11px; color:var(--dim); letter-spacing:1px}
+  .payRow .v{font:800 18px/1 ui-monospace,monospace}
+  .mult{color:var(--gold)}
+  .controls{margin-top:auto; display:flex; flex-direction:column; gap:10px}
+  .btn{border:none; border-radius:12px; padding:14px; font:800 14px/1 inherit; letter-spacing:1px; cursor:pointer; transition:transform .08s, filter .15s}
+  .btn:active{transform:translateY(1px) scale(.99)}
+  .btn.stow{background:linear-gradient(135deg,#2fe6a8,#16b07e); color:#042118; box-shadow:0 6px 24px rgba(39,224,166,.3)}
+  .btn.stow:hover{filter:brightness(1.08)}
+  .btn.ghost{background:rgba(255,255,255,.05); border:1px solid var(--line); color:var(--txt)}
+  .btn.ghost:hover{background:rgba(255,255,255,.09)}
+  .stakeRow{display:flex; align-items:center; gap:8px; justify-content:space-between}
+  .stakeRow label{font-size:11px; color:var(--dim); letter-spacing:1px}
+  .stakeBtns{display:flex; gap:6px}
+  .sb{background:rgba(255,255,255,.05); border:1px solid var(--line); color:var(--txt); border-radius:8px; width:30px; height:28px; font:700 13px/1 inherit; cursor:pointer}
+  .sb:hover{background:rgba(255,255,255,.1)}
+  #stakeV{font:800 16px/1 ui-monospace,monospace; min-width:54px; text-align:right}
+
+  /* bottom controls bar (mobile-ish action) */
+  .actionBar{
+    grid-column:1 / -1; display:flex; align-items:center; gap:14px;
+    background:var(--glass); border:1px solid var(--line); border-radius:14px; padding:0 18px; backdrop-filter:blur(10px);
+  }
+  .actBtn{flex:1; height:60px; border-radius:12px; border:1px solid var(--line); background:rgba(255,255,255,.04);
+    color:var(--txt); font:800 14px/1 inherit; letter-spacing:1px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; transition:background .15s, transform .08s}
+  .actBtn:hover{background:rgba(255,255,255,.09)}
+  .actBtn:active{transform:translateY(1px)}
+  .actBtn .ic{font-size:20px}
+  .actBtn.drop{background:linear-gradient(135deg,rgba(90,209,255,.25),rgba(60,120,200,.15)); border-color:rgba(90,209,255,.4)}
+  .legend{display:flex; gap:14px; align-items:center; margin-left:auto}
+  .legend .li{display:flex; align-items:center; gap:6px; font-size:11px; color:var(--dim)}
+  .legend .sw{width:12px; height:12px; border-radius:3px}
+
+  /* spill overlay */
+  .overlay{position:absolute; inset:0; display:none; align-items:center; justify-content:center; z-index:40;
+    background:radial-gradient(circle at 50% 45%, rgba(8,12,22,.55), rgba(4,6,12,.92)); backdrop-filter:blur(3px)}
+  .overlay.show{display:flex}
+  .card{text-align:center; padding:34px 46px; border-radius:20px; border:1px solid var(--line);
+    background:linear-gradient(180deg,rgba(22,34,58,.9),rgba(12,20,36,.9)); box-shadow:0 30px 80px rgba(0,0,0,.6)}
+  .card .t{font:800 13px/1 inherit; letter-spacing:4px; color:var(--dim); text-transform:uppercase}
+  .card .r{font:900 52px/1 ui-monospace,monospace; margin:14px 0 6px; letter-spacing:-1px}
+  .card .d{font-size:13px; color:var(--dim); margin-bottom:20px}
+  .card .again{background:linear-gradient(135deg,#5ad1ff,#3f8fe0); color:#04131f; border:none; border-radius:12px; padding:14px 34px; font:800 14px/1 inherit; letter-spacing:1px; cursor:pointer}
+
+  .toast{position:absolute; top:70px; left:50%; transform:translateX(-50%); z-index:50;
+    background:rgba(12,20,36,.9); border:1px solid var(--line); border-radius:30px; padding:9px 20px;
+    font:700 13px/1 inherit; letter-spacing:.5px; opacity:0; transition:opacity .25s, transform .25s; pointer-events:none}
+  .demoTag{position:absolute; bottom:104px; left:50%; transform:translateX(-50%); z-index:30;
+    font:700 10px/1 inherit; letter-spacing:2px; color:var(--glow); text-transform:uppercase;
+    background:rgba(90,209,255,.1); border:1px solid rgba(90,209,255,.3); border-radius:20px; padding:6px 14px}
+</style>
+</head>
+<body>
+<div class="stage" id="stage">
+
+  <!-- TOP BAR -->
+  <div class="topbar">
+    <div class="brand"><b>STOWLINE</b><span>market-forged cargo · pack the vault</span></div>
+    <div class="symbol">VOL&nbsp;75&nbsp;INDEX</div>
+    <div class="last" id="lastPrice">—</div>
+    <div class="tape"><div class="row" id="tapeRow"></div></div>
+  </div>
+
+  <!-- LEFT PANEL -->
+  <div class="panel">
+    <h3>Live feed → Forge</h3>
+    <div id="chartWrap"><canvas id="chart"></canvas></div>
+    <div class="forgeBox">
+      <div class="forgeLabel">Next cargo (forged from last window)</div>
+      <canvas id="forgeCanvas" width="340" height="260"></canvas>
+      <div class="winChip">
+        <div class="chip">range <b id="cRange">—</b></div>
+        <div class="chip">whip <b id="cWhip">—</b></div>
+        <div class="chip">dir <b id="cDir">—</b></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CENTER VAULT -->
+  <div class="panel vaultPanel">
+    <div class="vaultHead">
+      <div class="ttl">Cargo Vault</div>
+      <div class="hint">drag to aim · <kbd>R</kbd> rotate · <kbd>Space</kbd> drop</div>
+    </div>
+    <canvas id="vault"></canvas>
+    <canvas class="flash" id="flash"></canvas>
+    <div class="demoTag" id="demoTag">▶ auto-demo — click vault to take over</div>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div class="panel">
+    <h3>Coverage → Payout</h3>
+    <div class="dialWrap">
+      <canvas id="dial" width="420" height="420"></canvas>
+      <div class="dialCenter"><div class="covNum">
+        <div class="big" id="covBig">0%</div>
+        <div class="sub">PACKED COVERAGE</div>
+      </div></div>
+    </div>
+    <div class="payRow"><span class="k">MULTIPLIER</span><span class="v mult" id="multV">1.00×</span></div>
+    <div class="payRow"><span class="k">LIVE PAYOUT</span><span class="v" id="payV">$0.00</span></div>
+    <div class="payRow"><span class="k">LOCKED RINGS</span><span class="v" id="lockV" style="color:var(--glow)">0</span></div>
+
+    <div class="controls">
+      <div class="stakeRow">
+        <label>STAKE</label>
+        <div class="stakeBtns">
+          <button class="sb" id="stakeDown">−</button>
+          <span id="stakeV">$10</span>
+          <button class="sb" id="stakeUp">+</button>
+        </div>
+      </div>
+      <button class="btn stow" id="stowBtn">STOW &amp; BANK</button>
+      <button class="btn ghost" id="newBtn">NEW ROUND</button>
+    </div>
+  </div>
+
+  <!-- BOTTOM ACTION BAR -->
+  <div class="actionBar">
+    <button class="actBtn" id="leftBtn"><span class="ic">◀</span> AIM</button>
+    <button class="actBtn" id="rotBtn"><span class="ic">⟳</span> ROTATE</button>
+    <button class="actBtn drop" id="dropBtn"><span class="ic">▼</span> DROP CARGO</button>
+    <button class="actBtn" id="rightBtn">AIM <span class="ic">▶</span></button>
+    <div class="legend">
+      <div class="li"><span class="sw" style="background:var(--up)"></span>up-run</div>
+      <div class="li"><span class="sw" style="background:var(--down)"></span>down-run</div>
+      <div class="li"><span class="sw" style="background:var(--amber)"></span>chop</div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <!-- SPILL / BANK OVERLAY -->
+  <div class="overlay" id="overlay">
+    <div class="card">
+      <div class="t" id="ovT">VAULT SPILLED</div>
+      <div class="r" id="ovR">$0.00</div>
+      <div class="d" id="ovD">no legal placement — the hold spilled.</div>
+      <button class="again" id="againBtn">NEW ROUND</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   STOWLINE — market-forged hex packing
+   Vanilla JS. Hex vault (pointy-top, axial coords), polyhex
+   cargo forged from a live-ish price feed, drag/rotate/drop,
+   coverage dial, ring-locking, spill detection, payout curve.
+   setInterval-driven so it survives tab backgrounding.
+   ============================================================ */
+(()=>{
+  "use strict";
+  const $ = s=>document.querySelector(s);
+
+  /* ---------- canvases ---------- */
+  const chartC=$("#chart"), chartX=chartC.getContext("2d");
+  const forgeC=$("#forgeCanvas"), forgeX=forgeC.getContext("2d");
+  const vaultC=$("#vault"), vx=vaultC.getContext("2d");
+  const flashC=$("#flash"), fx=flashC.getContext("2d");
+  const dialC=$("#dial"), dx=dialC.getContext("2d");
+
+  /* ---------- HEX VAULT (axial hex of radius R) ---------- */
+  const VR=4;                 // hex vault radius (rings 0..4)
+  const cells=[];             // {q,r, filled, color, ring}
+  const cellMap=new Map();    // "q,r"->cell
+  function hexRing(q,r){ return Math.max(Math.abs(q),Math.abs(r),Math.abs(-q-r)); }
+  for(let q=-VR;q<=VR;q++){
+    for(let r=Math.max(-VR,-q-VR); r<=Math.min(VR,-q+VR); r++){
+      const c={q,r,filled:false,color:null,ring:hexRing(q,r),pop:0};
+      cells.push(c); cellMap.set(q+","+r,c);
+    }
+  }
+  const TOTAL=cells.length;
+
+  /* ---------- piece library: polyhexes in axial coords ---------- */
+  // hex neighbour directions (axial)
+  const DIRS=[[1,0],[1,-1],[0,-1],[-1,0],[-1,1],[0,1]];
+  function grow(cellsSet, n){ // random connected polyhex of n cells around (0,0)
+    const set=new Set(["0,0"]); const list=[[0,0]];
+    let guard=0;
+    while(list.length<n && guard++<200){
+      const base=list[Math.floor(Math.random()*list.length)];
+      const d=DIRS[Math.floor(Math.random()*6)];
+      const nq=base[0]+d[0], nr=base[1]+d[1], k=nq+","+nr;
+      if(!set.has(k)){ set.add(k); list.push([nq,nr]); }
+    }
+    return list.map(c=>({q:c[0],r:c[1]}));
+  }
+  // rotate axial coordinate 60° clockwise: (q,r)->(-r, q+r)
+  function rot(cells){ return cells.map(c=>({q:-c.r, r:c.q+c.r})); }
+  function normalize(cells){
+    let mq=Infinity, mr=Infinity;
+    cells.forEach(c=>{ if(c.q<mq)mq=c.q; if(c.r<mr)mr=c.r; });
+    return cells.map(c=>({q:c.q-mq, r:c.r-mr}));
+  }
+
+  /* ---------- market sim (live-ish) ---------- */
+  let price=1000+Math.random()*40;
+  const hist=[];               // recent prices for chart
+  let winTicks=[];             // ticks accumulating into a forge window
+  let regime=0; let regimeT=0; // trend regime for nicer waves
+  function tick(){
+    if(regimeT--<=0){ regime=(Math.random()-0.5)*1.7; regimeT=20+Math.random()*40; }
+    const vol=0.6+Math.abs(Math.sin(price*0.013))*1.4;
+    const dp=regime + (Math.random()-0.5)*vol*2.4;
+    price=Math.max(900, price+dp);
+    hist.push(price); if(hist.length>120) hist.shift();
+    winTicks.push(price);
+    $("#lastPrice").textContent=price.toFixed(2);
+    $("#lastPrice").style.color = dp>=0 ? "var(--up)":"var(--down)";
+  }
+
+  /* ---------- forge a piece from a window of ticks ---------- */
+  function forgeFromWindow(ticks){
+    const hi=Math.max(...ticks), lo=Math.min(...ticks);
+    const range=hi-lo;
+    // path length (whip) vs net move
+    let path=0; for(let i=1;i<ticks.length;i++) path+=Math.abs(ticks[i]-ticks[i-1]);
+    const net=ticks[ticks.length-1]-ticks[0];
+    const whip = path>0 ? path/(Math.abs(net)+0.001) : 1;     // >>1 = choppy
+    // size 1..6 from range
+    const size = Math.max(1, Math.min(6, Math.round(1 + range/9)));
+    // color from net direction
+    let color = Math.abs(net) < range*0.18 ? "amber" : (net>0?"up":"down");
+    // jaggedness: high whip -> more rotations applied (spindlier feel via larger n bias)
+    let cells = grow(null, size);
+    return {cells:normalize(cells), size, color, range, whip, net};
+  }
+
+  /* ---------- game state ---------- */
+  let stake=10, locked=0, lockedValue=0;
+  let coverage=0;             // 0..1 effective (includes color bonus)
+  let curPiece=null;          // {cells,color,...}
+  let aimCol=0;               // q-offset aim
+  let rotIdx=0;
+  let demo=true, alive=true;
+  let bonusCov=0;             // extra coverage from color matches
+
+  // color sectors of the vault by angle (for color bonus)
+  function cellColorZone(c){
+    const ang=Math.atan2(c.r + c.q*0.5, c.q*0.87);
+    const a=(ang+Math.PI)/(2*Math.PI); // 0..1
+    if(a<1/3) return "up"; if(a<2/3) return "down"; return "amber";
+  }
+
+  /* ---------- geometry: hex pixel layout ---------- */
+  let HEX=26, ORIGIN={x:0,y:0};
+  function layout(){
+    const w=vaultC.clientWidth, h=vaultC.clientHeight;
+    vaultC.width=w*DPR; vaultC.height=h*DPR;
+    flashC.width=w*DPR; flashC.height=h*DPR;
+    vx.setTransform(DPR,0,0,DPR,0,0); fx.setTransform(DPR,0,0,DPR,0,0);
+    HEX = Math.min(w,h)/( (VR*2+1)*1.78 );
+    ORIGIN={x:w/2, y:h/2};
+  }
+  // pointy-top hex pixel center
+  function hexToPix(q,r){
+    const x=ORIGIN.x + HEX*Math.sqrt(3)*(q + r/2);
+    const y=ORIGIN.y + HEX*1.5*r;
+    return {x,y};
+  }
+  function pixToHex(px,py){
+    const x=(px-ORIGIN.x)/HEX, y=(py-ORIGIN.y)/HEX;
+    const q=(Math.sqrt(3)/3*x - 1/3*y), r=(2/3*y);
+    // cube round
+    let cx=q, cz=r, cy=-cx-cz;
+    let rx=Math.round(cx), ry=Math.round(cy), rz=Math.round(cz);
+    const dx_=Math.abs(rx-cx), dy_=Math.abs(ry-cy), dz_=Math.abs(rz-cz);
+    if(dx_>dy_&&dx_>dz_) rx=-ry-rz; else if(dy_>dz_) ry=-rx-rz; else rz=-rx-ry;
+    return {q:rx, r:rz};
+  }
+
+  const colMap={up:"#27e0a6",down:"#ff5d73",amber:"#ffb84d"};
+
+  /* ---------- placement logic ---------- */
+  // get current piece footprint at an anchor (aq,ar) with rotation
+  function footprint(piece, rotN, aq, ar){
+    let cs=piece.cells.map(c=>({q:c.q,r:c.r}));
+    for(let i=0;i<rotN;i++) cs=rot(cs);
+    cs=normalize(cs);
+    return cs.map(c=>({q:c.q+aq, r:c.r+ar}));
+  }
+  function legalAt(piece, rotN, aq, ar){
+    const fp=footprint(piece,rotN,aq,ar);
+    for(const c of fp){
+      const cell=cellMap.get(c.q+","+c.r);
+      if(!cell || cell.filled) return null;
+    }
+    return fp;
+  }
+  // does the piece fit ANYWHERE? (for spill detection)
+  function fitsAnywhere(piece){
+    for(let rotN=0;rotN<6;rotN++){
+      for(const cell of cells){
+        if(legalAt(piece,rotN,cell.q,cell.r)) return true;
+      }
+    }
+    return false;
+  }
+  // current ghost target: from aim + rotation, find a valid footprint near aim
+  function currentGhost(){
+    if(!curPiece) return null;
+    // candidate anchors sorted by distance to aim point
+    const target=hexToPix(aimCol,0);
+    let best=null, bestD=Infinity;
+    for(const cell of cells){
+      const fp=legalAt(curPiece, rotIdx, cell.q, cell.r);
+      if(!fp) continue;
+      // score by closeness of footprint centroid to aim x, prefer lower (higher r)
+      let cxs=0, crs=0; fp.forEach(p=>{const pix=hexToPix(p.q,p.r); cxs+=pix.x; crs+=p.r;});
+      const cx=cxs/fp.length;
+      const d=Math.abs(cx-target.x) - crs*HEX*0.18; // prefer lower placements
+      if(d<bestD){ bestD=d; best=fp; }
+    }
+    return best;
+  }
+
+  function placePiece(fpOverride){
+    if(!curPiece||!alive) return false;
+    const fp=fpOverride||currentGhost();
+    if(!fp){ return false; }
+    fp.forEach(p=>{
+      const cell=cellMap.get(p.q+","+p.r);
+      cell.filled=true; cell.color=curPiece.color; cell.pop=1;
+    });
+    // color bonus: cells dropped into matching color zone
+    let bonus=0;
+    fp.forEach(p=>{ const cell=cellMap.get(p.q+","+p.r); if(cellColorZone(cell)===curPiece.color) bonus++; });
+    bonusCov += bonus*0.004;
+    sfxLock(fp);
+    recomputeCoverage();
+    checkRings();
+    curPiece=null;
+    return true;
+  }
+
+  function recomputeCoverage(){
+    let f=0; cells.forEach(c=>{ if(c.filled) f++; });
+    coverage = Math.min(0.999, f/TOTAL + bonusCov);
+  }
+  function checkRings(){
+    for(let ring=0;ring<=VR;ring++){
+      const ringCells=cells.filter(c=>c.ring===ring);
+      if(ringCells.length && ringCells.every(c=>c.filled && c.locked!==true)){
+        // newly complete ring? only count if not already locked
+        if(!ringCells.every(c=>c.locked)){
+          ringCells.forEach(c=>c.locked=true);
+          locked++; lockedValue += stake*0.18*(ring+1);
+          ringShock(ring);
+          toast("RING "+ring+" LOCKED  +salvage");
+        }
+      }
+    }
+    $("#lockV").textContent=locked;
+  }
+
+  /* ---------- payout curve ---------- */
+  function multForCoverage(cov){
+    // steepening curve; ~1 at 0, blows up near 1
+    const c=Math.min(cov,0.97);
+    return +(1 + Math.pow(c/(1-c),1.18)*0.42).toFixed(2);
+  }
+  function payout(){ return stake*multForCoverage(coverage); }
+
+  /* ---------- forge cadence + spawn ---------- */
+  let winLen=11;
+  function spawnFromMarket(){
+    if(!alive) return;
+    const ticksWin = winTicks.length>=4 ? winTicks.slice() : hist.slice(-winLen);
+    winTicks=[];
+    curPiece = forgeFromWindow(ticksWin);
+    rotIdx=0; aimCol=0;
+    // update forge UI
+    $("#cRange").textContent=curPiece.range.toFixed(1);
+    $("#cWhip").textContent=curPiece.whip.toFixed(2);
+    $("#cDir").textContent= curPiece.color==="up"?"▲ up": curPiece.color==="down"?"▼ down":"~ chop";
+    $("#cDir").style.color=colMap[curPiece.color];
+    // spill check
+    if(!fitsAnywhere(curPiece)){ spill(); }
+  }
+
+  /* ---------- end states ---------- */
+  function spill(){
+    alive=false;
+    sfxSpill();
+    const salvage=lockedValue;
+    showOverlay("VAULT SPILLED","$"+salvage.toFixed(2),
+      "no legal placement for the forged cargo — the hold spilled. salvaged locked rings @ 50%.", "#ff5d73");
+  }
+  function stowBank(){
+    if(!alive) return;
+    alive=false;
+    const pay=payout()+lockedValue*0.0; // live payout already reflects coverage
+    showOverlay("STOWED &amp; BANKED","$"+pay.toFixed(2),
+      "you banked "+(coverage*100).toFixed(0)+"% coverage at "+multForCoverage(coverage).toFixed(2)+"× before risking a spill.", "#27e0a6");
+    sfxBank();
+  }
+  function showOverlay(t,r,d,col){
+    $("#ovT").innerHTML=t; $("#ovR").textContent=r; $("#ovR").style.color=col;
+    $("#ovD").innerHTML=d; $("#overlay").classList.add("show");
+  }
+
+  function newRound(){
+    cells.forEach(c=>{c.filled=false;c.color=null;c.locked=false;c.pop=0;});
+    coverage=0; bonusCov=0; locked=0; lockedValue=0; alive=true; curPiece=null;
+    $("#overlay").classList.remove("show");
+    demo=true; $("#demoTag").style.display="block";
+    spawnFromMarket();
+  }
+
+  /* ---------- effects ---------- */
+  let shocks=[]; // {x,y,t,col}
+  function sfxLock(fp){
+    const p=fp[0], pix=hexToPix(p.q,p.r);
+    shocks.push({x:pix.x,y:pix.y,t:0,col:"#9fe3ff",r0:HEX*0.6,max:HEX*2.4});
+  }
+  function ringShock(ring){
+    shocks.push({x:ORIGIN.x,y:ORIGIN.y,t:0,col:"#5ad1ff",r0:HEX*ring*1.4,max:HEX*(ring+2)*1.5,big:true});
+  }
+  let shards=[];
+  function sfxSpill(){
+    cells.forEach(c=>{ if(c.filled){ const pix=hexToPix(c.q,c.r);
+      shards.push({x:pix.x,y:pix.y,vx:(Math.random()-0.5)*4,vy:-2-Math.random()*3,col:colMap[c.color]||"#fff",t:0});}});
+    flashScreen("#ff5d73");
+  }
+  function sfxBank(){ flashScreen("#27e0a6");
+    for(let i=0;i<40;i++) shards.push({x:ORIGIN.x,y:ORIGIN.y,vx:(Math.random()-0.5)*8,vy:-4-Math.random()*5,col:"#ffd479",t:0});
+  }
+  let flashCol=null, flashT=0;
+  function flashScreen(c){ flashCol=c; flashT=1; }
+
+  let toastT=0;
+  function toast(msg){ const t=$("#toast"); t.textContent=msg; t.style.opacity=1; t.style.transform="translateX(-50%) translateY(0)"; toastT=1.6; }
+
+  /* ---------- DRAWING ---------- */
+  const DPR=Math.min(2, window.devicePixelRatio||1);
+  function drawHex(ctx,x,y,size,fill,stroke,lw){
+    ctx.beginPath();
+    for(let i=0;i<6;i++){ const a=Math.PI/180*(60*i-90); const px=x+size*Math.cos(a), py=y+size*Math.sin(a);
+      if(i===0)ctx.moveTo(px,py); else ctx.lineTo(px,py); }
+    ctx.closePath();
+    if(fill){ctx.fillStyle=fill; ctx.fill();}
+    if(stroke){ctx.lineWidth=lw||1; ctx.strokeStyle=stroke; ctx.stroke();}
+  }
+
+  function renderVault(){
+    const w=vaultC.clientWidth, h=vaultC.clientHeight;
+    vx.clearRect(0,0,w,h);
+    // backplate glow
+    const g=vx.createRadialGradient(ORIGIN.x,ORIGIN.y,10,ORIGIN.x,ORIGIN.y,HEX*VR*2.2);
+    g.addColorStop(0,"rgba(60,110,180,.12)"); g.addColorStop(1,"rgba(10,16,30,0)");
+    vx.fillStyle=g; vx.fillRect(0,0,w,h);
+
+    // empty cells + zone tint
+    cells.forEach(c=>{
+      const pix=hexToPix(c.q,c.r);
+      const hs=HEX*0.92;
+      if(c.filled){
+        const base=colMap[c.color]||"#7fa";
+        const pop=c.pop;
+        const sz=hs*(1+pop*0.18);
+        // glow
+        vx.save(); vx.shadowBlur=14*(0.5+pop); vx.shadowColor=base;
+        drawHex(vx,pix.x,pix.y,sz, hexFill(base,c.locked), shade(base,1.3), c.locked?2.2:1.4);
+        vx.restore();
+        if(c.locked){ drawHex(vx,pix.x,pix.y,sz*0.55,"rgba(255,255,255,.18)",null); }
+        c.pop*=0.86;
+      } else {
+        const zone=cellColorZone(c);
+        const zc=colMap[zone];
+        drawHex(vx,pix.x,pix.y,hs,"rgba(255,255,255,.018)", "rgba(140,170,220,.12)",1);
+        // faint zone dot
+        vx.globalAlpha=.10; drawHex(vx,pix.x,pix.y,hs*0.34, zc, null); vx.globalAlpha=1;
+      }
+    });
+
+    // ghost of current piece
+    const ghost=currentGhost();
+    if(ghost && alive){
+      const base=colMap[curPiece.color];
+      ghost.forEach(p=>{
+        const pix=hexToPix(p.q,p.r);
+        drawHex(vx,pix.x,pix.y,HEX*0.92, hexFill(base,false,0.30), shade(base,1.4),1.6);
+      });
+      // floating piece preview above vault (anchored to aim)
+    }
+
+    // floating forged piece indicator at top, following aim
+    if(curPiece && alive){
+      const cs=normalize((()=>{let a=curPiece.cells.map(c=>({q:c.q,r:c.r})); for(let i=0;i<rotIdx;i++)a=rot(a); return a;})());
+      const base=colMap[curPiece.color];
+      const topY=ORIGIN.y - HEX*(VR+1.4);
+      const aimPix=hexToPix(aimCol,0).x;
+      // centroid
+      let cq=0,cr=0; cs.forEach(c=>{cq+=c.q;cr+=c.r;}); cq/=cs.length; cr/=cs.length;
+      cs.forEach(p=>{
+        const dx_=HEX*Math.sqrt(3)*((p.q-cq)+(p.r-cr)/2);
+        const dy_=HEX*1.5*(p.r-cr);
+        drawHex(vx, aimPix+dx_, topY+dy_, HEX*0.8, hexFill(base,false,0.9), shade(base,1.4),1.6);
+      });
+      // drop guideline
+      vx.strokeStyle="rgba(160,200,255,.18)"; vx.setLineDash([4,6]); vx.lineWidth=1;
+      vx.beginPath(); vx.moveTo(aimPix, topY+HEX); vx.lineTo(aimPix, ORIGIN.y+HEX*VR); vx.stroke();
+      vx.setLineDash([]);
+    }
+
+    // shocks
+    fx.clearRect(0,0,w,h);
+    shocks=shocks.filter(s=>{
+      s.t+=0.05; const rad=s.r0+(s.max-s.r0)*s.t;
+      fx.beginPath(); fx.arc(s.x,s.y,rad,0,Math.PI*2);
+      fx.strokeStyle=s.col; fx.globalAlpha=Math.max(0,(1-s.t)*(s.big?0.7:0.5)); fx.lineWidth=s.big?3:2; fx.stroke();
+      fx.globalAlpha=1;
+      return s.t<1;
+    });
+    // shards
+    shards=shards.filter(p=>{
+      p.t+=0.016; p.x+=p.vx; p.y+=p.vy; p.vy+=0.22; p.vx*=0.99;
+      fx.globalAlpha=Math.max(0,1-p.t*0.9);
+      fx.fillStyle=p.col;
+      fx.fillRect(p.x-3,p.y-3,6,6);
+      fx.globalAlpha=1;
+      return p.t<1 && p.y<h+40;
+    });
+
+    // screen flash
+    if(flashT>0){ flashT-=0.04; fx.globalAlpha=flashT*0.25; fx.fillStyle=flashCol; fx.fillRect(0,0,w,h); fx.globalAlpha=1; }
+  }
+  function hexFill(base,locked,alpha){
+    const a=alpha!==undefined?alpha:(locked?0.95:0.8);
+    return shade(base, locked?1.0:0.85, a);
+  }
+  function shade(hex,mul,alpha){
+    const c=hex.replace("#",""); let r=parseInt(c.substr(0,2),16),g=parseInt(c.substr(2,2),16),b=parseInt(c.substr(4,2),16);
+    r=Math.min(255,r*mul); g=Math.min(255,g*mul); b=Math.min(255,b*mul);
+    if(alpha!==undefined) return `rgba(${r|0},${g|0},${b|0},${alpha})`;
+    return `rgb(${r|0},${g|0},${b|0})`;
+  }
+
+  /* ---------- chart ---------- */
+  function renderChart(){
+    const w=chartC.clientWidth, h=chartC.clientHeight;
+    chartC.width=w*DPR; chartC.height=h*DPR; chartX.setTransform(DPR,0,0,DPR,0,0);
+    chartX.clearRect(0,0,w,h);
+    if(hist.length<2) return;
+    const lo=Math.min(...hist), hi=Math.max(...hist), rng=(hi-lo)||1;
+    const X=i=> i/(hist.length-1)*w;
+    const Y=p=> h-8 - (p-lo)/rng*(h-16);
+    // window highlight (last winLen)
+    const ws=Math.max(0,hist.length-winTicks.length-1);
+    chartX.fillStyle="rgba(90,209,255,.07)";
+    chartX.fillRect(X(ws),0,w-X(ws),h);
+    // area
+    chartX.beginPath(); chartX.moveTo(0,h);
+    hist.forEach((p,i)=>chartX.lineTo(X(i),Y(p))); chartX.lineTo(w,h); chartX.closePath();
+    const ag=chartX.createLinearGradient(0,0,0,h);
+    ag.addColorStop(0,"rgba(90,209,255,.28)"); ag.addColorStop(1,"rgba(90,209,255,0)");
+    chartX.fillStyle=ag; chartX.fill();
+    // line
+    chartX.beginPath(); hist.forEach((p,i)=> i?chartX.lineTo(X(i),Y(p)):chartX.moveTo(X(i),Y(p)));
+    chartX.strokeStyle="#7fdcff"; chartX.lineWidth=1.8; chartX.shadowBlur=8; chartX.shadowColor="#5ad1ff"; chartX.stroke(); chartX.shadowBlur=0;
+    // last dot
+    const lx=X(hist.length-1), ly=Y(price);
+    chartX.beginPath(); chartX.arc(lx,ly,3.2,0,Math.PI*2); chartX.fillStyle="#fff"; chartX.fill();
+  }
+
+  /* ---------- forge preview canvas ---------- */
+  function renderForge(){
+    const w=forgeC.clientWidth, h=forgeC.clientHeight;
+    forgeC.width=w*DPR; forgeC.height=h*DPR; forgeX.setTransform(DPR,0,0,DPR,0,0);
+    forgeX.clearRect(0,0,w,h);
+    if(!curPiece) return;
+    const cs=curPiece.cells;
+    const base=colMap[curPiece.color];
+    const s=15;
+    let cq=0,cr=0; cs.forEach(c=>{cq+=c.q;cr+=c.r;}); cq/=cs.length; cr/=cs.length;
+    cs.forEach(p=>{
+      const px=w/2 + s*Math.sqrt(3)*((p.q-cq)+(p.r-cr)/2);
+      const py=h/2 + s*1.5*(p.r-cr);
+      forgeX.save(); forgeX.shadowBlur=12; forgeX.shadowColor=base;
+      drawHex(forgeX,px,py,s*0.92, shade(base,0.85,0.85), shade(base,1.3),1.4);
+      forgeX.restore();
+    });
+  }
+
+  /* ---------- coverage dial ---------- */
+  let dialCov=0;
+  function renderDial(){
+    const W=210, cx=W/2, cy=W/2, R=86;
+    dialC.width=W*DPR; dialC.height=W*DPR; dx.setTransform(DPR,0,0,DPR,0,0);
+    dx.clearRect(0,0,W,W);
+    dialCov += (coverage-dialCov)*0.12;
+    const start=-Math.PI*0.75, end=Math.PI*0.75, span=end-start;
+    // track
+    dx.lineWidth=14; dx.lineCap="round";
+    dx.beginPath(); dx.arc(cx,cy,R,start,end); dx.strokeStyle="rgba(255,255,255,.06)"; dx.stroke();
+    // danger zone tint near top
+    dx.beginPath(); dx.arc(cx,cy,R,start+span*0.78,end); dx.strokeStyle="rgba(255,93,115,.18)"; dx.stroke();
+    // value arc with gradient by coverage
+    const a=start+span*dialCov;
+    const hue = dialCov<0.5? 180 - dialCov*120 : 120 - (dialCov-0.5)*240; // cyan->green->red-ish
+    const col = dialCov<0.55 ? "#5ad1ff" : dialCov<0.8 ? "#27e0a6" : dialCov<0.9? "#ffb84d" : "#ff5d73";
+    dx.beginPath(); dx.arc(cx,cy,R,start,a);
+    dx.strokeStyle=col; dx.shadowBlur=18; dx.shadowColor=col; dx.lineWidth=14; dx.stroke(); dx.shadowBlur=0;
+    // ticks
+    for(let i=0;i<=10;i++){ const ang=start+span*(i/10); const r1=R+12,r2=R+18;
+      dx.beginPath(); dx.moveTo(cx+r1*Math.cos(ang),cy+r1*Math.sin(ang)); dx.lineTo(cx+r2*Math.cos(ang),cy+r2*Math.sin(ang));
+      dx.strokeStyle="rgba(160,190,230,.3)"; dx.lineWidth=2; dx.stroke(); }
+    // needle dot
+    dx.beginPath(); dx.arc(cx+R*Math.cos(a),cy+R*Math.sin(a),7,0,Math.PI*2); dx.fillStyle="#fff"; dx.fill();
+    dx.beginPath(); dx.arc(cx+R*Math.cos(a),cy+R*Math.sin(a),3.5,0,Math.PI*2); dx.fillStyle=col; dx.fill();
+
+    // text update
+    $("#covBig").textContent=Math.round(coverage*100)+"%";
+    $("#covBig").style.color=col;
+    $("#multV").textContent=multForCoverage(coverage).toFixed(2)+"×";
+    $("#payV").textContent="$"+payout().toFixed(2);
+  }
+
+  /* ---------- main loops ---------- */
+  layout();
+  // tape
+  let tapeX=0; const tapeRow=$("#tapeRow");
+  function buildTape(){
+    let s=""; for(let i=0;i<14;i++){ const up=Math.random()>0.5; s+=` <b>${(990+Math.random()*60).toFixed(2)}</b> <span style="color:${up?'#27e0a6':'#ff5d73'}">${up?'▲':'▼'}${(Math.random()*0.9).toFixed(2)}%</span>  ·  `; }
+    tapeRow.innerHTML=s+s;
+  }
+  buildTape();
+
+  // market ticks
+  setInterval(()=>{ tick(); }, 110);
+  // forge cadence
+  setInterval(()=>{ if(alive && !curPiece) spawnFromMarket(); }, 1400);
+
+  // demo autoplay: place pieces with a slight delay
+  setInterval(()=>{
+    if(!demo||!alive||!curPiece) return;
+    // pick best placement (max neighbours filled, prefer color match)
+    let best=null, bestScore=-1, bestRot=0, bestAnchor=null;
+    for(let rotN=0;rotN<6;rotN++){
+      for(const cell of cells){
+        const fp=legalAt(curPiece,rotN,cell.q,cell.r); if(!fp) continue;
+        let score=0;
+        fp.forEach(p=>{
+          DIRS.forEach(d=>{ const n=cellMap.get((p.q+d[0])+","+(p.r+d[1])); if(!n||n.filled) score+=1; });
+          if(cellColorZone(cellMap.get(p.q+","+p.r))===curPiece.color) score+=1.5;
+          score += p.r*0.3; // prefer low
+        });
+        if(score>bestScore){ bestScore=score; best=fp; bestRot=rotN; bestAnchor=cell; }
+      }
+    }
+    if(best){ rotIdx=bestRot;
+      // set aim to centroid for visual, then place the exact chosen footprint
+      let cxs=0; best.forEach(p=>cxs+=p.q); aimCol=Math.round(cxs/best.length);
+      placePiece(best);
+      // sometimes auto-bank when high to showcase win, then restart
+      if(coverage>0.8 && Math.random()<0.5){ setTimeout(()=>{ if(demo&&alive){stowBank(); setTimeout(()=>{ if(demo) newRound(); },1700);} },500); }
+    }
+  }, 900);
+
+  // render loop (rAF for smoothness)
+  function frame(){
+    renderVault(); renderDial(); renderForge();
+    // toast fade
+    if(toastT>0){ toastT-=0.016; if(toastT<=0){ const t=$("#toast"); t.style.opacity=0; t.style.transform="translateX(-50%) translateY(-6px)"; } }
+    requestAnimationFrame(frame);
+  }
+  // chart + tape on interval (survives backgrounding visuals)
+  setInterval(renderChart, 110);
+  setInterval(()=>{ tapeX-=0.6; if(tapeX<-tapeRow.scrollWidth/2) tapeX=0; tapeRow.style.transform=`translateX(${tapeX}px)`; }, 30);
+  requestAnimationFrame(frame);
+  // also drive vault render on interval as backup when tab hidden
+  setInterval(()=>{ if(document.hidden) { renderVault(); renderDial(); } }, 200);
+
+  /* ---------- interaction ---------- */
+  function takeOver(){ if(demo){ demo=false; $("#demoTag").style.display="none"; toast("YOU HAVE THE HELM"); } }
+  vaultC.addEventListener("pointerdown", e=>{
+    takeOver();
+    vaultC.classList.add("drag"); dragging=true; aimFromEvent(e);
+  });
+  let dragging=false;
+  window.addEventListener("pointermove", e=>{ if(dragging) aimFromEvent(e); });
+  window.addEventListener("pointerup", ()=>{ dragging=false; vaultC.classList.remove("drag"); });
+  function aimFromEvent(e){
+    const rect=vaultC.getBoundingClientRect();
+    const px=e.clientX-rect.left, py=ORIGIN.y; // aim by x
+    const h=pixToHex(px,py);
+    aimCol=Math.max(-VR,Math.min(VR,h.q));
+  }
+
+  function rotate(){ takeOver(); if(curPiece){ rotIdx=(rotIdx+1)%6; sfxTick(); } }
+  function drop(){ takeOver(); if(curPiece){ const ok=placePiece(); if(!ok) toast("doesn't fit there — re-aim"); } }
+  function sfxTick(){ /* hook for sound */ }
+
+  $("#rotBtn").onclick=rotate;
+  $("#dropBtn").onclick=drop;
+  $("#leftBtn").onclick=()=>{ takeOver(); aimCol=Math.max(-VR,aimCol-1); };
+  $("#rightBtn").onclick=()=>{ takeOver(); aimCol=Math.min(VR,aimCol+1); };
+  $("#stowBtn").onclick=()=>{ takeOver(); stowBank(); };
+  $("#newBtn").onclick=newRound;
+  $("#againBtn").onclick=newRound;
+
+  window.addEventListener("keydown", e=>{
+    if(e.key==="r"||e.key==="R"){ rotate(); }
+    else if(e.code==="Space"){ e.preventDefault(); drop(); }
+    else if(e.key==="ArrowLeft"){ takeOver(); aimCol=Math.max(-VR,aimCol-1); }
+    else if(e.key==="ArrowRight"){ takeOver(); aimCol=Math.min(VR,aimCol+1); }
+  });
+
+  // stake controls
+  function setStake(v){ stake=Math.max(1,v); $("#stakeV").textContent="$"+stake; }
+  $("#stakeUp").onclick=()=>setStake(stake+5);
+  $("#stakeDown").onclick=()=>setStake(stake-5);
+
+  // resize
+  window.addEventListener("resize", ()=>{ layout(); });
+
+  /* ---------- boot ---------- */
+  // warm up market so chart is alive on load
+  for(let i=0;i<90;i++) tick();
+  layout(); renderChart();
+  spawnFromMarket();
+})();
+</script>
+</body>
+</html>

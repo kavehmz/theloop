@@ -20,3 +20,4 @@ One line per design: name — core mechanic — STATUS
 - WAKELINE — pre-trace where price will go in a lead zone; paid by the fidelity of your anticipatory line vs the actual path — KEEPER
 - FLUXYARD — classify streaming price-regime parcels into BULL/CHOP/BEAR chutes; paid by correct-sort throughput before overflow — KEEPER
 - OVERTONE — tune FREQ/PHASE/GAIN to phase-lock onto the market wave; a Resonance-Q compounds while locked; release to bank — KEEPER
+- STOWLINE — pack market-forged shaped cargo into a vault for coverage density; bust on spill — KEEPER
