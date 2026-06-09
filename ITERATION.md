@@ -77,3 +77,9 @@ or edit any other file.
   at 1280×800; the screenshot is archival. Note: html2canvas (a common screenshot fallback)
   mangles `background-clip:text` gradients into solid white boxes — don't let a bad screenshot
   fool you into thinking the real render is broken, and flag it if you used that fallback.
+- **The "cash out a rising multiplier before a bust" wrapper (Crash/Aviator) is now CROWDED**
+  and will be scrutinized hard. Two kept games already include a cash-out option layered on a
+  genuinely new core; the easy variations of that frame are exhausted. If your core loop is
+  "a number/object climbs and you bank before it blows up," it will read as a Crash reskin and
+  fail Originality — even with a fresh theme. Prefer a mechanic whose outcome is decided by
+  *what the price does in space/shape/timing*, not by a scalar rising until a stop.
