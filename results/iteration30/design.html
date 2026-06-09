@@ -304,6 +304,11 @@ function newRound(){
   vol=0.5+Math.random()*1.6;
   trendLean=(Math.random()-0.5)*2.2;
   basePrice=price;
+  // clear last round's proximity gauges so PLANT shows idle state
+  document.getElementById('multSum').textContent='—';
+  document.getElementById('multAby').textContent='—';
+  document.getElementById('fillSum').style.width='0%';
+  document.getElementById('fillAby').style.width='0%';
   updateDeck();
 }
 function updateDeck(){
