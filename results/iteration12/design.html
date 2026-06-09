@@ -344,7 +344,7 @@
     hist.push(price); if(hist.length>160) hist.shift();
     // realized vol = rolling abs change
     realizedVol += (Math.abs(dprice) - realizedVol)*0.08;
-    volStr += (Math.min(1, realizedVol/7) - volStr)*0.06;
+    volStr += (Math.min(1, realizedVol/3) - volStr)*0.06;
     // trend strength = persistence of drift sign over noise
     const tgtTrend = Math.min(1, Math.abs(drift)/0.72);
     trendStr += (tgtTrend - trendStr)*0.05;
