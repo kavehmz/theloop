@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FLUXYARD — regime triage</title>
+<style>
+  :root{
+    --bg:#070b14; --bg2:#0b1322; --ink:#dce6f5; --dim:#5d6f8c;
+    --bull:#26e0a3; --chop:#f5b94a; --bear:#ff5b6e;
+    --line:#3aa0ff; --gold:#ffd76a;
+    --panel:rgba(15,24,40,.72);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:
+      radial-gradient(1100px 620px at 78% -8%, rgba(58,160,255,.16), transparent 60%),
+      radial-gradient(900px 520px at 12% 108%, rgba(38,224,163,.10), transparent 60%),
+      linear-gradient(180deg,#070b14,#04060d 70%);
+    color:var(--ink);
+    font-family:"Segoe UI",Inter,system-ui,-apple-system,sans-serif;
+    overflow-x:hidden;
+  }
+  /* ===== HERO: full 1280x800, no scroll ===== */
+  .hero{
+    width:1280px; max-width:100%; height:800px; margin:0 auto;
+    position:relative; display:flex; flex-direction:column;
+    padding:18px 26px 16px; overflow:hidden;
+  }
+  /* faint moving yard grid */
+  .hero::before{
+    content:""; position:absolute; inset:0;
+    background-image:linear-gradient(rgba(58,160,255,.05) 1px,transparent 1px),
+                     linear-gradient(90deg,rgba(58,160,255,.05) 1px,transparent 1px);
+    background-size:46px 46px; mask-image:radial-gradient(900px 600px at 50% 42%,#000,transparent 85%);
+    animation:drift 22s linear infinite; pointer-events:none;
+  }
+  @keyframes drift{to{background-position:0 460px,460px 0}}
+
+  /* top bar */
+  .top{display:flex; align-items:center; gap:16px; z-index:3}
+  .brand{display:flex; align-items:baseline; gap:11px}
+  .logo{font-weight:800; font-size:25px; letter-spacing:5px;
+    background:linear-gradient(92deg,#9fe8ff,#26e0a3 55%,#ffd76a);
+    -webkit-background-clip:text; background-clip:text; color:transparent;}
+  .tagline{color:var(--dim); font-size:11.5px; letter-spacing:2.6px; text-transform:uppercase}
+  .top .spacer{flex:1}
+  .stat{background:var(--panel); border:1px solid rgba(90,130,180,.18); border-radius:12px;
+    padding:7px 14px; text-align:center; min-width:96px; backdrop-filter:blur(7px)}
+  .stat .k{font-size:9.5px; letter-spacing:1.8px; color:var(--dim); text-transform:uppercase}
+  .stat .v{font-size:20px; font-weight:800; margin-top:1px; font-variant-numeric:tabular-nums}
+  .v.gold{color:var(--gold)} .v.green{color:var(--bull)}
+  .multiring{position:relative; width:62px; height:62px}
+  .multiring .lab{position:absolute; inset:0; display:flex; flex-direction:column;
+    align-items:center; justify-content:center}
+  .multiring .lab b{font-size:17px; font-weight:800; color:var(--gold)}
+  .multiring .lab span{font-size:8px; letter-spacing:1.5px; color:var(--dim)}
+
+  /* market panel */
+  .market{margin-top:11px; height:150px; position:relative; border-radius:14px; overflow:hidden;
+    background:linear-gradient(180deg,rgba(12,20,36,.85),rgba(8,13,24,.6));
+    border:1px solid rgba(90,130,180,.16); z-index:2}
+  #chart{width:100%; height:100%; display:block}
+  .regimeTag{position:absolute; top:11px; left:14px; display:flex; gap:8px; align-items:center;
+    font-size:11px; letter-spacing:1.6px; text-transform:uppercase}
+  .regdot{width:11px; height:11px; border-radius:50%; box-shadow:0 0 14px currentColor}
+  .pulsewrap{position:absolute; top:12px; right:14px; width:182px}
+  .pulsewrap .cap{font-size:9px; letter-spacing:1.8px; color:var(--dim); text-transform:uppercase; margin-bottom:4px}
+  .pulse{height:7px; border-radius:6px; background:rgba(255,255,255,.07); overflow:hidden}
+  .pulse i{display:block; height:100%; width:30%;
+    background:linear-gradient(90deg,var(--bull),var(--chop),var(--bear)); border-radius:6px;
+    transition:width .25s}
+  .surgeBadge{position:absolute; left:50%; top:50%; transform:translate(-50%,-50%) scale(.6);
+    font-size:30px; font-weight:900; letter-spacing:8px; color:#fff; opacity:0;
+    text-shadow:0 0 30px var(--bear),0 0 60px var(--bear); pointer-events:none}
+  .surgeBadge.on{animation:surge 1s ease-out}
+  @keyframes surge{0%{opacity:0;transform:translate(-50%,-50%) scale(.5)}
+    30%{opacity:1;transform:translate(-50%,-50%) scale(1.05)}
+    100%{opacity:0;transform:translate(-50%,-50%) scale(1.4)}}
+
+  /* yard */
+  .yard{flex:1; margin-top:12px; position:relative; border-radius:16px; z-index:2;
+    background:linear-gradient(180deg,rgba(10,17,30,.55),rgba(6,11,20,.78));
+    border:1px solid rgba(90,130,180,.14); overflow:hidden}
+  #yardCanvas{width:100%; height:100%; display:block}
+  .yardOverlay{position:absolute; inset:0; pointer-events:none}
+
+  /* chutes labels under yard handled in canvas; keyhints below */
+  .controls{margin-top:11px; display:flex; gap:12px; align-items:stretch; z-index:3}
+  .chuteBtn{flex:1; border-radius:13px; padding:11px 10px 10px; cursor:pointer; position:relative;
+    border:1px solid rgba(255,255,255,.10); background:rgba(13,21,37,.7); backdrop-filter:blur(6px);
+    transition:transform .08s, box-shadow .2s; text-align:center; user-select:none}
+  .chuteBtn:active{transform:translateY(2px)}
+  .chuteBtn .nm{font-size:15px; font-weight:800; letter-spacing:2px}
+  .chuteBtn .ky{font-size:9.5px; color:var(--dim); letter-spacing:1.5px; margin-top:2px}
+  .chuteBtn.bull{box-shadow:inset 0 0 0 1px rgba(38,224,163,.35),0 8px 22px rgba(38,224,163,.08)}
+  .chuteBtn.bull .nm{color:var(--bull)}
+  .chuteBtn.chop{box-shadow:inset 0 0 0 1px rgba(245,185,74,.35),0 8px 22px rgba(245,185,74,.08)}
+  .chuteBtn.chop .nm{color:var(--chop)}
+  .chuteBtn.bear{box-shadow:inset 0 0 0 1px rgba(255,91,110,.35),0 8px 22px rgba(255,91,110,.08)}
+  .chuteBtn.bear .nm{color:var(--bear)}
+  .chuteBtn.flashok{animation:okflash .4s}
+  .chuteBtn.flashbad{animation:badflash .4s}
+  @keyframes okflash{0%{box-shadow:0 0 0 2px #fff,0 0 40px var(--bull)}100%{}}
+  @keyframes badflash{0%,40%{transform:translateX(-4px)}20%,60%{transform:translateX(4px)}100%{transform:none}}
+
+  .bet{display:flex; flex-direction:column; gap:7px; width:178px}
+  .lockBtn,.startBtn{border:none; border-radius:12px; font-weight:800; letter-spacing:1.6px;
+    cursor:pointer; padding:11px; font-size:13px; text-transform:uppercase}
+  .startBtn{background:linear-gradient(92deg,#26e0a3,#3aa0ff); color:#04121a;
+    box-shadow:0 8px 26px rgba(38,224,163,.28)}
+  .lockBtn{background:linear-gradient(92deg,#ffd76a,#ff9d3c); color:#241600;
+    box-shadow:0 8px 22px rgba(255,180,80,.22)}
+  .lockBtn:disabled,.startBtn:disabled{opacity:.4; cursor:default; box-shadow:none}
+  .strikes{display:flex; gap:6px; justify-content:center; align-items:center}
+  .strike{width:13px; height:13px; border-radius:3px; background:rgba(255,91,110,.18);
+    border:1px solid rgba(255,91,110,.4)}
+  .strike.lit{background:var(--bear); box-shadow:0 0 12px var(--bear)}
+
+  /* round banner — compact card so the live conveyor stays visible behind it */
+  .banner{position:absolute; left:50%; bottom:18px; transform:translateX(-50%);
+    display:flex; align-items:center; justify-content:center; flex-direction:column; gap:9px;
+    width:min(640px,92%); padding:16px 22px 18px; border-radius:16px; z-index:9;
+    background:linear-gradient(180deg,rgba(8,14,26,.78),rgba(5,9,18,.9));
+    border:1px solid rgba(90,130,180,.22); backdrop-filter:blur(8px);
+    box-shadow:0 20px 60px rgba(0,0,0,.55)}
+  .banner.hidden{display:none}
+  .banner h2{font-size:26px; letter-spacing:4px; font-weight:800;
+    background:linear-gradient(92deg,#9fe8ff,#26e0a3,#ffd76a);
+    -webkit-background-clip:text; background-clip:text; color:transparent}
+  .banner p{color:var(--dim); font-size:12.5px; letter-spacing:.5px; max-width:560px; text-align:center; line-height:1.55}
+  .banner .pay{font-size:40px; font-weight:900; color:var(--gold); font-variant-numeric:tabular-nums; line-height:1}
+  .banner .startBtn{padding:12px 38px; font-size:14px; margin-top:2px}
+
+  /* explainer below the fold */
+  .below{width:1280px; max-width:100%; margin:24px auto 60px; padding:0 26px}
+  .below h3{font-size:13px; letter-spacing:3px; color:var(--dim); text-transform:uppercase; margin-bottom:14px}
+  .cards{display:grid; grid-template-columns:repeat(3,1fr); gap:16px}
+  .card{background:var(--panel); border:1px solid rgba(90,130,180,.16); border-radius:14px; padding:18px}
+  .card b{color:var(--ink); font-size:15px} .card p{color:var(--dim); font-size:13px; line-height:1.65; margin-top:8px}
+  .card .em{color:var(--bull)}
+</style>
+</head>
+<body>
+<div class="hero">
+  <div class="top">
+    <div class="brand">
+      <div class="logo">FLUXYARD</div>
+      <div class="tagline">regime triage · sort the tape</div>
+    </div>
+    <div class="spacer"></div>
+    <div class="stat"><div class="k">Throughput</div><div class="v green" id="sThru">0</div></div>
+    <div class="stat"><div class="k">Accuracy</div><div class="v" id="sAcc">100%</div></div>
+    <div class="stat"><div class="k">Payout</div><div class="v gold" id="sPay">0.00</div></div>
+    <div class="multiring">
+      <svg width="62" height="62" viewBox="0 0 62 62">
+        <circle cx="31" cy="31" r="26" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="5"/>
+        <circle id="ring" cx="31" cy="31" r="26" fill="none" stroke="#ffd76a" stroke-width="5"
+          stroke-linecap="round" stroke-dasharray="163" stroke-dashoffset="163"
+          transform="rotate(-90 31 31)"/>
+      </svg>
+      <div class="lab"><b id="sMult">1.0×</b><span>MULT</span></div>
+    </div>
+  </div>
+
+  <div class="market">
+    <canvas id="chart"></canvas>
+    <div class="regimeTag"><span class="regdot" id="regDot" style="color:var(--chop)"></span>
+      <span id="regTxt">REGIME · CHOP</span></div>
+    <div class="pulsewrap"><div class="cap">Volatility · belt speed</div>
+      <div class="pulse"><i id="pulseBar"></i></div></div>
+    <div class="surgeBadge" id="surgeBadge">SURGE</div>
+  </div>
+
+  <div class="yard">
+    <canvas id="yardCanvas"></canvas>
+    <div class="yardOverlay"></div>
+    <div class="banner" id="banner">
+      <h2 id="bTitle">FLUXYARD</h2>
+      <p id="bDesc">Parcels stream off the live tape. Read each glyph and route it to the matching chute —
+        <b style="color:var(--bull)">BULL</b> / <b style="color:var(--chop)">CHOP</b> / <b style="color:var(--bear)">BEAR</b> —
+        before the yard overflows. Keys <b>A&nbsp;S&nbsp;D</b> or click a chute. Bank with LOCK.</p>
+      <div class="pay" id="bPay" style="display:none">0.00</div>
+      <button class="startBtn" id="startBtn">▶ Start Round · stake 10.00</button>
+    </div>
+  </div>
+
+  <div class="controls">
+    <div class="chuteBtn bull" data-c="0"><div class="nm">BULL</div><div class="ky">A&nbsp;/&nbsp;←&nbsp;· up-momentum</div></div>
+    <div class="chuteBtn chop" data-c="1"><div class="nm">CHOP</div><div class="ky">S&nbsp;/&nbsp;↓&nbsp;· range / low-vol</div></div>
+    <div class="chuteBtn bear" data-c="2"><div class="nm">BEAR</div><div class="ky">D&nbsp;/&nbsp;→&nbsp;· down-momentum</div></div>
+    <div class="bet">
+      <button class="lockBtn" id="lockBtn" disabled>🔒 Lock&nbsp;&amp;&nbsp;Bank</button>
+      <div class="strikes" id="strikes">
+        <span style="font-size:9px;letter-spacing:1.5px;color:var(--dim)">OVERFLOW</span>
+        <span class="strike"></span><span class="strike"></span><span class="strike"></span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="below">
+  <h3>How Fluxyard works</h3>
+  <div class="cards">
+    <div class="card"><b>The market makes the items</b><p>Every tick of the live feed drops a parcel on the belt. Its <span class="em">glyph is the real recent price slope</span>; its true class is the current regime. Hot tape spawns parcels faster — the belt runs at the market's pulse.</p></div>
+    <div class="card"><b>You classify, fast</b><p>Read each glyph and route it: <span class="em">A/← Bull, S/↓ Chop, D/→ Bear</span>. Correct banks throughput and climbs your accuracy multiplier. A misread shatters and speeds the jam. Parcels riding off the end unsorted = overflow strikes.</p></div>
+    <div class="card"><b>Throughput, not a bust-timer</b><p>Payout = stake × tier × (correct / target) × multiplier, banked on <span class="em">LOCK</span> or the third overflow strike. You're paid for correct work under accelerating pressure — not for cashing a rising number before it pops.</p></div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  // ---------- DOM ----------
+  const chart=document.getElementById('chart'), cx=chart.getContext('2d');
+  const yard=document.getElementById('yardCanvas'), yx=yard.getContext('2d');
+  const elThru=document.getElementById('sThru'), elAcc=document.getElementById('sAcc'),
+        elPay=document.getElementById('sPay'), elMult=document.getElementById('sMult'),
+        ring=document.getElementById('ring'), pulseBar=document.getElementById('pulseBar'),
+        regDot=document.getElementById('regDot'), regTxt=document.getElementById('regTxt'),
+        surgeBadge=document.getElementById('surgeBadge'), banner=document.getElementById('banner'),
+        bTitle=document.getElementById('bTitle'), bDesc=document.getElementById('bDesc'),
+        bPay=document.getElementById('bPay'), startBtn=document.getElementById('startBtn'),
+        lockBtn=document.getElementById('lockBtn'), strikes=document.getElementById('strikes');
+  const chuteBtns=[...document.querySelectorAll('.chuteBtn')];
+  const COL=['#26e0a3','#f5b94a','#ff5b6e']; // bull chop bear
+  const NAME=['BULL','CHOP','BEAR'];
+
+  // ---------- sizing (HiDPI) ----------
+  function fit(c){const r=c.getBoundingClientRect(),d=window.devicePixelRatio||1;
+    c.width=r.width*d; c.height=r.height*d; c.getContext('2d').setTransform(d,0,0,d,0,0);
+    return {w:r.width,h:r.height};}
+  let CH={w:1180,h:150}, YD={w:1180,h:300};
+  function resize(){CH=fit(chart); YD=fit(yard);}
+  window.addEventListener('resize',resize);
+
+  // ---------- market simulation ----------
+  let price=100, drift=0, vol=0.5, t=0;
+  const hist=[]; const MAXH=240;
+  // regime: 0 bull,1 chop,2 bear  — derived from rolling slope+vol
+  let regimeBias=1, regimeTimer=0;
+  function stepMarket(){
+    t++;
+    // regime persistence engine: occasionally pick a new bias
+    regimeTimer--;
+    if(regimeTimer<=0){
+      const r=Math.random();
+      regimeBias = r<0.38?0 : r<0.62?1 : r<1?2:1;
+      regimeTimer = 40+Math.floor(Math.random()*70);
+    }
+    // target drift/vol from bias
+    let tDrift = regimeBias===0?0.16 : regimeBias===2?-0.16 : 0;
+    let tVol   = regimeBias===1?0.18 : 0.42;
+    // surge injects vol
+    if(surgeActive>0){tVol+=0.9;}
+    drift += (tDrift-drift)*0.08;
+    vol   += (tVol-vol)*0.08;
+    const noise=(Math.random()*2-1);
+    price += drift + noise*vol*1.7;
+    hist.push(price); if(hist.length>MAXH) hist.shift();
+  }
+  // classify from real recent slope (what the player must read)
+  function classifyAt(){
+    const n=hist.length; if(n<14) return 1;
+    const a=hist[n-14], b=hist[n-1];
+    const slope=(b-a)/13;
+    // realized range over window = vol proxy
+    let mn=Infinity,mx=-Infinity; for(let i=n-14;i<n;i++){mn=Math.min(mn,hist[i]);mx=Math.max(mx,hist[i]);}
+    const rng=mx-mn;
+    if(rng<2.0) return 1;                 // tight range -> CHOP
+    if(slope>0.10) return 0;              // up -> BULL
+    if(slope<-0.10) return 2;             // down -> BEAR
+    return 1;                             // ambiguous -> CHOP
+  }
+  // glyph = real recent slice (last 14) snapshot for a parcel
+  function glyphSnap(){ const n=hist.length, s=[]; for(let i=Math.max(0,n-14);i<n;i++) s.push(hist[i]); return s; }
+
+  // ---------- game state ----------
+  let running=false, parcels=[], correct=0, attempts=0, mult=1, strikeN=0, payout=0;
+  let stake=10, tierCoeff=1.6, target=24, spawnAcc=0, surgeActive=0, surgeCooldown=140;
+  let shakes=[], bursts=[];
+  const BELT_Y_FRAC=0.46;             // belt vertical center
+  const beltSpeedBase=0.55;           // px/frame baseline
+  let frame=0;
+
+  function reset(){
+    parcels=[]; correct=0; attempts=0; mult=1; strikeN=0; payout=0; surgeActive=0; surgeCooldown=140;
+    bursts=[]; shakes=[]; updateHUD(); paintStrikes();
+  }
+
+  function spawnParcel(){
+    const cls=classifyAt();
+    parcels.push({
+      x: YD.w+30, lane: BELT_Y_FRAC, cls, glyph: glyphSnap(),
+      born:frame, wobble:Math.random()*6.28, scale:0
+    });
+  }
+
+  function routeFront(choice){
+    if(!running) return;
+    // act on the LEFT-most (front) parcel still on the belt
+    let front=null, fi=-1, minx=Infinity;
+    for(let i=0;i<parcels.length;i++){ if(parcels[i].sorting) continue;
+      if(parcels[i].x<minx){minx=parcels[i].x; front=parcels[i]; fi=i;} }
+    if(!front) return;
+    attempts++;
+    const ok = front.cls===choice;
+    front.sorting=true; front.sortChoice=choice; front.sortT=0; front.ok=ok;
+    if(ok){
+      correct++; mult=Math.min(5, mult+0.18);
+      flashChute(choice,true);
+      spawnBurst(front.x, YD.h*BELT_Y_FRAC, choice, true);
+    }else{
+      mult=Math.max(1, mult-0.9);
+      flashChute(choice,false);
+      spawnBurst(front.x, YD.h*BELT_Y_FRAC, choice, false);
+      shakes.push({t:0});
+    }
+    updateHUD();
+  }
+
+  function overflow(){
+    strikeN++; paintStrikes();
+    shakes.push({t:0,big:true});
+    if(strikeN>=3) endRound(true);
+  }
+
+  function endRound(byOverflow){
+    running=false;
+    const progress=Math.min(1.4, correct/target);
+    payout = stake*tierCoeff*progress*mult;
+    lockBtn.disabled=true;
+    bTitle.textContent = byOverflow? 'YARD OVERFLOW' : 'BANKED';
+    bDesc.innerHTML = `Sorted <b style="color:var(--bull)">${correct}</b> correct · `+
+      `accuracy <b>${attempts? Math.round(100*correct/attempts):100}%</b> · `+
+      `mult <b style="color:var(--gold)">${mult.toFixed(1)}×</b>`;
+    bPay.style.display='block'; bPay.textContent=payout.toFixed(2);
+    startBtn.textContent='▶ Play Again · stake 10.00';
+    banner.classList.remove('hidden');
+  }
+
+  function startRound(){
+    reset(); running=true; frame=0;
+    banner.classList.add('hidden'); bPay.style.display='none';
+    lockBtn.disabled=false;
+  }
+
+  // ---------- effects ----------
+  function flashChute(i,ok){const b=chuteBtns[i]; b.classList.remove('flashok','flashbad');
+    void b.offsetWidth; b.classList.add(ok?'flashok':'flashbad');}
+  function spawnBurst(x,y,col,ok){
+    const n=ok?22:14, c=ok?COL[col]:'#ff5b6e';
+    for(let i=0;i<n;i++){const a=Math.random()*6.28, sp=ok?(1+Math.random()*4):(0.6+Math.random()*2.4);
+      bursts.push({x,y,vx:Math.cos(a)*sp, vy:Math.sin(a)*sp-(ok?1.2:0), life:1, col:c, ok});}
+  }
+
+  // ---------- HUD ----------
+  function updateHUD(){
+    elThru.textContent=correct;
+    elAcc.textContent=(attempts? Math.round(100*correct/attempts):100)+'%';
+    const prog=Math.min(1.4, correct/target);
+    elPay.textContent=(stake*tierCoeff*prog*mult).toFixed(2);
+    elMult.textContent=mult.toFixed(1)+'×';
+    const frac=(mult-1)/4; ring.style.strokeDashoffset = (163*(1-frac)).toFixed(1);
+  }
+  function paintStrikes(){const s=strikes.querySelectorAll('.strike');
+    s.forEach((e,i)=> e.classList.toggle('lit', i<strikeN));}
+
+  // ---------- rendering: chart ----------
+  function drawChart(){
+    const w=CH.w,h=CH.h; cx.clearRect(0,0,w,h);
+    if(hist.length<2) return;
+    const seg=hist.slice(-MAXH);
+    let mn=Infinity,mx=-Infinity; for(const v of seg){mn=Math.min(mn,v);mx=Math.max(mx,v);}
+    const pad=(mx-mn)*0.18+0.5; mn-=pad; mx+=pad;
+    const X=i=> i/(seg.length-1)*w;
+    const Y=v=> h-8-( (v-mn)/(mx-mn) )*(h-22);
+    // regime wash
+    const reg=classifyAt();
+    const wash=cx.createLinearGradient(0,0,0,h);
+    wash.addColorStop(0, hexA(COL[reg],0.14)); wash.addColorStop(1, hexA(COL[reg],0.0));
+    cx.fillStyle=wash; cx.fillRect(0,0,w,h);
+    // grid lines
+    cx.strokeStyle='rgba(120,150,190,.07)'; cx.lineWidth=1;
+    for(let g=1;g<4;g++){const yy=h/4*g; cx.beginPath();cx.moveTo(0,yy);cx.lineTo(w,yy);cx.stroke();}
+    // area fill
+    const grad=cx.createLinearGradient(0,0,0,h);
+    grad.addColorStop(0, hexA(COL[reg],0.30)); grad.addColorStop(1,'rgba(0,0,0,0)');
+    cx.beginPath(); cx.moveTo(0,Y(seg[0]));
+    for(let i=1;i<seg.length;i++) cx.lineTo(X(i),Y(seg[i]));
+    cx.lineTo(w,h); cx.lineTo(0,h); cx.closePath(); cx.fillStyle=grad; cx.fill();
+    // line
+    cx.beginPath(); cx.moveTo(0,Y(seg[0]));
+    for(let i=1;i<seg.length;i++) cx.lineTo(X(i),Y(seg[i]));
+    cx.lineWidth=2.2; cx.strokeStyle=COL[reg]; cx.shadowColor=COL[reg]; cx.shadowBlur=12; cx.stroke();
+    cx.shadowBlur=0;
+    // leading dot
+    const lx=X(seg.length-1), ly=Y(seg[seg.length-1]);
+    cx.beginPath(); cx.arc(lx,ly,3.6,0,6.28); cx.fillStyle='#fff'; cx.fill();
+    cx.beginPath(); cx.arc(lx,ly,7,0,6.28); cx.strokeStyle=hexA(COL[reg],0.6); cx.lineWidth=2; cx.stroke();
+    // regime tag + pulse
+    regDot.style.color=COL[reg]; regTxt.textContent='REGIME · '+NAME[reg];
+    const speedPct=Math.min(100, 18+ (vol/1.5)*82); pulseBar.style.width=speedPct.toFixed(0)+'%';
+  }
+
+  // ---------- rendering: yard ----------
+  function drawYard(){
+    const w=YD.w,h=YD.h;
+    // shake offset
+    let sx=0,sy=0;
+    for(const s of shakes){ const m=s.big?7:3; sx+=(Math.random()*2-1)*m*(1-s.t); sy+=(Math.random()*2-1)*m*(1-s.t); }
+    yx.save(); yx.clearRect(-12,-12,w+24,h+24); yx.translate(sx,sy);
+
+    const beltY=h*BELT_Y_FRAC, beltH=64;
+    // chute throats (3 funnels below belt)
+    const chuteW=w/3;
+    for(let i=0;i<3;i++){
+      const cxx=chuteW*i+chuteW/2;
+      const topY=beltY+beltH/2, botY=h-6;
+      const grd=yx.createLinearGradient(0,topY,0,botY);
+      grd.addColorStop(0, hexA(COL[i],0.0)); grd.addColorStop(1, hexA(COL[i],0.16));
+      yx.beginPath();
+      yx.moveTo(cxx-chuteW*0.42, topY); yx.lineTo(cxx+chuteW*0.42, topY);
+      yx.lineTo(cxx+chuteW*0.16, botY); yx.lineTo(cxx-chuteW*0.16, botY);
+      yx.closePath(); yx.fillStyle=grd; yx.fill();
+      yx.strokeStyle=hexA(COL[i],0.32); yx.lineWidth=1.4; yx.stroke();
+      // chute label
+      yx.fillStyle=hexA(COL[i],0.85); yx.font='700 13px Segoe UI,sans-serif';
+      yx.textAlign='center'; yx.fillText(NAME[i], cxx, botY-12);
+    }
+
+    // belt (metallic) with moving treads
+    const bg=yx.createLinearGradient(0,beltY-beltH/2,0,beltY+beltH/2);
+    bg.addColorStop(0,'rgba(40,55,80,.55)'); bg.addColorStop(.5,'rgba(22,33,52,.9)'); bg.addColorStop(1,'rgba(40,55,80,.55)');
+    yx.fillStyle=bg; yx.fillRect(0,beltY-beltH/2,w,beltH);
+    yx.strokeStyle='rgba(120,150,190,.18)'; yx.lineWidth=1;
+    const tread=26, off=(frame*beltSpd())% tread;
+    for(let x=-tread+off; x<w; x+=tread){
+      yx.beginPath(); yx.moveTo(x,beltY-beltH/2); yx.lineTo(x-10,beltY+beltH/2);
+      yx.strokeStyle='rgba(120,150,190,.10)'; yx.stroke();
+    }
+    // belt edges glow
+    yx.fillStyle='rgba(58,160,255,.10)'; yx.fillRect(0,beltY-beltH/2-2,w,2); yx.fillRect(0,beltY+beltH/2,w,2);
+    // "front" marker at left where sorting happens
+    yx.fillStyle='rgba(255,255,255,.06)'; yx.fillRect(0,beltY-beltH/2,3,beltH);
+
+    // parcels
+    for(const p of parcels){
+      drawParcel(p, beltY);
+    }
+
+    // bursts
+    for(const b of bursts){
+      yx.globalAlpha=Math.max(0,b.life);
+      yx.fillStyle=b.col;
+      yx.beginPath(); yx.arc(b.x,b.y, b.ok?(2.6*b.life+0.6):(2*b.life+0.5),0,6.28); yx.fill();
+      yx.globalAlpha=1;
+    }
+    yx.restore();
+  }
+
+  function drawParcel(p, beltY){
+    const size=42, gx=p.x, gy=beltY + Math.sin(p.wobble+frame*0.05)*2;
+    let drawY=gy, alpha=1, sc=p.scale;
+    if(p.sorting){
+      p.sortT+=0.06;
+      drawY = gy + p.sortT*p.sortT*260;       // drop into chute
+      alpha = 1-p.sortT;
+      sc = 1 - p.sortT*0.3;
+    }
+    if(sc<1 && !p.sorting) sc = Math.min(1, sc+0.12);
+    yx.save(); yx.translate(gx, drawY); yx.scale(sc,sc); yx.globalAlpha=Math.max(0,alpha);
+    const col=COL[p.cls];
+    // glass crate
+    const r=8, hw=size/2;
+    roundRect(-hw,-hw,size,size,r);
+    const g=yx.createLinearGradient(-hw,-hw,hw,hw);
+    g.addColorStop(0, hexA(col,0.30)); g.addColorStop(1, hexA(col,0.10));
+    yx.fillStyle=g; yx.fill();
+    yx.strokeStyle=hexA(col,0.7); yx.lineWidth=1.5; yx.shadowColor=col; yx.shadowBlur=p.sorting&&p.ok?18:9; yx.stroke();
+    yx.shadowBlur=0;
+    // glyph sparkline inside
+    const gl=p.glyph;
+    if(gl && gl.length>2){
+      let mn=Infinity,mx=-Infinity; for(const v of gl){mn=Math.min(mn,v);mx=Math.max(mx,v);}
+      const rg=(mx-mn)||1; const pw=size*0.66, ph=size*0.42, x0=-pw/2, y0=ph/2;
+      yx.beginPath();
+      for(let i=0;i<gl.length;i++){
+        const xx=x0 + i/(gl.length-1)*pw;
+        const yy= y0 - ((gl[i]-mn)/rg)*ph;
+        i? yx.lineTo(xx,yy):yx.moveTo(xx,yy);
+      }
+      yx.strokeStyle='#eaf2ff'; yx.lineWidth=1.6; yx.stroke();
+    }
+    yx.restore();
+  }
+
+  function beltSpd(){
+    // belt speed scales with vol (live volatility) + slight ramp
+    return beltSpeedBase*(0.7 + (vol/1.6)*1.7) * (surgeActive>0?1.5:1);
+  }
+
+  function roundRect(x,y,w,h,r){yx.beginPath();
+    yx.moveTo(x+r,y); yx.arcTo(x+w,y,x+w,y+h,r); yx.arcTo(x+w,y+h,x,y+h,r);
+    yx.arcTo(x,y+h,x,y,r); yx.arcTo(x,y,x+w,y,r); yx.closePath();}
+
+  function hexA(hex,a){const c=hex.replace('#',''); const n=parseInt(c,16);
+    const r=(n>>16)&255,g=(n>>8)&255,b=n&255; return `rgba(${r},${g},${b},${a})`;}
+
+  // ---------- main sim tick (setInterval — survives backgrounding) ----------
+  let spawnTimer=0;
+  function tick(){
+    frame++;
+    stepMarket();
+
+    // surge logic
+    if(surgeActive>0){surgeActive--;}
+    else { surgeCooldown--; if(running && surgeCooldown<=0 && vol>0.7 && Math.random()<0.04){
+      surgeActive=70; surgeCooldown=200; surgeBadge.classList.remove('on'); void surgeBadge.offsetWidth; surgeBadge.classList.add('on');
+    }}
+
+    if(running){
+      // spawn cadence tied to volatility (hot tape = more parcels)
+      const rate = 0.012 + (vol/1.6)*0.05 + (surgeActive>0?0.10:0);
+      spawnTimer+=rate;
+      while(spawnTimer>=1){ spawnTimer-=1; if(parcels.filter(p=>!p.sorting).length<11) spawnParcel(); }
+
+      const spd=beltSpd();
+      for(let i=parcels.length-1;i>=0;i--){
+        const p=parcels[i];
+        if(p.sorting){ if(p.sortT>=1) parcels.splice(i,1); continue; }
+        p.x-=spd;
+        if(p.x< -10){ parcels.splice(i,1); overflow(); }
+      }
+      // accelerating jam pressure: if belt is crowded near the front, periodic micro-strike avoided;
+      // payout HUD live update
+      if(frame%4===0) updateHUD();
+    }
+
+    // effects decay
+    for(let i=bursts.length-1;i>=0;i--){const b=bursts[i]; b.x+=b.vx; b.y+=b.vy; b.vy+=0.12; b.life-=0.03;
+      if(b.life<=0) bursts.splice(i,1);}
+    for(let i=shakes.length-1;i>=0;i--){shakes[i].t+=0.08; if(shakes[i].t>=1) shakes.splice(i,1);}
+  }
+
+  // ---------- render loop (rAF for smoothness; sim is on interval) ----------
+  function render(){ drawChart(); drawYard(); requestAnimationFrame(render); }
+
+  // ---------- input ----------
+  const keyMap={'a':0,'arrowleft':0,'s':1,'arrowdown':1,'d':2,'arrowright':2};
+  window.addEventListener('keydown',e=>{
+    const k=e.key.toLowerCase();
+    if(keyMap[k]!==undefined){ e.preventDefault(); routeFront(keyMap[k]); }
+    if(k===' '||k==='enter'){ if(!running) startRound(); }
+  });
+  chuteBtns.forEach(b=> b.addEventListener('click',()=> routeFront(+b.dataset.c)));
+  startBtn.addEventListener('click', startRound);
+  lockBtn.addEventListener('click', ()=>{ if(running) endRound(false); });
+
+  // ---------- boot: ALIVE ON LOAD ----------
+  resize();
+  // warm up market so chart + glyphs are populated from frame 1
+  for(let i=0;i<MAXH;i++) stepMarket();
+  // attract-mode parcels drifting before start (so hero is alive)
+  for(let i=0;i<6;i++){ const p={x: YD.w*0.2 + i*150, lane:BELT_Y_FRAC, cls:classifyAt(), glyph:glyphSnap(), wobble:i, scale:1}; parcels.push(p); }
+  updateHUD();
+
+  // attract auto-advance of parcels until player starts
+  setInterval(tick, 1000/30);   // sim @30fps, interval-based (background-safe)
+  requestAnimationFrame(render);
+
+  // in attract mode (not running) keep belt rolling, auto-demo sorts, recycle parcels
+  let demoTimer=0;
+  setInterval(()=>{
+    if(!running){
+      const spd=beltSpd();
+      for(let i=parcels.length-1;i>=0;i--){
+        const p=parcels[i];
+        if(p.sorting){ p.sortT+=0.06; if(p.sortT>=1) parcels.splice(i,1); continue; }
+        p.x-=spd;
+        // auto-demo: when a parcel reaches the sort line, route it correctly with a burst
+        if(p.x<70){ p.sorting=true; p.sortChoice=p.cls; p.sortT=0; p.ok=true;
+          spawnBurst(p.x, YD.h*BELT_Y_FRAC, p.cls, true); }
+      }
+      // keep the belt populated
+      demoTimer++;
+      if(demoTimer>22 && parcels.filter(p=>!p.sorting).length<6){
+        demoTimer=0; parcels.push({x:YD.w+30, lane:BELT_Y_FRAC, cls:classifyAt(), glyph:glyphSnap(), wobble:Math.random()*6.28, scale:0});
+      }
+    }
+  }, 1000/30);
+})();
+</script>
+</body>
+</html>

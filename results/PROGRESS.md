@@ -18,3 +18,4 @@ One line per design: name — core mechanic — STATUS
 - DEEPLINE — cast a hook to a price-depth; strike on touch, then win a two-force line-tension reel-fight before snap — DUPLICATE
 - SLUICE — route price-velocity-as-fluid through an authored branching pipe network into multiplier basins; balance burst vs dry — KEEPER
 - WAKELINE — pre-trace where price will go in a lead zone; paid by the fidelity of your anticipatory line vs the actual path — KEEPER
+- FLUXYARD — classify streaming price-regime parcels into BULL/CHOP/BEAR chutes; paid by correct-sort throughput before overflow — KEEPER
