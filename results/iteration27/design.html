@@ -470,6 +470,8 @@
     else if(phase==='SETTLE'){
       if(phaseClock>2300){
         hideBanner(); round++; charges=[];
+        // reset per-round fired/cascade state so the HUD never shows stale "7 / 0"
+        firedOrder=[]; firedCount=0; largestArmed=0; largestFired=0; settledMult=0; overload=false;
         phase='SEED'; phaseClock=0;
         if(!autoMode && manual){ /* wait for user */ }
       }
@@ -709,19 +711,23 @@
   document.getElementById('btnPlay').addEventListener('click',()=>{
     autoMode=true; manual=false; hideBanner();
     phase='SEED'; phaseClock=0; charges=[];
+    restoreSeedBtn();
   });
-  document.getElementById('btnSeed').addEventListener('click',()=>{
+  // single handler toggles between "enter seed mode" and "arm" — avoids stacking
+  // listeners (the previous addEventListener+onclick combo double-fired and wiped charges).
+  let seedBtnMode='seed';
+  const seedBtn=document.getElementById('btnSeed');
+  function enterSeedMode(){
     autoMode=false; manual=true; hideBanner();
     phase='SEED'; phaseClock=0; charges=[];
     flashHint('Click the chart to drop '+CHARGE_N+' charges, then ARM →');
-    // swap the ghost button to ARM
-    const b=document.getElementById('btnSeed'); b.textContent='⚡ ARM';
-    b.onclick=()=>{ if(charges.length>=2){ manual=false; beginArm(); b.textContent='✎ Seed Yourself';
-      b.onclick=null; document.getElementById('btnSeed').addEventListener('click',()=>{}); restoreSeedBtn(); } };
-  });
-  function restoreSeedBtn(){
-    // rebind to original after a settle
+    seedBtn.textContent='⚡ ARM'; seedBtnMode='arm';
   }
+  function restoreSeedBtn(){ seedBtn.textContent='✎ Seed Yourself'; seedBtnMode='seed'; }
+  seedBtn.addEventListener('click',()=>{
+    if(seedBtnMode==='seed'){ enterSeedMode(); }
+    else if(charges.length>=2){ manual=false; beginArm(); restoreSeedBtn(); }
+  });
   let hintEl=null;
   function flashHint(txt){
     if(!hintEl){ hintEl=document.createElement('div');
