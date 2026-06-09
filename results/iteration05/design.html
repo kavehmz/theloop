@@ -348,6 +348,7 @@
     side:1,                  // +1 bull, -1 bear
     stake:10,
     flag:0.20,               // displacement 0..1
+    knot0:0,                 // knot position captured when flag placed (displacement baseline)
     balance:1000,
     streak:0,
     timer:0, timerMax:20,    // seconds
@@ -418,6 +419,7 @@
     if(G.balance < G.stake){showToast('NO FUNDS','lower your stake','#ff4d8d');return;}
     G.balance-=G.stake;
     G.phase='live'; G.timer=G.timerMax; G.progress=0;
+    G.knot0=knot;            // displacement is measured from here, toward the player's side
     el.phase.textContent='LIVE';
     syncControls();
   };
@@ -468,7 +470,14 @@
   function ropeY(){ return H*0.5; }
   function ropeMargin(){ return 150; }
   function knotScreenX(){ const half=(W/2-ropeMargin()); return W/2 + knot*half; }
-  function flagScreenX(){ const half=(W/2-ropeMargin()); return W/2 + G.side*G.flag*half; }
+  function flagScreenX(){
+    const half=(W/2-ropeMargin());
+    // baseline = knot's spot when live (displacement target), else center for preview
+    const base = (G.phase==='live') ? G.knot0 : 0;
+    let pos = base + G.side*G.flag;          // target knot position to reach the flag
+    pos = Math.max(-1, Math.min(1, pos));    // clamp onto the rope
+    return W/2 + pos*half;
+  }
 
   // ===== render =====
   let acc=0, last=performance.now();
@@ -485,10 +494,10 @@
     // timer
     if(G.phase==='live'){
       G.timer-=dt;
-      // progress = how far knot has traveled toward flag, on player's side
-      const onSide = (G.side>0? Math.max(0,knot): Math.max(0,-knot));
-      G.progress = Math.max(0, Math.min(1, onSide / G.flag));
-      if(onSide >= G.flag){ settle('reach'); }
+      // progress = how far the knot has TRAVELLED from its placement spot toward the player's side
+      const travelled = Math.max(0, (knot - G.knot0) * G.side);
+      G.progress = Math.max(0, Math.min(1, travelled / G.flag));
+      if(travelled >= G.flag){ settle('reach'); }
       else if(G.timer<=0){ settle('expire'); }
     }
 
