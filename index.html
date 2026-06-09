@@ -58,20 +58,16 @@
     box-shadow:0 40px 90px -40px rgba(0,0,0,1), 0 0 50px -20px rgba(39,224,168,.4)}
   .card.keeper{border-color:rgba(39,224,168,.30)}
 
-  /* preview: a 1280x800 iframe scaled to fit the card's fluid width */
   .preview{position:relative; width:100%; aspect-ratio:1280 / 800; overflow:hidden; background:#03060c}
   .preview iframe{
-    position:absolute; top:0; left:0;
-    width:1280px; height:800px; border:0;
-    transform-origin:top left;
-    /* card fluid width ÷ 1280; recalculated by the tiny script below for crispness */
+    position:absolute; top:0; left:0; width:1280px; height:800px; border:0; transform-origin:top left;
   }
   .preview .veil{position:absolute; inset:0; pointer-events:none;
     background:linear-gradient(180deg,transparent 70%, rgba(5,7,13,.45));}
 
   .meta{display:flex; align-items:center; justify-content:space-between; gap:14px; padding:16px 20px 18px}
   .meta .nm{font-size:19px; font-weight:800; letter-spacing:.01em}
-  .meta .mech{margin:4px 0 0; font-size:12.5px; color:var(--muted); line-height:1.5; max-width:90%}
+  .meta .mech{margin:4px 0 0; font-size:12.5px; color:var(--muted); line-height:1.5; max-width:92%}
   .badge{
     flex:none; font-size:11px; font-weight:800; letter-spacing:.14em; text-transform:uppercase;
     padding:7px 13px; border-radius:999px; white-space:nowrap;
@@ -93,13 +89,12 @@
     <div class="brand">
       <p class="eyebrow">Deriv Game Lab · The Loop</p>
       <h1>Live-market game prototypes</h1>
-      <p>Each card is a self-contained, runnable prototype — a trading/fintech game driven by a live market chart and a real bet/payout. Kept designs cleared every gate: stunning visual, addictive loop, original vs. the world, and a distinct core mechanic.</p>
+      <p>Each card is a self-contained, runnable prototype — a trading/fintech game driven by a live market chart and a real bet/payout. Kept designs cleared every gate: stunning visual, addictive loop, original vs. the world, and a core mechanic distinct from every other keeper.</p>
     </div>
-    <div class="count"><b>3 / 3</b><span>Keepers</span></div>
+    <div class="count"><b>6 / 12</b><span>Keepers</span></div>
   </header>
 
   <main class="grid" id="grid">
-    <!-- THREADLINE -->
     <article class="card keeper">
       <div class="preview">
         <iframe src="results/iteration01/design.html" scrolling="no" loading="lazy" title="THREADLINE"></iframe>
@@ -108,13 +103,11 @@
       <div class="meta">
         <div>
           <div class="nm">THREADLINE <a class="open" href="results/iteration01/design.html" target="_blank" rel="noopener">open ↗</a></div>
-          <p class="mech">Draw a freehand, variable-width corridor into the future — win if the live price stays threaded inside it. Thinner ribbon = bigger multiplier.</p>
+          <p class="mech">draw a freehand containment corridor the live price must stay inside</p>
         </div>
         <span class="badge keeper">Keeper</span>
       </div>
     </article>
-
-    <!-- REACTOR -->
     <article class="card keeper">
       <div class="preview">
         <iframe src="results/iteration02/design.html" scrolling="no" loading="lazy" title="REACTOR"></iframe>
@@ -123,13 +116,11 @@
       <div class="meta">
         <div>
           <div class="nm">REACTOR <a class="open" href="results/iteration02/design.html" target="_blank" rel="noopener">open ↗</a></div>
-          <p class="mech">Harvest the market's volatility as plasma energy while a breach meter climbs — eject to bank your multiplier before the containment ring ruptures.</p>
+          <p class="mech">harvest market volatility as energy vs a rising breach meter; eject to bank</p>
         </div>
         <span class="badge keeper">Keeper</span>
       </div>
     </article>
-
-    <!-- RIPTIDE -->
     <article class="card keeper">
       <div class="preview">
         <iframe src="results/iteration03/design.html" scrolling="no" loading="lazy" title="RIPTIDE"></iframe>
@@ -138,23 +129,60 @@
       <div class="meta">
         <div>
           <div class="nm">RIPTIDE <a class="open" href="results/iteration03/design.html" target="_blank" rel="noopener">open ↗</a></div>
-          <p class="mech">The live price line paints claimable price-bands in your colour — bet on holding the largest share of territory when the 30-second tide locks.</p>
+          <p class="mech">live price paints claimable price-bands; hold the largest territory at lock</p>
+        </div>
+        <span class="badge keeper">Keeper</span>
+      </div>
+    </article>
+    <article class="card keeper">
+      <div class="preview">
+        <iframe src="results/iteration04/design.html" scrolling="no" loading="lazy" title="SLINGSHOT VEGA"></iframe>
+        <div class="veil"></div>
+      </div>
+      <div class="meta">
+        <div>
+          <div class="nm">SLINGSHOT VEGA <a class="open" href="results/iteration04/design.html" target="_blank" rel="noopener">open ↗</a></div>
+          <p class="mech">charge a slingshot from price momentum; ballistic arc bent by live drift; bet the distance gate reached</p>
+        </div>
+        <span class="badge keeper">Keeper</span>
+      </div>
+    </article>
+    <article class="card keeper">
+      <div class="preview">
+        <iframe src="results/iteration05/design.html" scrolling="no" loading="lazy" title="DEADLOCK"></iframe>
+        <div class="veil"></div>
+      </div>
+      <div class="meta">
+        <div>
+          <div class="nm">DEADLOCK <a class="open" href="results/iteration05/design.html" target="_blank" rel="noopener">open ↗</a></div>
+          <p class="mech">contested knot = integral of bull/bear momentum on a rope; stake displacement magnitude with PUSH/LOCK levers</p>
+        </div>
+        <span class="badge keeper">Keeper</span>
+      </div>
+    </article>
+    <article class="card keeper">
+      <div class="preview">
+        <iframe src="results/iteration06/design.html" scrolling="no" loading="lazy" title="SLIPSTREAM"></iframe>
+        <div class="veil"></div>
+      </div>
+      <div class="meta">
+        <div>
+          <div class="nm">SLIPSTREAM <a class="open" href="results/iteration06/design.html" target="_blank" rel="noopener">open ↗</a></div>
+          <p class="mech">pilot a glider through a canyon of live volatility bands, hugging the price rail for multiplier</p>
         </div>
         <span class="badge keeper">Keeper</span>
       </div>
     </article>
   </main>
 
-  <footer>The Loop · batch 1 · 3 workers → 3 keepers. Previews are the live prototypes, scaled to fit; click “open ↗” for the full-bleed game.</footer>
+  <footer>The Loop · 6 distinct keepers toward 12 · 6 designs produced. Previews are the live prototypes, scaled to fit; click “open ↗” for the full-bleed game.</footer>
 
 <script>
-  // Scale each 1280x800 iframe to exactly its card's current width, kept crisp on resize.
   function fit(){
     document.querySelectorAll('.preview').forEach(function(p){
       var f = p.querySelector('iframe');
       if(!f) return;
-      var s = p.clientWidth / 1280;
-      f.style.transform = 'scale(' + s + ')';
+      f.style.transform = 'scale(' + (p.clientWidth/1280) + ')';
     });
   }
   window.addEventListener('resize', fit);
