@@ -22,3 +22,4 @@ One line per design: name — core mechanic — STATUS
 - OVERTONE — tune FREQ/PHASE/GAIN to phase-lock onto the market wave; a Resonance-Q compounds while locked; release to bank — KEEPER
 - STOWLINE — pack market-forged shaped cargo into a vault for coverage density; bust on spill — KEEPER
 - ASSAY — set mixing ratios across live price-facets to match a drifting target compound; paid by closeness at lock — KEEPER
+- EMBERWATCH — triage one stoke budget across many live-driven decaying embers; paid by count alive x survival tier — BELOW_BAR

@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>EMBERWATCH — keep them all glowing</title>
+<style>
+  :root{
+    --bg:#06080d; --bg2:#0a0e16; --ink:#e8eef7; --dim:#7f8aa3;
+    --hot:#ff7a2c; --hotcore:#ffd27a; --cool:#2f4a73; --blue:#4aa8ff;
+    --gold:#ffcf5c; --dead:#3a3f4d; --ok:#37e0a6; --bad:#ff5b6e;
+    --line:#16202f;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:radial-gradient(1200px 700px at 50% -10%, #101626 0%, var(--bg) 60%);
+    color:var(--ink); font-family:"Segoe UI",Inter,system-ui,Arial,sans-serif;
+    overflow-x:hidden; -webkit-font-smoothing:antialiased;
+  }
+  /* ===== HERO (first viewport, 1280x800, no scroll) ===== */
+  .hero{
+    position:relative; width:100%; height:100vh; min-height:740px;
+    display:flex; flex-direction:column; overflow:hidden;
+  }
+  .topbar{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 26px 8px; z-index:6;
+  }
+  .brand{display:flex; align-items:baseline; gap:12px}
+  .brand h1{
+    font-size:24px; letter-spacing:.32em; font-weight:800;
+    background:linear-gradient(90deg,#ffd27a,#ff7a2c 60%,#ff4d7a);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+  }
+  .brand .tag{font-size:11px; letter-spacing:.22em; color:var(--dim); text-transform:uppercase}
+  .stats{display:flex; gap:26px; align-items:center}
+  .stat{text-align:right}
+  .stat .k{font-size:10px; letter-spacing:.18em; color:var(--dim); text-transform:uppercase}
+  .stat .v{font-size:20px; font-weight:700; font-variant-numeric:tabular-nums}
+  .v.pot{color:var(--gold)}
+  .v.tier{color:var(--ok)}
+  .v.alive{color:var(--hotcore)}
+
+  /* stage */
+  .stage{position:relative; flex:1; margin:0 18px}
+  #chart{position:absolute; inset:0; width:100%; height:100%}
+  .emberrow{
+    position:absolute; left:0; right:0; top:8px; height:62%;
+    display:flex; justify-content:space-around; align-items:flex-start;
+    pointer-events:none; z-index:4;
+  }
+  .ember{
+    position:relative; width:15%; max-width:185px; height:100%;
+    display:flex; flex-direction:column; align-items:center;
+    pointer-events:auto; cursor:pointer; user-select:none;
+  }
+  .orbwrap{position:relative; flex:1; width:100%;
+    display:flex; align-items:center; justify-content:center;}
+  .orb{
+    position:relative; width:84px; height:84px; border-radius:50%;
+    transition:transform .12s ease;
+  }
+  .ember:hover .orb{transform:scale(1.06)}
+  .ember:active .orb{transform:scale(.94)}
+  .label{margin-top:2px; text-align:center}
+  .label .sym{font-size:11px; letter-spacing:.12em; font-weight:700; color:#cdd7ea}
+  .label .pct{font-size:12px; font-variant-numeric:tabular-nums; color:var(--dim)}
+  .heatbar{
+    width:62%; height:5px; border-radius:4px; margin-top:5px;
+    background:#141a26; overflow:hidden;
+  }
+  .heatbar > i{display:block; height:100%; width:100%;
+    background:linear-gradient(90deg,#ff4d2c,#ffd27a); transition:width .12s linear}
+
+  /* bottom control deck */
+  .deck{
+    position:relative; z-index:6; padding:6px 26px 16px;
+    display:flex; align-items:center; gap:22px;
+  }
+  .bellows{flex:1; max-width:430px}
+  .bellows .lab{font-size:10px; letter-spacing:.2em; color:var(--dim); text-transform:uppercase; margin-bottom:6px; display:flex; justify-content:space-between}
+  .bgauge{height:14px; border-radius:9px; background:#0f1622; overflow:hidden; position:relative;
+    border:1px solid #1b2636}
+  .bgauge > i{display:block; height:100%; width:0%;
+    background:linear-gradient(90deg,#2f6dff,#5fd0ff,#a8eaff);
+    box-shadow:0 0 14px #4aa8ff; transition:width .05s linear}
+  .bgauge.ready > i{background:linear-gradient(90deg,#37e0a6,#9affd9); box-shadow:0 0 16px #37e0a6}
+  .hint{font-size:11px; color:var(--dim); margin-top:6px}
+  .hint b{color:#cdd7ea}
+  .seal{
+    margin-left:auto; border:0; cursor:pointer; color:#1a1205; font-weight:800;
+    letter-spacing:.14em; font-size:14px; padding:14px 26px; border-radius:12px;
+    background:linear-gradient(180deg,#ffe39a,#ffb347); box-shadow:0 0 28px rgba(255,179,71,.5);
+    transition:transform .1s ease, filter .15s;
+  }
+  .seal:hover{filter:brightness(1.07)} .seal:active{transform:translateY(2px)}
+  .seal.locked{filter:grayscale(.8) brightness(.7); cursor:default}
+  .replay{
+    border:1px solid #2a3954; background:#0e1622; color:#cdd7ea; cursor:pointer;
+    font-weight:700; letter-spacing:.1em; font-size:13px; padding:14px 22px; border-radius:12px;
+  }
+  .replay:hover{border-color:#4aa8ff}
+
+  /* tier ladder */
+  .ladder{position:absolute; right:24px; top:78px; z-index:5; text-align:right;
+    display:flex; flex-direction:column; gap:6px; pointer-events:none}
+  .rung{font-size:11px; color:#48526a; font-variant-numeric:tabular-nums; transition:color .3s}
+  .rung.passed{color:#37e0a6}
+  .rung.cur{color:#ffd27a; font-weight:800; text-shadow:0 0 10px rgba(255,210,122,.6)}
+
+  /* center banner */
+  .banner{
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    z-index:8; pointer-events:none; opacity:0; transition:opacity .4s;
+  }
+  .banner.show{opacity:1}
+  .banner .card{
+    background:rgba(8,11,18,.82); border:1px solid #243149; border-radius:18px;
+    padding:26px 40px; text-align:center; backdrop-filter:blur(6px);
+    box-shadow:0 18px 60px rgba(0,0,0,.6);
+  }
+  .banner .big{font-size:40px; font-weight:800; letter-spacing:.04em}
+  .banner .sub{font-size:14px; color:var(--dim); margin-top:6px; letter-spacing:.06em}
+  .banner .amt{font-size:30px; font-weight:800; color:var(--gold); margin-top:10px; font-variant-numeric:tabular-nums}
+  .win .big{color:var(--gold)} .lose .big{color:var(--bad)}
+
+  /* flash overlay for tier-up */
+  .flash{position:absolute; inset:0; z-index:7; pointer-events:none; opacity:0;
+    background:radial-gradient(800px 400px at 50% 60%, rgba(255,207,92,.22), transparent 70%);}
+
+  /* below-the-fold explainer */
+  .below{max-width:1080px; margin:40px auto 70px; padding:0 26px}
+  .below h2{font-size:13px; letter-spacing:.24em; color:var(--hotcore); text-transform:uppercase; margin-bottom:14px}
+  .grid{display:grid; grid-template-columns:repeat(3,1fr); gap:18px}
+  .box{background:linear-gradient(180deg,#0c121d,#0a0e16); border:1px solid var(--line); border-radius:14px; padding:18px}
+  .box h3{font-size:13px; color:#cfe; letter-spacing:.06em; margin-bottom:8px}
+  .box p{font-size:13px; line-height:1.6; color:#9aa6bd}
+  .below .core{margin-top:26px; font-size:13px; line-height:1.7; color:#9aa6bd; border-left:2px solid var(--hot); padding-left:16px}
+  .below .core b{color:#e8eef7}
+  .foot{margin-top:30px; font-size:11px; color:#4a5468; letter-spacing:.08em}
+</style>
+</head>
+<body>
+<section class="hero">
+  <div class="topbar">
+    <div class="brand">
+      <h1>EMBERWATCH</h1>
+      <span class="tag">keep them all glowing</span>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="k">Alive</div><div class="v alive" id="sAlive">6 / 6</div></div>
+      <div class="stat"><div class="k">Survival</div><div class="v tier" id="sTime">0:00</div></div>
+      <div class="stat"><div class="k">Hearth Pot</div><div class="v pot" id="sPot">$0.00</div></div>
+    </div>
+  </div>
+
+  <div class="stage">
+    <canvas id="chart"></canvas>
+    <div class="ladder" id="ladder"></div>
+    <div class="emberrow" id="emberrow"></div>
+    <div class="flash" id="flash"></div>
+    <div class="banner" id="banner"><div class="card">
+      <div class="big" id="bBig">—</div>
+      <div class="sub" id="bSub"></div>
+      <div class="amt" id="bAmt"></div>
+    </div></div>
+  </div>
+
+  <div class="deck">
+    <div class="bellows">
+      <div class="lab"><span>Bellows charge</span><span id="bellowsState">READY</span></div>
+      <div class="bgauge ready" id="bgauge"><i id="bgaugeFill"></i></div>
+      <div class="hint">Tap the <b>dimmest coal</b> to breathe life into it. One breath at a time — every coal keeps cooling while you choose.</div>
+    </div>
+    <button class="seal" id="sealBtn">SEAL THE HEARTH</button>
+    <button class="replay" id="replayBtn" style="display:none">NEW NIGHT</button>
+  </div>
+</section>
+
+<section class="below">
+  <h2>How Emberwatch works</h2>
+  <div class="grid">
+    <div class="box"><h3>Six markets, six clocks</h3><p>Each coal is bound to a different Deriv synthetic index. Its cooling rate is driven live by that market's volatility — a violent index burns down fast, a calm one barely fades. The six clocks constantly diverge.</p></div>
+    <div class="box"><h3>One pair of bellows</h3><p>You hold a single breath that recharges over a couple of seconds. You can never save them all at once — you triage, reviving whichever coal is closest to ashing out, always a beat behind.</p></div>
+    <div class="box"><h3>Bank, then seal</h3><p>Every second alive, the summed heat trickles into your hearth pot, faster as you cross survival tiers. Seal the hearth to bank the live pot — or let the first coal die and keep only your locked tier.</p></div>
+  </div>
+  <div class="core">
+    <b>Skin-free core:</b> your bet is <b>how to divide one scarce, recharging intervention budget across N independent objects that each decay toward death on their own live-signal-driven clock</b> — settled by <b>how many are still alive when the FIRST one dies × the survival-time tier the whole set reached.</b> Parallel sustain under a shared budget — distinct from any single-object trading loop.
+  </div>
+  <div class="foot">Prototype — simulated synthetic-index ticks. Built for the Deriv gallery at 1280×800.</div>
+</section>
+
+<script>
+(function(){
+"use strict";
+// ---------- markets (each a different synthetic-index volatility signature) ----------
+const SYMBOLS = [
+  {sym:"VOL 10",  vol:0.10, hue:28,  trend:0.00},
+  {sym:"VOL 25",  vol:0.22, hue:14,  trend:0.00},
+  {sym:"STEP",    vol:0.16, hue:42,  trend:0.00},
+  {sym:"VOL 50",  vol:0.34, hue:8,   trend:0.00},
+  {sym:"VOL 75",  vol:0.52, hue:350, trend:0.00},
+  {sym:"VOL 100", vol:0.78, hue:340, trend:0.00},
+];
+const N = SYMBOLS.length;
+const TIERS = [
+  {t:0,   m:0.3,  label:"START"},
+  {t:10,  m:1.4,  label:"0:10"},
+  {t:25,  m:2.0,  label:"0:25"},
+  {t:45,  m:3.2,  label:"0:45"},
+  {t:70,  m:5.0,  label:"1:10"},
+  {t:100, m:8.0,  label:"1:40"},
+  {t:140, m:13.0, label:"2:20"},
+];
+const STAKE = 10.0;
+const BELLOWS_RECHARGE = 2.2;   // seconds to refill
+const STOKE_AMOUNT = 46;        // base heat restored
+
+// ---------- state ----------
+let embers, prices, t0, lastT, running, bellows, pot, lockedTierIdx, allSixSeconds;
+let bankAccum; // smoothing
+let chart = document.getElementById("chart");
+let ctx = chart.getContext("2d");
+let DPR = Math.min(window.devicePixelRatio||1, 2);
+let priceHist = [];
+
+function resize(){
+  const r = chart.getBoundingClientRect();
+  chart.width = Math.max(2, r.width*DPR);
+  chart.height = Math.max(2, r.height*DPR);
+}
+window.addEventListener("resize", ()=>{resize();});
+
+function reset(){
+  embers = SYMBOLS.map((s,i)=>({
+    ...s, heat:100, alive:true, idx:i,
+    px:100 + Math.random()*40,
+    pulse:Math.random()*6.28,
+    stokeFlash:0, dieAt:0, sparks:[],
+  }));
+  priceHist = embers.map(()=>({arr:[], }));
+  t0 = performance.now()/1000; lastT = t0;
+  running = true; bellows = 1.0; // 0..1, 1=ready
+  pot = 0; bankAccum = 0; lockedTierIdx = 0; allSixSeconds = 0;
+  document.getElementById("banner").classList.remove("show","win","lose");
+  document.getElementById("replayBtn").style.display="none";
+  document.getElementById("sealBtn").classList.remove("locked");
+  buildEmberDom();
+  buildLadder();
+}
+
+// ---------- ember DOM ----------
+function buildEmberDom(){
+  const row = document.getElementById("emberrow");
+  row.innerHTML="";
+  embers.forEach((e,i)=>{
+    const el = document.createElement("div");
+    el.className="ember"; el.dataset.i=i;
+    el.innerHTML = `
+      <div class="orbwrap"><canvas class="orb" width="120" height="120"></canvas></div>
+      <div class="label"><div class="sym">${e.sym}</div><div class="pct" data-pct>100%</div></div>
+      <div class="heatbar"><i data-heat></i></div>`;
+    el.addEventListener("pointerdown", ev=>{ev.preventDefault(); stoke(i);});
+    row.appendChild(el);
+    e.dom = el;
+    e.orbCtx = el.querySelector(".orb").getContext("2d");
+    e.pctEl = el.querySelector("[data-pct]");
+    e.heatEl = el.querySelector("[data-heat]");
+  });
+}
+
+function buildLadder(){
+  const l = document.getElementById("ladder");
+  l.innerHTML = TIERS.slice(1).map((tr,i)=>
+    `<div class="rung" data-rung="${i+1}">${tr.label} &nbsp;&times;${tr.m.toFixed(1)}</div>`).join("");
+}
+
+// ---------- stoke (the single scarce intervention) ----------
+function stoke(i){
+  if(!running) return;
+  const e = embers[i];
+  if(!e.alive) return;
+  if(bellows < 1.0) { // not ready — small shake feedback
+    e.dom.animate([{transform:"translateX(0)"},{transform:"translateX(-3px)"},{transform:"translateX(3px)"},{transform:"translateX(0)"}],{duration:160});
+    return;
+  }
+  // stoke efficiency higher when that market is momentarily calm
+  const calm = 1 - Math.min(1, e.lastMove*4.0);
+  const gain = STOKE_AMOUNT * (0.7 + 0.6*calm);
+  e.heat = Math.min(100, e.heat + gain);
+  e.stokeFlash = 1.0;
+  // spark burst
+  for(let k=0;k<22;k++){
+    const a = Math.random()*6.28, sp = 1+Math.random()*3.2;
+    e.sparks.push({x:0,y:0,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-1.2,life:1});
+  }
+  bellows = 0; // spend it
+}
+
+// ---------- main sim tick (setInterval so it survives backgrounding) ----------
+function simStep(){
+  if(!running) return;
+  const now = performance.now()/1000;
+  let dt = now - lastT; lastT = now;
+  if(dt>0.25) dt=0.25; // clamp after tab sleep
+  const elapsed = now - t0;
+
+  // recharge bellows
+  bellows = Math.min(1, bellows + dt/BELLOWS_RECHARGE);
+
+  let aliveCount=0, totalHeat=0, firstDeath=false;
+
+  embers.forEach(e=>{
+    // --- live market tick (random-walk per symbol vol) ---
+    const shock = (Math.random()-0.5)*2;
+    const move = shock * e.vol;
+    e.px += move*0.9 + (e.px<70? .4 : e.px>150? -.4 : 0);
+    e.lastMove = Math.abs(move);
+    let h = priceHist[e.idx].arr; h.push(e.px); if(h.length>240) h.shift();
+
+    if(!e.alive){ updateOrb(e,dt,elapsed); return; }
+
+    // --- cooling driven by this market's behaviour ---
+    const baseCool = 3.4;                      // per second
+    const volCool  = 11.0 * e.vol;             // volatile = faster
+    let cool = (baseCool + volCool) * dt;
+    // shock taps: a big adverse tick knocks off a chunk
+    if(e.lastMove > e.vol*1.35) cool += e.lastMove*22;
+    e.heat -= cool;
+
+    if(e.heat<=0){
+      e.heat=0; e.alive=false; e.dieAt=elapsed; firstDeath=true;
+      // ash puff
+      for(let k=0;k<34;k++){
+        const a=Math.random()*6.28, sp=Math.random()*1.6;
+        e.sparks.push({x:0,y:0,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-.4,life:1,ash:true});
+      }
+    } else { aliveCount++; totalHeat += e.heat; }
+    e.stokeFlash = Math.max(0, e.stokeFlash - dt*2.4);
+    updateOrb(e,dt,elapsed);
+  });
+
+  // --- tier progression ---
+  let ti=0; for(let k=0;k<TIERS.length;k++){ if(elapsed>=TIERS[k].t) ti=k; }
+  if(ti>lockedTierIdx){ lockedTierIdx=ti; tierFlash(); }
+
+  // --- banking: summed heat -> pot, scaled by tier & all-six bonus ---
+  const allSix = aliveCount===N;
+  if(allSix) allSixSeconds += dt;
+  const allSixBonus = allSix ? (1 + Math.min(1.2, allSixSeconds*0.06)) : 1;
+  const tierMult = Math.max(1, TIERS[lockedTierIdx].m);
+  // pot grows with live heat fraction across the board
+  const heatFrac = totalHeat / (100*N);
+  bankAccum += dt * (STAKE*0.16) * heatFrac * tierMult * allSixBonus;
+  pot = bankAccum;
+
+  // --- end condition: first ember dark ---
+  if(firstDeath){ endRound(false, aliveCount); return; }
+
+  drawChart(elapsed);
+  updateHud(aliveCount, elapsed);
+}
+
+// ---------- per-orb canvas render ----------
+function updateOrb(e,dt,elapsed){
+  const c = e.orbCtx; c.clearRect(0,0,120,120);
+  const cx=60, cy=64;
+  const hf = e.heat/100;
+  e.pulse += dt*(2.4+hf*3);
+  const pulse = e.alive ? (1 + Math.sin(e.pulse)*0.05*hf) : 1;
+
+  // sparks
+  e.sparks = e.sparks.filter(s=>s.life>0);
+  e.sparks.forEach(s=>{
+    s.x+=s.vx; s.y+=s.vy; s.vy+=0.10; s.life-=dt*1.4;
+    c.globalAlpha=Math.max(0,s.life);
+    c.fillStyle = s.ash? "rgba(120,120,130,.9)" : `hsl(${30+30*Math.random()},100%,${60}%)`;
+    c.beginPath(); c.arc(cx+s.x, cy+s.y, s.ash?2.2:1.6, 0, 6.28); c.fill();
+  });
+  c.globalAlpha=1;
+
+  if(!e.alive){
+    // ash husk
+    c.fillStyle="rgba(40,42,52,.9)";
+    c.beginPath(); c.arc(cx,cy,26,0,6.28); c.fill();
+    c.strokeStyle="rgba(90,90,100,.5)"; c.lineWidth=2;
+    c.beginPath(); c.arc(cx,cy,26,0,6.28); c.stroke();
+    return;
+  }
+
+  // heat plume (rising)
+  const plumeH = 24*hf;
+  const pg = c.createLinearGradient(cx,cy-26-plumeH,cx,cy);
+  pg.addColorStop(0,"rgba(255,180,80,0)");
+  pg.addColorStop(1,`rgba(255,150,60,${0.18*hf})`);
+  c.fillStyle=pg;
+  c.beginPath(); c.moveTo(cx-12,cy); c.quadraticCurveTo(cx, cy-26-plumeH, cx+12,cy); c.fill();
+
+  // color by heat: hot orange -> deep crimson -> grey
+  let hue = e.alive ? (18 + 22*hf) : 0;            // warmer when hot
+  let sat = 60 + 40*hf;
+  let lightCore = 55 + 30*hf;
+  const r = 30 * pulse;
+
+  // outer glow
+  const flash = e.stokeFlash;
+  const glow = c.createRadialGradient(cx,cy,2,cx,cy, r+22+flash*16);
+  glow.addColorStop(0, `hsla(${hue+10},100%,${70}%,${.55*hf+flash*.4})`);
+  glow.addColorStop(.5, `hsla(${hue},${sat}%,${50}%,${.30*hf})`);
+  glow.addColorStop(1, "hsla(20,80%,40%,0)");
+  c.fillStyle=glow; c.beginPath(); c.arc(cx,cy,r+24+flash*16,0,6.28); c.fill();
+
+  // body
+  const body = c.createRadialGradient(cx-6,cy-6,2,cx,cy,r);
+  const coreL = Math.min(92, lightCore+18+flash*20);
+  body.addColorStop(0, `hsl(${hue+22},100%,${coreL}%)`);
+  body.addColorStop(.55,`hsl(${hue},${sat}%,${lightCore}%)`);
+  body.addColorStop(1, `hsl(${hue-6},${sat}%,${Math.max(18,lightCore-30)}%)`);
+  c.fillStyle=body; c.beginPath(); c.arc(cx,cy,r,0,6.28); c.fill();
+
+  // hot core dot
+  c.fillStyle=`hsla(${hue+30},100%,92%,${.5+.5*hf})`;
+  c.beginPath(); c.arc(cx-4,cy-4, 6*hf+2,0,6.28); c.fill();
+
+  // danger ring when very low
+  if(hf<0.28){
+    c.strokeStyle=`rgba(255,70,90,${(0.28-hf)*3*(0.5+0.5*Math.sin(elapsed*9))})`;
+    c.lineWidth=3; c.beginPath(); c.arc(cx,cy,r+8,0,6.28); c.stroke();
+  }
+
+  // dom heat fields
+  e.pctEl.textContent = Math.round(e.heat)+"%";
+  e.pctEl.style.color = hf<0.28? "#ff5b6e" : "var(--dim)";
+  e.heatEl.style.width = e.heat+"%";
+}
+
+// ---------- chart (faint live ribbon of summed/representative price) ----------
+function drawChart(elapsed){
+  const w=chart.width, h=chart.height;
+  ctx.clearRect(0,0,w,h);
+  // grid
+  ctx.strokeStyle="rgba(40,55,80,.18)"; ctx.lineWidth=1;
+  for(let g=1;g<6;g++){const y=h*g/6; ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(w,y); ctx.stroke();}
+
+  // draw each market's normalized trail in its hue, full-width, lower band behind embers
+  const baseY = h*0.40, span=h*0.50;
+  embers.forEach(e=>{
+    const arr = priceHist[e.idx].arr; if(arr.length<2) return;
+    let min=Infinity,max=-Infinity; for(const v of arr){if(v<min)min=v; if(v>max)max=v;}
+    const rng=Math.max(8,max-min);
+    const n = arr.length;
+    ctx.beginPath();
+    for(let i=0;i<n;i++){
+      const x = w*i/(n-1);                       // span full width regardless of count
+      const y = baseY + span - (arr[i]-min)/rng*span;
+      i?ctx.lineTo(x,y):ctx.moveTo(x,y);
+    }
+    const a = e.alive? 0.42 : 0.10;
+    ctx.strokeStyle=`hsla(${e.hue},85%,64%,${a})`;
+    ctx.lineWidth = e.alive? 1.8*DPR : 1*DPR;
+    ctx.shadowColor=`hsla(${e.hue},90%,60%,${a})`; ctx.shadowBlur=e.alive?10:0;
+    ctx.stroke(); ctx.shadowBlur=0;
+  });
+}
+
+// ---------- HUD ----------
+function updateHud(aliveCount, elapsed){
+  document.getElementById("sAlive").textContent = aliveCount+" / "+N;
+  document.getElementById("sTime").textContent = fmtTime(elapsed);
+  document.getElementById("sPot").textContent = "$"+pot.toFixed(2);
+  // bellows
+  const bf = document.getElementById("bgaugeFill");
+  const bg = document.getElementById("bgauge");
+  bf.style.width = (bellows*100)+"%";
+  const ready = bellows>=1;
+  bg.classList.toggle("ready", ready);
+  document.getElementById("bellowsState").textContent = ready? "READY" : "CHARGING";
+  // ladder
+  document.querySelectorAll("[data-rung]").forEach(el=>{
+    const k = +el.dataset.rung;
+    el.classList.toggle("passed", k<lockedTierIdx);
+    el.classList.toggle("cur", k===lockedTierIdx);
+  });
+}
+function fmtTime(s){const m=Math.floor(s/60),x=Math.floor(s%60);return m+":"+String(x).padStart(2,"0");}
+
+let flashEl = document.getElementById("flash");
+function tierFlash(){
+  flashEl.style.opacity="1";
+  setTimeout(()=>flashEl.style.opacity="0",380);
+}
+
+// ---------- end / settle ----------
+function endRound(sealed, aliveCount){
+  running=false;
+  document.getElementById("sealBtn").classList.add("locked");
+  const banner=document.getElementById("banner");
+  let payout, big, sub;
+  if(sealed){
+    // SEAL: take the full live hearth pot
+    payout = pot;
+    big="HEARTH SEALED"; sub=`Banked with ${aliveCount}/${N} coals still glowing`;
+    banner.classList.add("win");
+  } else {
+    // FIRST COAL DARK: keep only the locked survival-tier value of the stake
+    payout = STAKE * TIERS[lockedTierIdx].m;
+    big="A COAL WENT DARK"; sub=`Night collapsed — locked tier ${TIERS[lockedTierIdx].label} (×${TIERS[lockedTierIdx].m.toFixed(1)})`;
+    banner.classList.add("lose");
+  }
+  document.getElementById("bBig").textContent=big;
+  document.getElementById("bSub").textContent=sub;
+  document.getElementById("bAmt").textContent = (sealed?"+ $":"$")+payout.toFixed(2);
+  banner.classList.add("show");
+  document.getElementById("replayBtn").style.display="";
+  // final draw of any ash puffs over a short tail
+  let tail=0; const tailTimer=setInterval(()=>{
+    embers.forEach(e=>updateOrb(e,0.04,99)); tail+=0.04;
+    if(tail>1.2) clearInterval(tailTimer);
+  },40);
+}
+
+// ---------- buttons ----------
+document.getElementById("sealBtn").addEventListener("click",()=>{
+  if(!running) return;
+  let alive=embers.filter(e=>e.alive).length;
+  endRound(true, alive);
+});
+document.getElementById("replayBtn").addEventListener("click",()=>{ reset(); });
+
+// ---------- boot ----------
+function boot(){ resize(); reset(); }
+boot();
+// setInterval keeps sim alive when tab backgrounded; visuals also redraw here
+setInterval(simStep, 1000/30);
+// a light rAF only to keep orb pulse smooth when foregrounded
+function raf(){ if(running){ /* orbs already updated in simStep */ } requestAnimationFrame(raf);} raf();
+})();
+</script>
+</body>
+</html>
