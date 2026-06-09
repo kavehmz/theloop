@@ -101,3 +101,10 @@ or edit any other file.
   background depth, and foreground action — so the first frame already looks alive and rich.
   (A recent reject had a genuinely original core — parallel triage of many decaying objects —
   but lost on a thin, empty hero composition.)
+- **ALWAYS land a real `screenshot.png` — do not ship without one.** The shared MCP Chrome
+  often denies `navigate`; that is NOT a reason to skip the screenshot. The reliable fallback
+  (proven to work) is: serve your file on a unique localhost port (`python3 -m http.server`)
+  and capture with headless Chrome — `chrome --headless=new --screenshot=<abs>.png
+  --window-size=1280,800 http://127.0.0.1:<port>/design.html`. A design judged from code alone
+  (no screenshot) risks a Visual-gate rejection it might not deserve — give the judge a real
+  1280×800 render.
