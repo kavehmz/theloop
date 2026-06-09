@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>STARFORGE — Deriv</title>
+<style>
+  :root{
+    --bg0:#05070f; --bg1:#0a0f1f; --ink:#e8f0ff; --dim:#7c89a8;
+    --cyan:#39e7ff; --cyan2:#7af9ff; --gold:#ffcf5c; --epic:#b06bff;
+    --mythic:#ff6ad5; --rare:#56d8ff; --common:#79f2c0; --bad:#ff5f6e;
+    --panel:rgba(14,20,38,.72); --panelb:rgba(120,160,255,.14);
+    --font:'Segoe UI',Roboto,system-ui,-apple-system,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    font-family:var(--font); color:var(--ink); background:var(--bg0);
+    overflow:hidden;
+  }
+  /* ===== HERO STAGE — fits 1280x800 exactly ===== */
+  #stage{
+    position:relative; width:100vw; height:100vh; min-height:100vh;
+    background:
+      radial-gradient(1200px 700px at 72% 18%, rgba(57,120,255,.10), transparent 60%),
+      radial-gradient(900px 600px at 12% 88%, rgba(176,107,255,.10), transparent 60%),
+      radial-gradient(1400px 900px at 50% 50%, var(--bg1), var(--bg0) 78%);
+    display:grid; grid-template-columns: 248px 1fr 252px;
+    grid-template-rows: 56px 1fr 84px; gap:0; overflow:hidden;
+  }
+  /* top bar */
+  #topbar{
+    grid-column:1/4; grid-row:1; display:flex; align-items:center;
+    padding:0 18px; gap:18px;
+    border-bottom:1px solid var(--panelb);
+    background:linear-gradient(180deg,rgba(10,16,32,.9),rgba(10,16,32,.3));
+    backdrop-filter:blur(6px); z-index:6;
+  }
+  .brand{display:flex; align-items:center; gap:11px; font-weight:800; letter-spacing:3px; font-size:18px}
+  .brand .mk{
+    width:24px;height:24px;position:relative;
+    filter:drop-shadow(0 0 8px var(--cyan));
+  }
+  .brand .mk svg{width:100%;height:100%}
+  .brand b{background:linear-gradient(90deg,#fff,var(--cyan2)); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent}
+  .brand span{color:var(--dim); font-weight:600; letter-spacing:2px; font-size:11px}
+  .feed{margin-left:6px; display:flex; align-items:center; gap:9px; font-size:12px; color:var(--dim)}
+  .feed .dot{width:8px;height:8px;border-radius:50%;background:var(--common);box-shadow:0 0 10px var(--common);animation:pulse 1.6s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+  .feed b{color:var(--ink); font-variant-numeric:tabular-nums; font-weight:700}
+  .topright{margin-left:auto; display:flex; align-items:center; gap:22px}
+  .stat{text-align:right}
+  .stat .k{font-size:10px; letter-spacing:1.5px; color:var(--dim); text-transform:uppercase}
+  .stat .v{font-size:17px; font-weight:800; font-variant-numeric:tabular-nums}
+  .stat .v.gold{color:var(--gold); text-shadow:0 0 12px rgba(255,207,92,.5)}
+
+  /* left panel — templates */
+  #left{
+    grid-column:1; grid-row:2/4; padding:14px 12px; z-index:5;
+    border-right:1px solid var(--panelb);
+    background:linear-gradient(180deg,rgba(9,13,26,.55),rgba(9,13,26,.2));
+    overflow:hidden; display:flex; flex-direction:column; gap:9px;
+  }
+  .ph{font-size:10px; letter-spacing:2px; color:var(--dim); text-transform:uppercase; margin-bottom:2px}
+  .tpl{
+    position:relative; border:1px solid var(--panelb); border-radius:12px;
+    padding:9px 11px; cursor:pointer; background:rgba(255,255,255,.015);
+    transition:.18s; display:flex; align-items:center; gap:10px;
+  }
+  .tpl:hover{border-color:rgba(120,160,255,.4); transform:translateY(-1px); background:rgba(255,255,255,.04)}
+  .tpl.sel{border-color:var(--c); box-shadow:0 0 0 1px var(--c), 0 6px 22px -8px var(--c); background:rgba(255,255,255,.05)}
+  .tpl .mini{width:46px;height:38px;flex:none}
+  .tpl .info{flex:1; min-width:0}
+  .tpl .nm{font-weight:800; font-size:13px; letter-spacing:.4px}
+  .tpl .nm em{font-style:normal; color:var(--c)}
+  .tpl .sub{font-size:10.5px; color:var(--dim); margin-top:1px}
+  .tpl .mult{font-size:16px; font-weight:800; color:var(--c); text-shadow:0 0 12px var(--c)}
+  .tpl .rar{position:absolute; top:7px; right:10px; font-size:9px; letter-spacing:1.5px; color:var(--c); opacity:.8}
+
+  /* right panel — almanac / conditions */
+  #right{
+    grid-column:3; grid-row:2/4; padding:14px 12px; z-index:5;
+    border-left:1px solid var(--panelb);
+    background:linear-gradient(180deg,rgba(9,13,26,.55),rgba(9,13,26,.2));
+    display:flex; flex-direction:column; gap:12px; overflow:hidden;
+  }
+  .card{border:1px solid var(--panelb); border-radius:12px; padding:11px 12px; background:rgba(255,255,255,.015)}
+  .cond .row{display:flex; justify-content:space-between; align-items:center; margin-top:8px}
+  .cond .lab{font-size:11px; color:var(--dim)}
+  .meter{height:6px; border-radius:4px; background:rgba(255,255,255,.07); overflow:hidden; margin-top:4px}
+  .meter > i{display:block; height:100%; border-radius:4px; background:linear-gradient(90deg,var(--common),var(--gold),var(--bad)); width:40%; transition:width .4s, background .4s}
+  .vstate{font-weight:800; font-size:13px}
+  .almanac .agrid{display:grid; grid-template-columns:repeat(4,1fr); gap:6px; margin-top:9px}
+  .acell{aspect-ratio:1; border-radius:9px; border:1px solid var(--panelb); display:flex; align-items:center; justify-content:center; position:relative; overflow:hidden; background:rgba(255,255,255,.02)}
+  .acell svg{width:74%;height:74%; opacity:.25}
+  .acell.got svg{opacity:1}
+  .acell.got{border-color:var(--c); box-shadow:inset 0 0 14px -4px var(--c)}
+  .acell .cnt{position:absolute; bottom:3px; right:5px; font-size:9px; font-weight:800; color:var(--c)}
+  .streakwrap{margin-top:4px}
+  .streakwrap .num{font-size:24px; font-weight:900; color:var(--gold); text-shadow:0 0 16px rgba(255,207,92,.5)}
+  .streakwrap .lbl{font-size:10px; letter-spacing:2px; color:var(--dim); text-transform:uppercase}
+
+  /* center — canvas playfield */
+  #field{grid-column:2; grid-row:2; position:relative; overflow:hidden}
+  #sky{position:absolute; inset:0; width:100%; height:100%; display:block}
+  /* floating completion / status banner */
+  #banner{
+    position:absolute; top:16px; left:50%; transform:translateX(-50%) translateY(-8px);
+    padding:8px 20px; border-radius:30px; font-weight:800; letter-spacing:1px; font-size:13px;
+    background:rgba(10,16,32,.7); border:1px solid var(--panelb); backdrop-filter:blur(8px);
+    opacity:0; transition:.3s; pointer-events:none; z-index:7; white-space:nowrap;
+  }
+  #banner.show{opacity:1; transform:translateX(-50%) translateY(0)}
+  /* live target tracker (current armed figure progress) */
+  #progress{
+    position:absolute; left:16px; bottom:14px; z-index:7;
+    display:flex; align-items:center; gap:9px; padding:7px 13px; border-radius:30px;
+    background:rgba(10,16,32,.62); border:1px solid var(--panelb); backdrop-filter:blur(8px);
+  }
+  #progress .pdots{display:flex; gap:6px}
+  #progress .pdot{width:11px;height:11px;border-radius:50%; border:1.5px solid var(--dim); transition:.2s}
+  #progress .pdot.on{background:var(--c); border-color:var(--c); box-shadow:0 0 10px var(--c)}
+  #progress .ptxt{font-size:11px; color:var(--dim); letter-spacing:.5px}
+  #progress .ptxt b{color:var(--ink)}
+  /* potential payout chip top-right of field */
+  #payChip{
+    position:absolute; right:16px; bottom:14px; z-index:7; text-align:right;
+    padding:7px 14px; border-radius:14px; background:rgba(10,16,32,.62);
+    border:1px solid var(--panelb); backdrop-filter:blur(8px);
+  }
+  #payChip .k{font-size:9px; letter-spacing:1.5px; color:var(--dim); text-transform:uppercase}
+  #payChip .v{font-size:20px; font-weight:900; color:var(--gold); font-variant-numeric:tabular-nums; text-shadow:0 0 14px rgba(255,207,92,.45)}
+
+  /* bottom control bar */
+  #controls{
+    grid-column:2; grid-row:3; z-index:6;
+    display:flex; align-items:center; gap:14px; padding:0 18px;
+    border-top:1px solid var(--panelb);
+    background:linear-gradient(0deg,rgba(10,16,32,.92),rgba(10,16,32,.4));
+    backdrop-filter:blur(6px);
+  }
+  .stakebox{display:flex; flex-direction:column; gap:3px}
+  .stakebox .k{font-size:9px; letter-spacing:1.5px; color:var(--dim); text-transform:uppercase}
+  .stakerow{display:flex; align-items:center; gap:6px}
+  .stepper{display:flex; align-items:center; border:1px solid var(--panelb); border-radius:9px; overflow:hidden}
+  .stepper button{width:30px;height:34px; background:rgba(255,255,255,.03); border:none; color:var(--ink); font-size:17px; cursor:pointer; transition:.15s}
+  .stepper button:hover{background:rgba(255,255,255,.1)}
+  .stepper .amt{width:64px; text-align:center; font-weight:800; font-size:15px; font-variant-numeric:tabular-nums}
+  .chips{display:flex; gap:6px}
+  .chip{padding:6px 10px; font-size:11px; font-weight:700; border-radius:8px; border:1px solid var(--panelb); background:rgba(255,255,255,.02); cursor:pointer; color:var(--dim); transition:.15s}
+  .chip:hover{color:var(--ink); border-color:rgba(120,160,255,.4)}
+  .spacer{flex:1}
+  .btn{
+    border:none; border-radius:12px; cursor:pointer; font-family:var(--font);
+    font-weight:800; letter-spacing:.8px; transition:.16s; position:relative; overflow:hidden;
+  }
+  .btn:disabled{opacity:.35; cursor:not-allowed}
+  #armBtn{
+    padding:0 30px; height:50px; font-size:16px; color:#04111a;
+    background:linear-gradient(180deg,var(--cyan2),var(--cyan));
+    box-shadow:0 6px 26px -8px var(--cyan), inset 0 1px 0 rgba(255,255,255,.5);
+  }
+  #armBtn:hover:not(:disabled){transform:translateY(-1px); box-shadow:0 10px 30px -8px var(--cyan)}
+  #bankBtn{
+    padding:0 24px; height:50px; font-size:15px; color:#1a1405;
+    background:linear-gradient(180deg,#ffe08a,var(--gold));
+    box-shadow:0 6px 26px -8px var(--gold), inset 0 1px 0 rgba(255,255,255,.6);
+    animation:bankpulse 1.1s infinite;
+  }
+  @keyframes bankpulse{0%,100%{box-shadow:0 6px 26px -8px var(--gold)}50%{box-shadow:0 6px 34px -2px var(--gold)}}
+  #pushBtn{
+    padding:0 22px; height:50px; font-size:15px; color:var(--ink);
+    background:linear-gradient(180deg,rgba(176,107,255,.5),rgba(176,107,255,.25));
+    border:1px solid rgba(176,107,255,.6);
+  }
+  #pushBtn:hover:not(:disabled){background:rgba(176,107,255,.4)}
+
+  /* explainer below the fold */
+  #explain{padding:40px 8vw 70px; max-width:1280px; margin:0 auto; color:var(--dim); line-height:1.65}
+  #explain h2{color:var(--ink); font-size:22px; letter-spacing:1px; margin-bottom:8px}
+  #explain .grid{display:grid; grid-template-columns:repeat(3,1fr); gap:22px; margin-top:26px}
+  #explain .grid h3{color:var(--cyan2); font-size:14px; letter-spacing:1px; margin-bottom:6px}
+  #explain p{font-size:14px}
+  .scrollhint{position:absolute; bottom:90px; left:50%; transform:translateX(-50%); color:var(--dim); font-size:11px; letter-spacing:2px; opacity:.0; z-index:7}
+
+  .toast{position:absolute; left:50%; top:46%; transform:translate(-50%,-50%) scale(.8); z-index:8;
+    font-weight:900; letter-spacing:1px; text-align:center; opacity:0; pointer-events:none;
+    transition:.35s cubic-bezier(.2,.9,.3,1.2)}
+  .toast.show{opacity:1; transform:translate(-50%,-50%) scale(1)}
+  .toast .big{font-size:44px}
+  .toast .sm{font-size:15px; margin-top:4px; color:var(--dim); letter-spacing:2px}
+</style>
+</head>
+<body>
+<div id="stage">
+
+  <!-- TOP BAR -->
+  <div id="topbar">
+    <div class="brand">
+      <span class="mk"><svg viewBox="0 0 24 24"><polygon points="12,1 14.6,8.6 22.5,8.9 16.2,13.8 18.4,21.5 12,16.9 5.6,21.5 7.8,13.8 1.5,8.9 9.4,8.6" fill="none" stroke="#39e7ff" stroke-width="1.3"/></svg></span>
+      <b>STARFORGE</b><span>&nbsp;CONSTELLATION HUNT</span>
+    </div>
+    <div class="feed">
+      <span class="dot"></span> Volatility 75 Index
+      <b id="priceTxt">— —</b>
+      <span id="deltaTxt" style="color:var(--common)"></span>
+    </div>
+    <div class="topright">
+      <div class="stat"><div class="k">Balance</div><div class="v" id="balTxt">10,000.00</div></div>
+      <div class="stat"><div class="k">Last Win</div><div class="v gold" id="winTxt">—</div></div>
+    </div>
+  </div>
+
+  <!-- LEFT: TEMPLATES -->
+  <div id="left">
+    <div class="ph">Arm a constellation</div>
+    <div id="tplList"></div>
+    <div style="flex:1"></div>
+    <div class="ph" style="margin-top:4px">How it pays</div>
+    <div style="font-size:11px;color:var(--dim);line-height:1.5">
+      Thread every star <b style="color:var(--ink)">in order</b> before it burns out.
+      Rarer figure → bigger multiplier. Bank a partial, or push for the full flare.
+    </div>
+  </div>
+
+  <!-- CENTER: FIELD -->
+  <div id="field">
+    <canvas id="sky"></canvas>
+    <div id="banner"></div>
+    <div id="progress">
+      <div class="pdots" id="pdots"></div>
+      <div class="ptxt" id="ptxt">Arm a constellation to begin</div>
+    </div>
+    <div id="payChip"><div class="k">Potential</div><div class="v" id="payTxt">—</div></div>
+    <div class="toast" id="toast"><div class="big"></div><div class="sm"></div></div>
+  </div>
+
+  <!-- RIGHT: CONDITIONS + ALMANAC -->
+  <div id="right">
+    <div class="card cond">
+      <div class="ph">Live conditions</div>
+      <div class="row"><span class="lab">Volatility</span><span class="vstate" id="volState" style="color:var(--gold)">MODERATE</span></div>
+      <div class="meter"><i id="volBar"></i></div>
+      <div class="row"><span class="lab">Star spread</span><span class="vstate" id="spreadState" style="font-size:11px;color:var(--dim)">— linked to vol —</span></div>
+    </div>
+    <div class="card almanac">
+      <div class="ph">Almanac</div>
+      <div class="agrid" id="agrid"></div>
+    </div>
+    <div class="card streakwrap" style="text-align:center">
+      <div class="num" id="streakNum">×1.0</div>
+      <div class="lbl">Streak Bonus</div>
+    </div>
+    <div style="flex:1"></div>
+    <div style="font-size:10px;color:var(--dim);text-align:center;letter-spacing:1px">SIMULATED FEED · DEMO</div>
+  </div>
+
+  <!-- BOTTOM CONTROLS -->
+  <div id="controls">
+    <div class="stakebox">
+      <div class="k">Stake (USD)</div>
+      <div class="stakerow">
+        <div class="stepper">
+          <button id="minus">−</button>
+          <div class="amt" id="stakeAmt">25</div>
+          <button id="plus">+</button>
+        </div>
+        <div class="chips">
+          <div class="chip" data-s="10">10</div>
+          <div class="chip" data-s="25">25</div>
+          <div class="chip" data-s="100">100</div>
+        </div>
+      </div>
+    </div>
+    <div class="spacer"></div>
+    <button class="btn" id="bankBtn" style="display:none">BANK <span id="bankAmt"></span></button>
+    <button class="btn" id="pushBtn" style="display:none">PUSH ↑</button>
+    <button class="btn" id="armBtn">ARM &amp; FORGE</button>
+  </div>
+
+  <div class="scrollhint" id="scrollhint">▼ how it works</div>
+</div>
+
+<!-- BELOW THE FOLD -->
+<div id="explain">
+  <h2>STARFORGE — the live price draws your figure</h2>
+  <p>Pick a constellation and a fixed pattern of <b style="color:var(--ink)">stars</b> materializes across the chart. The glowing comet is the live market price. As the price path sweeps through each star's capture ring <b style="color:var(--ink)">in sequence</b>, a ley-line snaps into place and the figure takes shape. Every star is decaying — if one burns out before the comet reaches it, the figure breaks. The market itself decides whether the price can swing far enough, fast enough, to connect them all.</p>
+  <div class="grid">
+    <div><h3>READ THE SKY</h3><p>Volatility scatters the stars. Calm markets cluster them near the price rail — easy threads. Wild markets fling them wide, demanding real swings to connect. The same template is harder when the market is hot.</p></div>
+    <div><h3>BANK OR PUSH</h3><p>The instant you light enough stars for a partial figure, you can lock that payout — or push for the remaining stars and the full rarity multiplier. A draining lifespan on the final star is the most dangerous, most delicious moment in the game.</p></div>
+    <div><h3>COLLECT THE COSMOS</h3><p>Completed figures fill your Almanac and stack a streak bonus that supercharges your next multiplier. Rare constellations are trophies — chase the Mythic loop and watch the whole sky flare.</p></div>
+  </div>
+</div>
+
+<script>
+(()=>{
+"use strict";
+const $=id=>document.getElementById(id);
+const cv=$('sky'), ctx=cv.getContext('2d');
+
+// ---------- constellation templates ----------
+// node coords are in normalized field space (0..1), x advancing in time
+const TEMPLATES = {
+  common:{ name:'THE SPARK', rar:'COMMON', color:'#79f2c0', cssvar:'--common', mult:1.4, life:7.0,
+    nodes:[[0.30,0.55],[0.62,0.40]], partials:[1.0,1.4] },
+  rare:{ name:'THE BEND', rar:'RARE', color:'#56d8ff', cssvar:'--rare', mult:2.6, life:6.2,
+    nodes:[[0.24,0.62],[0.48,0.36],[0.72,0.58]], partials:[1.0,1.7,2.6] },
+  epic:{ name:'THE ZIG', rar:'EPIC', color:'#b06bff', cssvar:'--epic', mult:5.0, life:5.6,
+    nodes:[[0.20,0.58],[0.40,0.34],[0.58,0.62],[0.78,0.32]], partials:[1.0,1.9,3.2,5.0] },
+  mythic:{ name:'THE LOOP', rar:'MYTHIC', color:'#ff6ad5', cssvar:'--mythic', mult:12.0, life:5.2,
+    nodes:[[0.22,0.50],[0.40,0.30],[0.58,0.40],[0.62,0.66],[0.80,0.52]], partials:[1.0,2.0,3.5,6.0,12.0] },
+};
+const ORDER=['common','rare','epic','mythic'];
+
+// ---------- state ----------
+let W=0,H=0,DPR=1;
+let selected='rare';
+let stake=25, balance=10000;
+let streak=1.0, lastWin=0;
+const almanac={common:0,rare:0,epic:0,mythic:0};
+
+let mode='idle'; // idle | live | resolved
+let stars=[]; // {x,y,life,maxlife,lit,idx}
+let nextIdx=0;
+let banked=false;
+let roundT=0;
+
+// market sim (GBM-ish with regime vol)
+let price=1480.0, vel=0;
+let volRegime=0.5; // 0..1 used to scatter stars + difficulty meter
+const hist=[]; // recent normalized price path points {t,y}
+let tickAccum=0;
+
+// particles
+const parts=[];
+function spawnBurst(x,y,color,n,spd){
+  for(let i=0;i<n;i++){const a=Math.random()*Math.PI*2,s=(.4+Math.random())*spd;
+    parts.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:1,col:color,r:1+Math.random()*2.4});}
+}
+// static starfield dust
+let dust=[];
+function buildDust(){dust=[];for(let i=0;i<150;i++)dust.push({x:Math.random(),y:Math.random(),r:Math.random()*1.3+.2,a:Math.random()*.5+.15,tw:Math.random()*6.28});}
+
+// ---------- sizing ----------
+function resize(){
+  const r=cv.parentElement.getBoundingClientRect();
+  W=r.width; H=r.height; DPR=Math.min(2,window.devicePixelRatio||1);
+  cv.width=W*DPR; cv.height=H*DPR; cv.style.width=W+'px'; cv.style.height=H+'px';
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+}
+window.addEventListener('resize',resize);
+
+// ---------- UI: templates ----------
+function miniSVG(t){
+  const ns=t.nodes; let pts='', lines='';
+  // map normalized to a small 46x38 box with padding
+  const mx=v=>6+v*34, my=v=>6+v*26;
+  for(let i=0;i<ns.length;i++){
+    const x=mx(ns[i][0]/0.9), y=my((ns[i][1]-0.25)/0.5);
+    pts+=`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="2.4" fill="${t.color}"/>`;
+    if(i>0){const px=mx(ns[i-1][0]/0.9), py=my((ns[i-1][1]-0.25)/0.5);
+      lines+=`<line x1="${px.toFixed(1)}" y1="${py.toFixed(1)}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" stroke="${t.color}" stroke-width="1" opacity=".6"/>`;}
+  }
+  return `<svg viewBox="0 0 46 38">${lines}${pts}</svg>`;
+}
+function renderTemplates(){
+  const wrap=$('tplList'); wrap.innerHTML='';
+  ORDER.forEach(key=>{
+    const t=TEMPLATES[key];
+    const el=document.createElement('div');
+    el.className='tpl'+(key===selected?' sel':'');
+    el.style.setProperty('--c',t.color);
+    el.innerHTML=`
+      <div class="rar">${t.rar}</div>
+      <div class="mini">${miniSVG(t)}</div>
+      <div class="info">
+        <div class="nm"><em>${t.name}</em></div>
+        <div class="sub">${t.nodes.length} stars · ${t.life.toFixed(1)}s life</div>
+      </div>
+      <div class="mult">${t.mult}×</div>`;
+    el.onclick=()=>{ if(mode==='live')return; selected=key; renderTemplates(); previewStars(); updatePayChip(); };
+    wrap.appendChild(el);
+  });
+}
+function renderAlmanac(){
+  const g=$('agrid'); g.innerHTML='';
+  ORDER.forEach(key=>{
+    const t=TEMPLATES[key];
+    const c=document.createElement('div');
+    c.className='acell'+(almanac[key]>0?' got':''); c.style.setProperty('--c',t.color);
+    c.innerHTML=miniSVG(t)+(almanac[key]>0?`<span class="cnt">×${almanac[key]}</span>`:'');
+    g.appendChild(c);
+  });
+}
+
+// ---------- stars layout ----------
+function layoutStars(preview){
+  const t=TEMPLATES[selected];
+  stars=[];
+  // spread factor from volatility: wild markets scatter stars wider around their base y
+  const spread=0.10+volRegime*0.34;
+  // anchor the figure vertically around mid, scaled by spread
+  t.nodes.forEach((n,i)=>{
+    const baseY=0.5+(n[1]-0.5)*(0.4+spread*1.6);
+    const jx=(Math.random()-0.5)*0.02;
+    stars.push({
+      nx:Math.min(0.92,Math.max(0.10,n[0])), // normalized x (time)
+      ny:Math.min(0.86,Math.max(0.14,baseY)),
+      life:t.life, maxlife:t.life, lit:false, idx:i, flash:0
+    });
+  });
+  nextIdx=0;
+}
+function previewStars(){ if(mode==='idle'){ layoutStars(true); } }
+
+// ---------- round control ----------
+function startRound(){
+  if(mode==='live')return;
+  if(balance<stake){ flashBanner('INSUFFICIENT BALANCE',TEMPLATES[selected].color); return; }
+  balance-=stake; updateTop();
+  layoutStars(false);
+  banked=false; roundT=0; mode='live';
+  $('armBtn').style.display='none';
+  $('pushBtn').style.display='inline-block'; $('pushBtn').disabled=true;
+  $('bankBtn').style.display='none';
+  flashBanner('FORGING — '+TEMPLATES[selected].name, TEMPLATES[selected].color);
+  updateProgress();
+}
+function resolveRound(success){
+  mode='resolved';
+  const t=TEMPLATES[selected];
+  let payoutMult=0, lit=stars.filter(s=>s.lit).length;
+  if(success){ // full completion
+    payoutMult=t.partials[t.partials.length-1]*streak;
+    almanac[selected]++;
+    streak=Math.min(3.0, streak+0.25);
+    lastWin=stake*payoutMult;
+    balance+=lastWin;
+    spawnBurst(W*0.5,H*0.45,t.color,90,7);
+    showToast(t.name+' COMPLETE', '+'+lastWin.toFixed(2)+' USD', t.color);
+    flashBanner('★ '+t.rar+' FORGED · '+payoutMult.toFixed(2)+'×', t.color);
+  } else {
+    streak=1.0;
+    lastWin=0;
+    showToast('FIGURE BROKEN', lit>0? 'a star burned out':'sky went dark', 'var(--bad)');
+    flashBanner('BROKEN — figure lost', 'var(--bad)');
+  }
+  renderAlmanac(); renderStreak(); updateTop();
+  setTimeout(()=>{
+    mode='idle';
+    $('armBtn').style.display='inline-block';
+    $('pushBtn').style.display='none'; $('bankBtn').style.display='none';
+    previewStars(); updatePayChip(); updateProgress();
+  },1700);
+}
+function doBank(){
+  if(mode!=='live'||banked)return;
+  const t=TEMPLATES[selected];
+  const lit=stars.filter(s=>s.lit).length;
+  if(lit<1)return;
+  banked=true; mode='resolved';
+  const pm=t.partials[lit-1]*streak;
+  lastWin=stake*pm; balance+=lastWin;
+  streak=Math.min(3.0, streak+0.10);
+  spawnBurst(W*0.5,H*0.5,'#ffcf5c',60,5);
+  showToast('BANKED '+lit+'/'+t.nodes.length, '+'+lastWin.toFixed(2)+' USD', 'var(--gold)');
+  flashBanner('BANKED · '+pm.toFixed(2)+'×','var(--gold)');
+  renderStreak(); updateTop();
+  setTimeout(()=>{
+    mode='idle'; $('armBtn').style.display='inline-block';
+    $('pushBtn').style.display='none'; $('bankBtn').style.display='none';
+    previewStars(); updatePayChip(); updateProgress();
+  },1500);
+}
+
+// ---------- HUD ----------
+function updateTop(){
+  $('balTxt').textContent=balance.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+  $('winTxt').textContent=lastWin>0? '+'+lastWin.toFixed(2):'—';
+}
+function renderStreak(){ $('streakNum').textContent='×'+streak.toFixed(1); }
+function updatePayChip(){
+  const t=TEMPLATES[selected];
+  if(mode==='live'){
+    const lit=stars.filter(s=>s.lit).length;
+    const full=(t.partials[t.partials.length-1]*streak);
+    $('payTxt').textContent=(lit>0?'up to ':'')+(full).toFixed(2)+'×';
+  } else {
+    $('payTxt').textContent=(t.mult*streak).toFixed(2)+'×';
+  }
+}
+function updateProgress(){
+  const t=TEMPLATES[selected];
+  const pd=$('pdots'); pd.innerHTML='';
+  const lit = mode==='live'? stars.filter(s=>s.lit).length : 0;
+  for(let i=0;i<t.nodes.length;i++){
+    const d=document.createElement('div');
+    d.className='pdot'+(i<lit?' on':''); d.style.setProperty('--c',t.color);
+    pd.appendChild(d);
+  }
+  $('ptxt').innerHTML = mode==='live'
+    ? `<b>${lit}/${t.nodes.length}</b> stars · threading <b>${t.name}</b>`
+    : (mode==='idle'? `<b>${t.name}</b> armed · ${t.nodes.length} stars` : '');
+}
+let bannerTO=null;
+function flashBanner(txt,color){
+  const b=$('banner'); b.textContent=txt; b.style.color=color||'var(--ink)';
+  b.style.borderColor=color&&color!=='var(--ink)'?'rgba(255,255,255,.25)':'var(--panelb)';
+  b.classList.add('show'); clearTimeout(bannerTO);
+  bannerTO=setTimeout(()=>b.classList.remove('show'),1600);
+}
+let toastTO=null;
+function showToast(big,sm,color){
+  const t=$('toast'); t.querySelector('.big').textContent=big;
+  t.querySelector('.big').style.color=color||'var(--ink)';
+  t.querySelector('.sm').textContent=sm; t.classList.add('show');
+  clearTimeout(toastTO); toastTO=setTimeout(()=>t.classList.remove('show'),1500);
+}
+
+// ---------- market sim ----------
+function stepMarket(dt){
+  // regime drift: vol wanders slowly
+  volRegime+=(Math.random()-0.5)*0.02*dt*60;
+  volRegime=Math.max(0.12,Math.min(0.95,volRegime));
+  const vol=0.6+volRegime*2.6;
+  // mean-reverting velocity with shocks
+  vel+= (-(price-1480)*0.0009 + (Math.random()-0.5)*vol)*dt*60*0.12;
+  vel*=0.94;
+  // occasional volatility spike
+  if(Math.random()<0.012+volRegime*0.02) vel+=(Math.random()-0.5)*vol*2.4;
+  price+=vel*dt*60*0.5;
+  // record normalized path
+  const pn=normPrice(price);
+  hist.push({y:pn});
+  const maxPts=Math.floor(W); // 1px per point window
+  while(hist.length>520) hist.shift();
+  // HUD price feed
+  $('priceTxt').textContent=price.toFixed(2);
+  const dz=$('deltaTxt'); dz.textContent=(vel>=0?'▲ ':'▼ ')+Math.abs(vel*10).toFixed(2);
+  dz.style.color=vel>=0?'var(--common)':'var(--bad)';
+  // conditions meter
+  const vb=$('volBar'); vb.style.width=(15+volRegime*85).toFixed(0)+'%';
+  const vs=$('volState');
+  if(volRegime<0.33){vs.textContent='CALM';vs.style.color='var(--common)';$('spreadState').textContent='tight · easy threads';}
+  else if(volRegime<0.66){vs.textContent='MODERATE';vs.style.color='var(--gold)';$('spreadState').textContent='medium scatter';}
+  else {vs.textContent='WILD';vs.style.color='var(--bad)';$('spreadState').textContent='wide scatter · risky';}
+}
+// price→normalized y in field (auto-ranged on a slow window)
+let pLo=1455,pHi=1505;
+function normPrice(p){
+  // adapt range gently
+  pLo+= (p-22 - pLo)*0.004; pHi+= (p+22 - pHi)*0.004;
+  if(p<pLo+5)pLo=p-12; if(p>pHi-5)pHi=p+12;
+  const n=(p-pLo)/(pHi-pLo);
+  return 0.86-(Math.max(0,Math.min(1,n)))*0.72; // invert (price up = higher on screen)
+}
+
+// ---------- threading detection ----------
+function checkThread(cometX,cometY){
+  if(mode!=='live')return;
+  if(nextIdx>=stars.length)return;
+  const s=stars[nextIdx];
+  const sx=s.nx*W, sy=s.ny*H;
+  const d=Math.hypot(cometX-sx,cometY-sy);
+  const captureR=22+(1-s.life/s.maxlife)*6;
+  if(d<captureR){
+    s.lit=true; s.flash=1; nextIdx++;
+    const t=TEMPLATES[selected];
+    spawnBurst(sx,sy,t.color,26,4.2);
+    const lit=stars.filter(x=>x.lit).length;
+    updateProgress(); updatePayChip();
+    // partial bank unlocks at >=1, push always available until done
+    if(lit>=1){
+      const pm=t.partials[lit-1]*streak;
+      $('bankBtn').style.display='inline-block';
+      $('bankAmt').textContent=(stake*pm).toFixed(0);
+    }
+    if(lit>=t.nodes.length){
+      // full completion
+      $('pushBtn').disabled=true;
+      resolveRound(true);
+    } else {
+      $('pushBtn').disabled=false;
+    }
+  }
+}
+
+// ---------- main render ----------
+let last=performance.now();
+function frame(now){
+  const dt=Math.min(0.05,(now-last)/1000); last=now;
+  stepMarket(dt);
+  if(mode==='live'){
+    roundT+=dt;
+    // decay only stars not yet lit & that are the current-or-future target
+    let broke=false;
+    for(const s of stars){
+      if(!s.lit){ s.life-=dt; if(s.life<=0){ broke=true; } }
+      if(s.flash>0)s.flash-=dt*2.2;
+    }
+    if(broke){ resolveRound(false); }
+  } else {
+    for(const s of stars){ if(s.flash>0)s.flash-=dt*2.2; }
+  }
+  draw(now);
+  requestAnimationFrame(frame);
+}
+
+function draw(now){
+  ctx.clearRect(0,0,W,H);
+  // dust
+  for(const d of dust){
+    d.tw+=0.01;
+    const a=d.a*(0.6+0.4*Math.sin(d.tw));
+    ctx.globalAlpha=a; ctx.fillStyle='#cfe0ff';
+    ctx.beginPath(); ctx.arc(d.x*W,d.y*H,d.r,0,6.28); ctx.fill();
+  }
+  ctx.globalAlpha=1;
+
+  // faint grid baseline
+  ctx.strokeStyle='rgba(120,160,255,.05)'; ctx.lineWidth=1;
+  for(let gy=0.2;gy<1;gy+=0.2){ctx.beginPath();ctx.moveTo(0,gy*H);ctx.lineTo(W,gy*H);ctx.stroke();}
+
+  // ----- price comet path -----
+  const n=hist.length;
+  let cometX=W, cometY=H*0.5;
+  if(n>1){
+    // draw tail as gradient polyline; map last 'span' points across the field width
+    const span=Math.min(n, Math.floor(W));
+    const startI=n-span;
+    ctx.lineWidth=2.2; ctx.lineJoin='round'; ctx.lineCap='round';
+    let px=0,py=0;
+    for(let i=0;i<span;i++){
+      const idx=startI+i;
+      const x=(i/(span-1))*W;
+      const y=hist[idx].y*H;
+      if(i===0){px=x;py=y;continue;}
+      const tfrac=i/span;
+      ctx.strokeStyle=`rgba(122,249,255,${0.05+tfrac*0.85})`;
+      ctx.shadowColor='rgba(57,231,255,.8)'; ctx.shadowBlur=tfrac*9;
+      ctx.beginPath(); ctx.moveTo(px,py); ctx.lineTo(x,y); ctx.stroke();
+      px=x;py=y;
+    }
+    ctx.shadowBlur=0;
+    cometX=px; cometY=py;
+  }
+
+  // ----- stars (draw when idle-preview or live) -----
+  if(mode!=='resolved' || true){
+    const t=TEMPLATES[selected];
+    // ley-lines between consecutive lit stars
+    ctx.lineWidth=2.4; ctx.lineCap='round';
+    for(let i=1;i<stars.length;i++){
+      if(stars[i].lit && stars[i-1].lit){
+        const a=stars[i-1], b=stars[i];
+        ctx.strokeStyle=t.color; ctx.shadowColor=t.color; ctx.shadowBlur=14;
+        ctx.globalAlpha=0.9;
+        ctx.beginPath(); ctx.moveTo(a.nx*W,a.ny*H); ctx.lineTo(b.nx*W,b.ny*H); ctx.stroke();
+      }
+    }
+    ctx.shadowBlur=0; ctx.globalAlpha=1;
+    // ghost lines to show the figure (faint) when idle
+    if(mode==='idle'){
+      ctx.setLineDash([4,7]); ctx.lineWidth=1.2; ctx.strokeStyle='rgba(200,220,255,.18)';
+      for(let i=1;i<stars.length;i++){
+        ctx.beginPath(); ctx.moveTo(stars[i-1].nx*W,stars[i-1].ny*H); ctx.lineTo(stars[i].nx*W,stars[i].ny*H); ctx.stroke();
+      }
+      ctx.setLineDash([]);
+    }
+    // star nodes
+    for(let i=0;i<stars.length;i++){
+      const s=stars[i]; const sx=s.nx*W, sy=s.ny*H;
+      const isNext = (mode==='live' && i===nextIdx && !s.lit);
+      // capture ring / lifespan arc
+      if(mode==='live' && !s.lit){
+        const frac=Math.max(0,s.life/s.maxlife);
+        // base faint ring
+        ctx.strokeStyle='rgba(255,255,255,.12)'; ctx.lineWidth=2;
+        ctx.beginPath(); ctx.arc(sx,sy,18,0,6.28); ctx.stroke();
+        // lifespan arc
+        const col = frac>0.5?t.color : (frac>0.25?'#ffcf5c':'#ff5f6e');
+        ctx.strokeStyle=col; ctx.lineWidth=3; ctx.shadowColor=col; ctx.shadowBlur=isNext?14:6;
+        ctx.beginPath(); ctx.arc(sx,sy,18,-Math.PI/2, -Math.PI/2 + frac*6.283); ctx.stroke();
+        ctx.shadowBlur=0;
+        if(isNext){
+          // pulsing target halo
+          const pr=24+Math.sin(now*0.006)*5;
+          ctx.strokeStyle=t.color; ctx.globalAlpha=0.5; ctx.lineWidth=1.4;
+          ctx.beginPath(); ctx.arc(sx,sy,pr,0,6.28); ctx.stroke(); ctx.globalAlpha=1;
+        }
+      }
+      // star core
+      const lit=s.lit;
+      const flash=Math.max(0,s.flash);
+      const rad=lit? 6+flash*8 : (isNext?5:3.4);
+      const grd=ctx.createRadialGradient(sx,sy,0,sx,sy,rad*3);
+      const baseCol = lit? t.color : (mode==='idle'? 'rgba(200,220,255,.55)' : 'rgba(180,200,255,.5)');
+      grd.addColorStop(0, lit?'#ffffff':baseCol);
+      grd.addColorStop(0.4, lit? t.color : baseCol);
+      grd.addColorStop(1,'transparent');
+      ctx.fillStyle=grd;
+      ctx.beginPath(); ctx.arc(sx,sy,rad*3,0,6.28); ctx.fill();
+      ctx.fillStyle= lit?'#fff':baseCol;
+      ctx.beginPath(); ctx.arc(sx,sy,rad*0.7,0,6.28); ctx.fill();
+      // index number for unlit
+      if(!lit){
+        ctx.fillStyle = isNext? '#fff':'rgba(180,200,255,.6)';
+        ctx.font='700 9px '+getComputedStyle(document.body).fontFamily;
+        ctx.textAlign='center'; ctx.textBaseline='middle';
+        ctx.fillText((i+1), sx, sy-0.5);
+      }
+    }
+    ctx.textAlign='start';
+  }
+
+  // comet head + thread check
+  if(n>1){
+    // glow head
+    const hg=ctx.createRadialGradient(cometX,cometY,0,cometX,cometY,26);
+    hg.addColorStop(0,'#ffffff'); hg.addColorStop(0.3,'#7af9ff'); hg.addColorStop(1,'transparent');
+    ctx.fillStyle=hg; ctx.beginPath(); ctx.arc(cometX,cometY,26,0,6.28); ctx.fill();
+    ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(cometX,cometY,3.6,0,6.28); ctx.fill();
+    checkThread(cometX,cometY);
+  }
+
+  // particles
+  for(let i=parts.length-1;i>=0;i--){
+    const p=parts[i]; p.x+=p.vx; p.y+=p.vy; p.vy+=0.04; p.life-=0.02; p.vx*=0.98; p.vy*=0.98;
+    if(p.life<=0){parts.splice(i,1);continue;}
+    ctx.globalAlpha=Math.max(0,p.life); ctx.fillStyle=p.col;
+    ctx.shadowColor=p.col; ctx.shadowBlur=6;
+    ctx.beginPath(); ctx.arc(p.x,p.y,p.r*p.life,0,6.28); ctx.fill();
+  }
+  ctx.globalAlpha=1; ctx.shadowBlur=0;
+}
+
+// ---------- controls ----------
+function setStake(v){ stake=Math.max(1,Math.min(balance,Math.round(v))); $('stakeAmt').textContent=stake; }
+$('plus').onclick=()=>{ if(mode!=='live'){setStake(stake+5); updatePayChip();} };
+$('minus').onclick=()=>{ if(mode!=='live'){setStake(stake-5); updatePayChip();} };
+document.querySelectorAll('.chip').forEach(c=>c.onclick=()=>{ if(mode!=='live'){setStake(+c.dataset.s); updatePayChip();}});
+$('armBtn').onclick=startRound;
+$('bankBtn').onclick=doBank;
+$('pushBtn').onclick=()=>{ flashBanner('PUSHING FOR '+TEMPLATES[selected].name, TEMPLATES[selected].color); $('pushBtn').disabled=true; };
+
+// ---------- boot ----------
+function boot(){
+  resize(); buildDust(); renderTemplates(); renderAlmanac(); renderStreak();
+  // seed history
+  for(let i=0;i<200;i++){ price+=(Math.random()-0.5)*1.2; hist.push({y:normPrice(price)}); }
+  previewStars(); updatePayChip(); updateProgress(); updateTop();
+  requestAnimationFrame(frame);
+}
+boot();
+})();
+</script>
+</body>
+</html>
