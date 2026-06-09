@@ -27,3 +27,4 @@ One line per design: name — core mechanic — STATUS
 - ECHO LADDER — reproduce from memory a growing chain of price-authored notes; paid by recall depth — BELOW_BAR
 - RAMPART — distribute an armor budget across price-level walls the market sieges; paid by surviving HP fraction — KEEPER
 - RICOCHET — price-driven pinball; flip to keep a combo-chain alive; paid by peak chain multiplier at drain — BELOW_BAR
+- TICKER FORGE — draft live market-minted cards into a hand; paid by hand synergy value — BELOW_BAR

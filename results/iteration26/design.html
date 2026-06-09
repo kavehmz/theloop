@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=1280, initial-scale=1"/>
+<title>TICKER FORGE</title>
+<style>
+  :root{
+    --bg:#070b14; --bg2:#0b1322; --glass:rgba(18,28,48,.62);
+    --line:#2a3b5e; --txt:#cfe0ff; --dim:#7e8fb5;
+    --surge:#22e6a0; --plunge:#ff5d73; --coil:#6aa8ff; --burst:#ffcf4d;
+    --gold:#ffd66b;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:radial-gradient(1200px 700px at 70% -10%, #11203c 0%, var(--bg) 60%) , var(--bg);
+    color:var(--txt); font-family:'Segoe UI',Inter,system-ui,sans-serif;
+    overflow-x:hidden;
+  }
+  /* ===== HERO ===== */
+  #hero{
+    position:relative; width:1280px; height:800px; margin:0 auto; overflow:hidden;
+    background:linear-gradient(180deg,#080d18 0%, #0a1120 55%, #070b14 100%);
+  }
+  /* top bar */
+  #topbar{position:absolute; top:0; left:0; right:0; height:58px; z-index:30;
+    display:flex; align-items:center; gap:18px; padding:0 22px;
+    background:linear-gradient(180deg, rgba(8,13,24,.92), rgba(8,13,24,0));}
+  .brand{font-weight:800; letter-spacing:3px; font-size:22px;
+    background:linear-gradient(90deg,#ffe7a3,#ffb347 60%,#ff7b6b);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+    text-shadow:0 0 24px rgba(255,150,80,.25);}
+  .brand small{display:block; letter-spacing:5px; font-size:9px; color:var(--dim); font-weight:600;}
+  .pill{font-size:11px; color:var(--dim); border:1px solid var(--line); padding:5px 10px;
+    border-radius:20px; background:rgba(255,255,255,.02)}
+  .pill b{color:var(--surge)}
+  .spacer{flex:1}
+  .legend{display:flex; gap:14px; align-items:center; font-size:11px; color:var(--dim)}
+  .lg{display:flex; align-items:center; gap:5px}
+  .dot{width:10px;height:10px;border-radius:50%;box-shadow:0 0 10px currentColor}
+
+  /* chart panel */
+  #chartwrap{position:absolute; top:58px; left:0; right:312px; height:392px; z-index:5;}
+  #chart{position:absolute; inset:0; width:100%; height:100%}
+  #chartfx{position:absolute; inset:0; width:100%; height:100%; pointer-events:none}
+  .regimeTag{position:absolute; top:70px; left:26px; z-index:10; font-size:12px; letter-spacing:2px;
+    color:var(--dim); display:flex; gap:10px; align-items:center}
+  .regimeTag .badge{padding:4px 12px; border-radius:6px; font-weight:800; letter-spacing:2px;
+    border:1px solid; font-size:13px}
+
+  /* right combo rail */
+  #rail{position:absolute; top:58px; right:0; width:312px; bottom:0; z-index:20;
+    background:linear-gradient(180deg, rgba(12,20,38,.9), rgba(9,14,26,.95));
+    border-left:1px solid var(--line); padding:14px 14px 12px;}
+  #rail h3{font-size:11px; letter-spacing:3px; color:var(--dim); margin-bottom:10px; font-weight:700}
+  .combo{display:flex; align-items:center; justify-content:space-between; padding:8px 10px; margin-bottom:7px;
+    border:1px solid var(--line); border-radius:9px; background:rgba(255,255,255,.015);
+    transition:.25s; position:relative; overflow:hidden}
+  .combo .nm{font-size:12.5px; font-weight:700}
+  .combo .ds{font-size:10px; color:var(--dim)}
+  .combo .mx{font-size:14px; font-weight:800; color:var(--gold)}
+  .combo.lit{border-color:var(--gold); box-shadow:0 0 18px rgba(255,200,90,.28) inset, 0 0 12px rgba(255,200,90,.18);
+    background:rgba(255,200,90,.06)}
+  .combo .prog{position:absolute; left:0; bottom:0; height:3px; background:var(--gold); width:0%; transition:.3s}
+
+  /* stake / payout block */
+  #stakebox{margin-top:12px; border-top:1px solid var(--line); padding-top:12px}
+  .row{display:flex; justify-content:space-between; align-items:center; margin-bottom:9px; font-size:12px; color:var(--dim)}
+  .row b{color:var(--txt); font-size:14px}
+  .bigmult{font-size:34px; font-weight:900; letter-spacing:1px;
+    background:linear-gradient(90deg,#ffe7a3,#ffb347); -webkit-background-clip:text; background-clip:text; color:transparent}
+  .lockbtn{width:100%; margin-top:6px; padding:11px; border-radius:11px; border:0; cursor:pointer;
+    font-weight:800; letter-spacing:2px; font-size:13px; color:#10131c;
+    background:linear-gradient(90deg,#ffd66b,#ff9a4d); box-shadow:0 6px 22px rgba(255,160,70,.3);
+    transition:.15s}
+  .lockbtn:active{transform:translateY(1px)}
+  .lockbtn.replay{background:linear-gradient(90deg,#6aa8ff,#9b6bff); color:#fff}
+
+  /* LOCK meter */
+  #lockmeter{position:absolute; top:450px; left:0; right:312px; height:30px; z-index:18;
+    display:flex; align-items:center; gap:12px; padding:0 26px}
+  #lockmeter .lbl{font-size:10px; letter-spacing:3px; color:var(--dim); white-space:nowrap}
+  .lockbar{flex:1; height:8px; border-radius:6px; background:rgba(255,255,255,.05); overflow:hidden; border:1px solid var(--line)}
+  .lockfill{height:100%; width:0%; background:linear-gradient(90deg,#22e6a0,#ffcf4d,#ff5d73); transition:.2s linear}
+
+  /* river */
+  #riverwrap{position:absolute; top:486px; left:0; right:312px; height:150px; z-index:12; overflow:hidden;}
+  #riverwrap::before{content:''; position:absolute; inset:0;
+    background:linear-gradient(90deg, rgba(7,11,20,.95) 0%, rgba(7,11,20,0) 7%, rgba(7,11,20,0) 88%, rgba(7,11,20,.95) 100%);
+    z-index:6; pointer-events:none}
+  #rivertrack{position:absolute; top:18px; left:0; height:118px; will-change:transform}
+  .rlabelL{position:absolute; left:10px; top:2px; font-size:9px; letter-spacing:2px; color:var(--dim); z-index:7}
+
+  /* anvil slots */
+  #anvils{position:absolute; bottom:0; left:0; right:312px; height:164px; z-index:16;
+    display:flex; align-items:center; justify-content:center; gap:16px;
+    background:linear-gradient(180deg, rgba(7,11,20,0), rgba(10,16,30,.96) 40%);
+    border-top:1px solid rgba(255,255,255,.04)}
+  .slot{width:104px; height:132px; border-radius:14px; border:1.5px dashed #2c3e63;
+    background:rgba(255,255,255,.012); position:relative; display:flex; align-items:center; justify-content:center;
+    transition:.2s}
+  .slot .ph{font-size:10px; letter-spacing:2px; color:#41547d; text-align:center; line-height:1.7}
+  .slot.filled{border-style:solid}
+
+  /* CARD */
+  .card{width:92px; height:120px; border-radius:12px; position:relative; cursor:pointer;
+    background:linear-gradient(160deg,#16203a,#0d1424); border:1.5px solid; overflow:hidden;
+    box-shadow:0 8px 22px rgba(0,0,0,.45); transition:transform .12s, box-shadow .2s; user-select:none}
+  .card:hover{transform:translateY(-4px) scale(1.03)}
+  .card .rk{position:absolute; top:7px; left:9px; font-size:23px; font-weight:900; line-height:1}
+  .card .rk2{position:absolute; bottom:7px; right:9px; font-size:16px; font-weight:900; transform:rotate(180deg); opacity:.85}
+  .card .su{position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-size:40px;
+    filter:drop-shadow(0 0 10px currentColor)}
+  .card .nmlabel{position:absolute; bottom:6px; left:8px; font-size:8px; letter-spacing:1.5px; opacity:.65; font-weight:700}
+  .card.foil::after{content:''; position:absolute; inset:0; border-radius:12px;
+    background:linear-gradient(125deg, transparent 30%, rgba(255,255,255,.5) 48%, transparent 60%);
+    background-size:300% 300%; animation:foil 2.4s linear infinite; mix-blend-mode:screen}
+  @keyframes foil{0%{background-position:120% 0}100%{background-position:-60% 0}}
+  @keyframes pop{0%{transform:scale(.3) rotate(-8deg);opacity:0}60%{transform:scale(1.12)}100%{transform:scale(1);opacity:1}}
+  .card .foiltag{position:absolute; top:6px; right:8px; font-size:8px; font-weight:800; letter-spacing:1px;
+    color:var(--gold); text-shadow:0 0 6px var(--gold)}
+  /* suit themes */
+  .s-surge{border-color:var(--surge); color:var(--surge); box-shadow:0 8px 22px rgba(34,230,160,.18)}
+  .s-plunge{border-color:var(--plunge); color:var(--plunge); box-shadow:0 8px 22px rgba(255,93,115,.18)}
+  .s-coil{border-color:var(--coil); color:var(--coil); box-shadow:0 8px 22px rgba(106,168,255,.18)}
+  .s-burst{border-color:var(--burst); color:var(--burst); box-shadow:0 8px 22px rgba(255,207,77,.18)}
+
+  /* river card wrapper (positions) */
+  .rcard{position:absolute; top:0; transition:none}
+  .rcard .hint{position:absolute; top:-15px; left:50%; transform:translateX(-50%); font-size:8px; color:var(--dim); white-space:nowrap; letter-spacing:1px}
+
+  /* slot card sizing */
+  .slot .card{width:96px; height:124px}
+
+  /* particle canvas overlay (foreground fx) */
+  #fx{position:absolute; inset:0; width:1280px; height:800px; z-index:40; pointer-events:none}
+
+  /* toast / combo announce */
+  #announce{position:absolute; top:200px; left:0; right:312px; z-index:45; text-align:center; pointer-events:none;
+    opacity:0; transition:.3s}
+  #announce .big{font-size:60px; font-weight:900; letter-spacing:3px;
+    background:linear-gradient(90deg,#ffe7a3,#ffb347); -webkit-background-clip:text; background-clip:text; color:transparent;
+    text-shadow:0 0 40px rgba(255,170,70,.5)}
+  #announce .sub{font-size:20px; color:var(--gold); font-weight:800; margin-top:4px; letter-spacing:2px}
+  #announce.show{opacity:1}
+  #announce.loss .big{background:linear-gradient(90deg,#8693ad,#5a6a8c);}
+
+  /* hint banner under hero */
+  #explain{width:1280px; margin:18px auto 40px; padding:0 26px; color:var(--dim); font-size:13px; line-height:1.7}
+  #explain h2{color:var(--txt); font-size:16px; letter-spacing:2px; margin-bottom:8px}
+  #explain .grid{display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin:14px 0}
+  #explain .ce{border:1px solid var(--line); border-radius:10px; padding:12px; background:var(--glass)}
+  #explain .ce b{color:var(--txt)}
+  .kbd{display:inline-block; padding:2px 7px; border:1px solid var(--line); border-radius:5px; font-size:11px; color:var(--txt)}
+</style>
+</head>
+<body>
+<div id="hero">
+
+  <div id="topbar">
+    <div class="brand">TICKER&nbsp;FORGE<small>THE MARKET IS THE DECK</small></div>
+    <div class="pill">VOL&nbsp;100 INDEX&nbsp; <b id="px">—</b></div>
+    <div class="pill">ROUND&nbsp;<b id="rnum" style="color:var(--coil)">#1</b></div>
+    <div class="spacer"></div>
+    <div class="legend">
+      <span class="lg"><span class="dot" style="color:var(--surge);background:var(--surge)"></span>▲ Surge</span>
+      <span class="lg"><span class="dot" style="color:var(--plunge);background:var(--plunge)"></span>▼ Plunge</span>
+      <span class="lg"><span class="dot" style="color:var(--coil);background:var(--coil)"></span>◆ Coil</span>
+      <span class="lg"><span class="dot" style="color:var(--burst);background:var(--burst)"></span>✦ Burst</span>
+    </div>
+  </div>
+
+  <div id="chartwrap">
+    <canvas id="chart" width="968" height="392"></canvas>
+    <canvas id="chartfx" width="968" height="392"></canvas>
+  </div>
+  <div class="regimeTag">REGIME <span class="badge" id="regimeBadge">—</span> <span id="atrTag"></span></div>
+
+  <!-- RIGHT RAIL -->
+  <div id="rail">
+    <h3>FORGE TABLE · LIVE SYNERGY</h3>
+    <div class="combo" data-k="resonance"><div><div class="nm">Resonance</div><div class="ds">same suit ×3·4·5</div></div><div class="mx" id="mx-res">×2 / 4.5 / 12</div><div class="prog"></div></div>
+    <div class="combo" data-k="run"><div><div class="nm">Run</div><div class="ds">consecutive ranks</div></div><div class="mx">×2.2 / 5 / 16</div><div class="prog"></div></div>
+    <div class="combo" data-k="forge"><div><div class="nm">FORGE</div><div class="ds">run + one suit</div></div><div class="mx">×40</div><div class="prog"></div></div>
+    <div class="combo" data-k="spread"><div><div class="nm">Spread</div><div class="ds">rank range ≥10</div></div><div class="mx">×3</div><div class="prog"></div></div>
+    <div class="combo" data-k="twin"><div><div class="nm">Twin Burst</div><div class="ds">two ✦ foils</div></div><div class="mx">×6</div><div class="prog"></div></div>
+
+    <div id="stakebox">
+      <div class="row"><span>STAKE</span><b>$10.00</b></div>
+      <div class="row"><span>CURRENT HAND PAYS</span><span class="bigmult" id="curMult">×0.0</span></div>
+      <div class="row" style="font-size:11px"><span id="handName" style="color:var(--gold)">— no combo yet —</span></div>
+      <button class="lockbtn" id="lockBtn">⚒ FORGE-LOCK NOW</button>
+    </div>
+  </div>
+
+  <!-- LOCK METER -->
+  <div id="lockmeter">
+    <span class="lbl">LOCK</span>
+    <div class="lockbar"><div class="lockfill" id="lockfill"></div></div>
+    <span class="lbl" id="lockt">RIDING…</span>
+  </div>
+
+  <!-- RIVER -->
+  <div id="riverwrap">
+    <span class="rlabelL">◀ MINTED RIVER · tap to FORGE into a slot · cards fall off in ~4s</span>
+    <div id="rivertrack"></div>
+  </div>
+
+  <!-- ANVIL SLOTS -->
+  <div id="anvils">
+    <div class="slot" data-i="0"><div class="ph">ANVIL&nbsp;1<br>empty</div></div>
+    <div class="slot" data-i="1"><div class="ph">ANVIL&nbsp;2<br>empty</div></div>
+    <div class="slot" data-i="2"><div class="ph">ANVIL&nbsp;3<br>empty</div></div>
+    <div class="slot" data-i="3"><div class="ph">ANVIL&nbsp;4<br>empty</div></div>
+    <div class="slot" data-i="4"><div class="ph">ANVIL&nbsp;5<br>empty</div></div>
+  </div>
+
+  <div id="announce"><div class="big" id="annBig">FORGE!</div><div class="sub" id="annSub"></div></div>
+  <canvas id="fx" width="1280" height="800"></canvas>
+</div>
+
+<div id="explain">
+  <h2>HOW TICKER FORGE WORKS</h2>
+  <p>The live Volatility-100 feed closes a micro-window roughly every 1.4 seconds and <b>mints a card</b>. The card's <b>rank</b> (2–A) is the size of that window's move scaled by recent volatility — a big move forges a face card or Ace. The card's <b>suit</b> is the window's market <b>regime</b>. Cards ride the <b>river</b> for a few seconds; tap one to <b>forge</b> it into an anvil slot (tap a filled slot to scrap it). Build a 5-card hand, then <span class="kbd">FORGE-LOCK</span> early to bank it — or ride to auto-lock hoping a better card mints. Your stake pays the hand's best synergy multiplier.</p>
+  <div class="grid">
+    <div class="ce"><b style="color:var(--surge)">▲ Surge</b><br>strong up-trend window — trend persistence</div>
+    <div class="ce"><b style="color:var(--plunge)">▼ Plunge</b><br>strong down-trend window — momentum down</div>
+    <div class="ce"><b style="color:var(--coil)">◆ Coil</b><br>low-volatility range — compression</div>
+    <div class="ce"><b style="color:var(--burst)">✦ Burst</b><br>volatility spike / fresh extreme (foil)</div>
+  </div>
+  <p><b>Combo table:</b> Resonance (matching suits) rewards a sustained regime · Run (consecutive ranks) rewards a momentum ladder · a Run that is all one suit is a <b style="color:var(--gold)">FORGE ×40</b> · Spread rewards capturing a volatility blow-out · Twin Burst rewards two foil extremes. No combo at lock = stake lost, so reckless forging busts.</p>
+</div>
+
+<script>
+/* =========================================================================
+   TICKER FORGE — prototype sim. Cards minted from live(-ish) price windows.
+   ========================================================================= */
+const SUITS = {
+  surge:  {sym:'▲', cls:'s-surge',  name:'SURGE',  col:'#22e6a0'},
+  plunge: {sym:'▼', cls:'s-plunge', name:'PLUNGE', col:'#ff5d73'},
+  coil:   {sym:'◆', cls:'s-coil',   name:'COIL',   col:'#6aa8ff'},
+  burst:  {sym:'✦', cls:'s-burst',  name:'BURST',  col:'#ffcf4d'},
+};
+const RANKLBL = {11:'J',12:'Q',13:'K',14:'A'};
+const rkLabel = r => RANKLBL[r] || String(r);
+
+/* ---------- price engine ---------- */
+let price = 1342.5, vel = 0;
+let regimeBias = 0;            // -1..1 drift bias, slow-moving = creates regimes
+let regimeTimer = 0;
+const hist = [];               // {t,p} for chart line
+const candles = [];            // closed micro-window candles {o,h,l,c,suit,rank,foil}
+let winO = price, winH = price, winL = price, ticksInWin = 0;
+const TICKS_PER_WIN = 26;      // ~26 sim ticks per window
+let atr = 1.2;                 // trailing average true range
+let screenHi = price, screenLo = price;
+
+function stepPrice(){
+  // occasionally shift regime bias to manufacture trend/range/burst phases
+  regimeTimer--;
+  if(regimeTimer<=0){
+    const r = Math.random();
+    if(r<0.30) regimeBias = 0.55 + Math.random()*0.5;       // up trend
+    else if(r<0.55) regimeBias = -(0.55+Math.random()*0.5); // down trend
+    else if(r<0.80) regimeBias = (Math.random()-0.5)*0.18;  // coil/range
+    else regimeBias = (Math.random()-0.5)*0.1;              // pre-burst quiet
+    regimeTimer = 40 + Math.floor(Math.random()*90);
+  }
+  const burstNow = (Math.random()<0.018);                   // volatility spike
+  const shock = burstNow ? (Math.random()-0.5)*9 : 0;
+  vel = vel*0.86 + regimeBias*0.5 + (Math.random()-0.5)*1.0 + shock;
+  price += vel*0.42;
+  if(price<50) price=50;
+  hist.push(price);
+  if(hist.length>240) hist.shift();
+  screenHi = Math.max(...hist); screenLo = Math.min(...hist);
+  // window accumulation
+  winH=Math.max(winH,price); winL=Math.min(winL,price);
+  ticksInWin++;
+  if(ticksInWin>=TICKS_PER_WIN){ closeWindow(); }
+}
+
+function classifyRegime(o,c,range){
+  const ret = c-o;
+  const volBand = range/Math.max(atr,0.1);
+  if(volBand>2.6) return 'burst';
+  if(ret> atr*0.55) return 'surge';
+  if(ret< -atr*0.55) return 'plunge';
+  return 'coil';
+}
+
+let pendingCard = null;        // newest minted card to inject onto river
+function closeWindow(){
+  const o=winO,c=price,h=winH,l=winL, range=h-l;
+  atr = atr*0.9 + range*0.1;
+  const suit = classifyRegime(o,c,range);
+  // rank = move magnitude (abs return) scaled by ATR -> 2..14
+  const z = Math.abs(c-o)/Math.max(atr,0.1);
+  let rank = Math.round(2 + Math.min(z*4.2, 12));
+  rank = Math.max(2, Math.min(14, rank));
+  // foil if window prints a fresh local extreme on screen
+  const foil = (c>=screenHi-0.001) || (c<=screenLo+0.001) || suit==='burst' && Math.random()<0.6;
+  pendingCard = {suit, rank, foil};
+  // reset window
+  winO=price; winH=price; winL=price; ticksInWin=0;
+}
+
+/* ---------- chart rendering ---------- */
+const ch = document.getElementById('chart'), cx = ch.getContext('2d');
+const cf = document.getElementById('chartfx'), fxx = cf.getContext('2d');
+const motes = Array.from({length:46},()=>({x:Math.random()*968,y:Math.random()*392,s:Math.random()*1.6+0.4,v:Math.random()*0.3+0.05}));
+function drawChart(){
+  const W=968,H=392;
+  cx.clearRect(0,0,W,H);
+  // background regime band tint
+  let bandCol = regimeBias>0.3?'rgba(34,230,160,0.05)':regimeBias<-0.3?'rgba(255,93,115,0.05)':'rgba(106,168,255,0.04)';
+  cx.fillStyle=bandCol; cx.fillRect(0,0,W,H);
+  // grid
+  cx.strokeStyle='rgba(120,150,200,0.08)'; cx.lineWidth=1;
+  for(let i=0;i<=8;i++){const y=i/8*H; cx.beginPath();cx.moveTo(0,y);cx.lineTo(W,y);cx.stroke();}
+  for(let i=0;i<=10;i++){const x=i/10*W; cx.beginPath();cx.moveTo(x,0);cx.lineTo(x,H);cx.stroke();}
+  // drifting volume motes (depth)
+  cx.save();
+  for(const m of motes){ m.x-=m.v; if(m.x<0){m.x=W;m.y=Math.random()*H;}
+    cx.fillStyle='rgba(120,160,230,0.10)'; cx.beginPath(); cx.arc(m.x,m.y,m.s,0,7); cx.fill(); }
+  cx.restore();
+  if(hist.length<2) return;
+  const lo=Math.min(...hist), hi=Math.max(...hist), pad=(hi-lo)*0.12+0.5;
+  const min=lo-pad,max=hi+pad,rng=max-min;
+  const X=i=> i/(hist.length-1)*W;
+  const Y=p=> H-((p-min)/rng)*H;
+  // area fill under line
+  const grad=cx.createLinearGradient(0,0,0,H);
+  grad.addColorStop(0,'rgba(106,168,255,0.28)'); grad.addColorStop(1,'rgba(106,168,255,0)');
+  cx.beginPath(); cx.moveTo(0,H);
+  hist.forEach((p,i)=>cx.lineTo(X(i),Y(p))); cx.lineTo(W,H); cx.closePath();
+  cx.fillStyle=grad; cx.fill();
+  // price line glow
+  cx.lineWidth=2.4; cx.strokeStyle='#7fb6ff'; cx.shadowColor='#6aa8ff'; cx.shadowBlur=14;
+  cx.beginPath(); hist.forEach((p,i)=>{const x=X(i),y=Y(p); i?cx.lineTo(x,y):cx.moveTo(x,y);}); cx.stroke();
+  cx.shadowBlur=0;
+  // price-level guides with labels (depth)
+  cx.font='10px Segoe UI'; cx.textAlign='left';
+  for(let i=1;i<8;i++){ const y=i/8*H; const lvl=max-(i/8)*rng;
+    cx.fillStyle='rgba(150,175,220,0.22)'; cx.fillText(lvl.toFixed(1), 6, y-3); }
+  // window separators for last several windows (vertical hint that windows close)
+  const phase = ticksInWin/TICKS_PER_WIN;
+  cx.strokeStyle='rgba(255,255,255,0.05)';
+  // comet head
+  const lx=X(hist.length-1), ly=Y(price);
+  fxx.clearRect(0,0,W,H);
+  const pulse=0.6+0.4*Math.sin(Date.now()/220);
+  fxx.fillStyle='rgba(255,214,107,'+(0.25*pulse)+')'; fxx.beginPath(); fxx.arc(lx,ly,16,0,7); fxx.fill();
+  fxx.fillStyle='#ffd66b'; fxx.shadowColor='#ffd66b'; fxx.shadowBlur=18; fxx.beginPath(); fxx.arc(lx,ly,4.5,0,7); fxx.fill(); fxx.shadowBlur=0;
+  // minting window progress ring near comet
+  fxx.strokeStyle='rgba(255,214,107,0.85)'; fxx.lineWidth=2.5;
+  fxx.beginPath(); fxx.arc(lx,ly,22,-Math.PI/2, -Math.PI/2 + phase*Math.PI*2); fxx.stroke();
+  fxx.fillStyle='rgba(160,190,240,0.6)'; fxx.font='10px Segoe UI';
+  fxx.fillText('next card '+Math.round((1-phase)*100)+'%', lx-78, ly-26);
+  // price label
+  cx.fillStyle='rgba(207,224,255,0.9)'; cx.font='bold 12px Segoe UI';
+  cx.fillText(price.toFixed(2), W-66, Y(price)-8);
+}
+
+/* ---------- game state ---------- */
+let slots=[null,null,null,null,null];
+let riverCards=[];        // {el,card,x,bornR}
+let roundNum=1, roundActive=true;
+let lockProg=0;           // 0..1
+const LOCK_WINDOWS=12;    // windows to auto-lock
+let windowsThisRound=0;
+const track=document.getElementById('rivertrack');
+const TRACK_W=2200; track.style.width=TRACK_W+'px';
+let riverX = 0;           // scroll position; track moves left
+
+function makeCardEl(card, small){
+  const s=SUITS[card.suit];
+  const el=document.createElement('div');
+  el.className='card '+s.cls+(card.foil?' foil':'');
+  el.innerHTML=`<div class="rk">${rkLabel(card.rank)}</div>
+    <div class="su">${s.sym}</div>
+    <div class="rk2">${rkLabel(card.rank)}</div>
+    <div class="nmlabel">${s.name}</div>
+    ${card.foil?'<div class="foiltag">✦FOIL</div>':''}`;
+  return el;
+}
+
+/* spawn a minted card onto the right edge of the river */
+function spawnRiverCard(card){
+  const wrap=document.createElement('div');
+  wrap.className='rcard';
+  const el=makeCardEl(card,false);
+  wrap.appendChild(el);
+  const hint=document.createElement('div'); hint.className='hint'; hint.textContent='tap to forge';
+  wrap.appendChild(hint);
+  // place at right edge of the river viewport, in track coordinates.
+  // on-screen X = startX - riverX, so to enter at viewport x≈940 we set startX = riverX + 940
+  const startX = riverX + 940;
+  wrap.style.left = startX+'px';
+  const obj={wrap, card, startX};
+  el.addEventListener('click',()=>tryForge(obj));
+  track.appendChild(wrap);
+  riverCards.push(obj);
+}
+
+function tryForge(obj){
+  if(!roundActive) return;
+  const idx=slots.findIndex(s=>s===null);
+  if(idx<0){ flashRail('hand full — scrap a slot first'); return; }
+  slots[idx]=obj.card;
+  placeInSlot(idx,obj.card);
+  // remove from river
+  obj.wrap.style.transition='transform .25s, opacity .25s';
+  obj.wrap.style.transform='translateY(-40px) scale(.4)'; obj.wrap.style.opacity='0';
+  setTimeout(()=>obj.wrap.remove(),250);
+  riverCards=riverCards.filter(o=>o!==obj);
+  sparkAt(slotCenter(idx), SUITS[obj.card.suit].col);
+  clink();
+  scoreHand();
+}
+
+function placeInSlot(i,card){
+  const slot=document.querySelector('.slot[data-i="'+i+'"]');
+  slot.classList.add('filled'); slot.innerHTML='';
+  const el=makeCardEl(card,true);
+  el.style.animation='pop .25s';
+  slot.appendChild(el);
+  slot.onclick=()=>{ if(!roundActive) return; slots[i]=null; slot.classList.remove('filled');
+    slot.innerHTML='<div class="ph">ANVIL&nbsp;'+(i+1)+'<br>empty</div>'; slot.onclick=null; scoreHand(); };
+}
+function slotCenter(i){ const r=document.querySelector('.slot[data-i="'+i+'"]').getBoundingClientRect();
+  const hr=document.getElementById('hero').getBoundingClientRect();
+  return {x:r.left-hr.left+r.width/2, y:r.top-hr.top+r.height/2}; }
+
+/* ---------- scoring (skin-free market-structural combo table) ---------- */
+function evalHand(cards){
+  const filled=cards.filter(Boolean);
+  if(filled.length===0) return {mult:0,name:'— no combo yet —',key:null};
+  const suits={}; filled.forEach(c=>suits[c.suit]=(suits[c.suit]||0)+1);
+  const maxSuit=Math.max(...Object.values(suits));
+  const foils=filled.filter(c=>c.foil).length;
+  const ranks=[...new Set(filled.map(c=>c.rank))].sort((a,b)=>a-b);
+  // longest consecutive run
+  let run=1,best=1; for(let i=1;i<ranks.length;i++){ if(ranks[i]===ranks[i-1]+1){run++;best=Math.max(best,run);} else run=1; }
+  const spread=Math.max(...filled.map(c=>c.rank))-Math.min(...filled.map(c=>c.rank));
+  // is the run all one suit? (resonant run = FORGE)
+  let forge=false;
+  if(best>=3){
+    // find a run of length best that's monochrome
+    const bySuit={}; filled.forEach(c=>{(bySuit[c.suit]=bySuit[c.suit]||[]).push(c.rank);});
+    for(const s in bySuit){ const rs=[...new Set(bySuit[s])].sort((a,b)=>a-b); let r=1,b2=1;
+      for(let i=1;i<rs.length;i++){ if(rs[i]===rs[i-1]+1){r++;b2=Math.max(b2,r);} else r=1;} if(b2>=3) forge=true; }
+  }
+  const cands=[];
+  if(forge) cands.push({mult:40,name:'⚒ FORGE — RESONANT RUN',key:'forge'});
+  if(best>=5) cands.push({mult:16,name:'5-RUN · momentum ladder',key:'run'});
+  else if(best===4) cands.push({mult:5,name:'4-RUN',key:'run'});
+  else if(best===3) cands.push({mult:2.2,name:'3-RUN',key:'run'});
+  if(maxSuit>=5) cands.push({mult:12,name:'5× RESONANCE · pure regime',key:'resonance'});
+  else if(maxSuit===4) cands.push({mult:4.5,name:'4× RESONANCE',key:'resonance'});
+  else if(maxSuit===3) cands.push({mult:2.0,name:'3× RESONANCE',key:'resonance'});
+  if(foils>=2) cands.push({mult:6,name:'TWIN BURST · double foil',key:'twin'});
+  if(spread>=10) cands.push({mult:3,name:'SPREAD · vol blow-out',key:'spread'});
+  if(cands.length===0) return {mult:0,name:'— no combo (busts at lock) —',key:null,
+     part:partials(maxSuit,best,foils,spread)};
+  // foils upgrade: +20% per foil involved, capped
+  let top=cands.reduce((a,b)=>b.mult>a.mult?b:a);
+  if(foils>0 && top.key!=='twin'){ top={...top, mult:+(top.mult*(1+0.18*Math.min(foils,2))).toFixed(1), name:top.name+' +FOIL'}; }
+  top.all=cands; return top;
+}
+function partials(maxSuit,best,foils,spread){ return {maxSuit,best,foils,spread}; }
+
+function liveProgress(){
+  const filled=slots.filter(Boolean);
+  const suits={}; filled.forEach(c=>suits[c.suit]=(suits[c.suit]||0)+1);
+  const maxSuit=filled.length?Math.max(...Object.values(suits)):0;
+  const ranks=[...new Set(filled.map(c=>c.rank))].sort((a,b)=>a-b);
+  let run=1,best=filled.length?1:0; for(let i=1;i<ranks.length;i++){ if(ranks[i]===ranks[i-1]+1){run++;best=Math.max(best,run);} else run=1; }
+  const foils=filled.filter(c=>c.foil).length;
+  const spread=filled.length?Math.max(...filled.map(c=>c.rank))-Math.min(...filled.map(c=>c.rank)):0;
+  return {maxSuit,best,foils,spread};
+}
+
+function scoreHand(){
+  const res=evalHand(slots);
+  document.getElementById('curMult').textContent='×'+res.mult.toFixed(1);
+  document.getElementById('handName').textContent=res.name;
+  document.getElementById('curMult').style.color = res.mult>=10?'#ffd66b':res.mult>0?'#cfe0ff':'#7e8fb5';
+  // light up rail combos
+  const p=liveProgress();
+  setProg('resonance', p.maxSuit/5, p.maxSuit>=3);
+  setProg('run', p.best/5, p.best>=3);
+  setProg('forge', (p.best>=3 && p.maxSuit>=3)?1:Math.max(p.best,p.maxSuit)/5, res.key==='forge');
+  setProg('spread', p.spread/10, p.spread>=10);
+  setProg('twin', p.foils/2, p.foils>=2);
+}
+function setProg(key,frac,lit){
+  const el=document.querySelector('.combo[data-k="'+key+'"]');
+  el.querySelector('.prog').style.width=Math.min(100,frac*100)+'%';
+  el.classList.toggle('lit',!!lit);
+}
+function flashRail(msg){ const h=document.getElementById('handName'); const old=h.textContent; h.textContent=msg; h.style.color='#ff9a4d'; setTimeout(()=>{h.style.color='var(--gold)'; scoreHand();},900); }
+
+/* ---------- lock / settle ---------- */
+function settle(){
+  if(!roundActive) return;
+  roundActive=false;
+  const res=evalHand(slots);
+  const stake=10, win=stake*res.mult;
+  if(res.mult>0){
+    announce(res.name.replace(/[⚒·]/g,'').trim()||'WIN', '+ $'+win.toFixed(2)+'  (×'+res.mult.toFixed(1)+')', false);
+    burst(640,300, res.mult>=10? '#ffd66b':'#22e6a0', res.mult>=10?180:90);
+    document.querySelectorAll('.slot .card').forEach(c=>{c.style.boxShadow='0 0 26px #ffd66b'; c.style.transition='.4s';});
+    payDing(res.mult>=10);
+  } else {
+    announce('BUST', 'no combo · −$'+stake.toFixed(2), true);
+    document.querySelectorAll('.slot .card').forEach(c=>{c.style.filter='grayscale(1) brightness(.5)'; c.style.transition='.5s';});
+    ash(640,360);
+  }
+  const btn=document.getElementById('lockBtn');
+  btn.textContent='▶ NEXT ROUND'; btn.classList.add('replay');
+  document.getElementById('lockt').textContent='LOCKED';
+}
+function newRound(){
+  roundActive=true; roundNum++; windowsThisRound=0; lockProg=0;
+  slots=[null,null,null,null,null];
+  document.querySelectorAll('.slot').forEach((s,i)=>{s.classList.remove('filled'); s.innerHTML='<div class="ph">ANVIL&nbsp;'+(i+1)+'<br>empty</div>'; s.style=''; s.onclick=null;});
+  document.getElementById('rnum').textContent='#'+roundNum;
+  document.getElementById('lockt').textContent='RIDING…';
+  const btn=document.getElementById('lockBtn'); btn.textContent='⚒ FORGE-LOCK NOW'; btn.classList.remove('replay');
+  document.getElementById('announce').classList.remove('show','loss');
+  scoreHand();
+}
+document.getElementById('lockBtn').addEventListener('click',()=>{ if(roundActive) settle(); else newRound(); });
+
+function announce(big,sub,loss){
+  const a=document.getElementById('announce');
+  document.getElementById('annBig').textContent=big;
+  document.getElementById('annSub').textContent=sub;
+  a.classList.toggle('loss',loss); a.classList.add('show');
+}
+
+/* ---------- particles (foreground fx) ---------- */
+const fx=document.getElementById('fx'), fc=fx.getContext('2d');
+let parts=[];
+function sparkAt(pt,col){ for(let i=0;i<22;i++){const a=Math.random()*7,sp=Math.random()*3+1;
+  parts.push({x:pt.x,y:pt.y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-1,life:1,col});} }
+function burst(x,y,col,n){ for(let i=0;i<n;i++){const a=Math.random()*7,sp=Math.random()*6+1;
+  parts.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-2,life:1,col,g:0.12});} }
+function ash(x,y){ for(let i=0;i<70;i++){const a=Math.random()*7,sp=Math.random()*2;
+  parts.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-0.5,life:1,col:'#6a7488',g:0.05});} }
+function drawFX(){
+  fc.clearRect(0,0,1280,800);
+  parts.forEach(p=>{ p.x+=p.vx; p.y+=p.vy; p.vy+=(p.g||0.08); p.life-=0.018;
+    fc.globalAlpha=Math.max(0,p.life); fc.fillStyle=p.col; fc.shadowColor=p.col; fc.shadowBlur=8;
+    fc.beginPath(); fc.arc(p.x,p.y,2.4,0,7); fc.fill(); });
+  fc.globalAlpha=1; fc.shadowBlur=0;
+  parts=parts.filter(p=>p.life>0);
+}
+
+/* ---------- audio (tiny synth, optional) ---------- */
+let actx=null; function ac(){ if(!actx){try{actx=new(window.AudioContext||window.webkitAudioContext)();}catch(e){}} return actx; }
+function beep(freq,dur,type,vol){ const a=ac(); if(!a)return; const o=a.createOscillator(),g=a.createGain();
+  o.type=type||'sine'; o.frequency.value=freq; o.connect(g); g.connect(a.destination);
+  g.gain.setValueAtTime(vol||0.05,a.currentTime); g.gain.exponentialRampToValueAtTime(0.001,a.currentTime+dur);
+  o.start(); o.stop(a.currentTime+dur); }
+function clink(){ beep(880,0.08,'triangle',0.06); setTimeout(()=>beep(1320,0.06,'triangle',0.04),40); }
+function payDing(big){ beep(660,0.12,'sine',0.07); setTimeout(()=>beep(990,0.14,'sine',0.07),110); if(big)setTimeout(()=>beep(1320,0.2,'sine',0.08),230); }
+
+/* ---------- main loops (setInterval so it survives backgrounding) ---------- */
+// price + mint loop
+setInterval(()=>{
+  stepPrice();
+  document.getElementById('px').textContent=price.toFixed(2);
+  // regime badge from current bias
+  const rb=document.getElementById('regimeBadge');
+  let rname,rcol;
+  if(regimeBias>0.3){rname='UPTREND';rcol=SUITS.surge.col;}
+  else if(regimeBias<-0.3){rname='DOWNTREND';rcol=SUITS.plunge.col;}
+  else {rname='RANGE';rcol=SUITS.coil.col;}
+  rb.textContent=rname; rb.style.color=rcol; rb.style.borderColor=rcol; rb.style.boxShadow='0 0 14px '+rcol+'55';
+  document.getElementById('atrTag').textContent='ATR '+atr.toFixed(2);
+  if(pendingCard){
+    spawnRiverCard(pendingCard); pendingCard=null;
+    windowsThisRound++;
+    if(roundActive){
+      lockProg=Math.min(1,windowsThisRound/LOCK_WINDOWS);
+      document.getElementById('lockfill').style.width=(lockProg*100)+'%';
+      const left=LOCK_WINDOWS-windowsThisRound;
+      document.getElementById('lockt').textContent= left>0? (left+' windows to auto-lock'):'';
+      if(windowsThisRound>=LOCK_WINDOWS){ settle(); }
+    }
+  }
+}, 55);
+
+// river scroll loop (independent, smooth)
+setInterval(()=>{
+  riverX += 1.1;                 // track moves; we shift via transform
+  track.style.transform='translateX('+(-riverX)+'px)';
+  // cull cards far off left
+  riverCards=riverCards.filter(o=>{
+    const screenX = o.startX - riverX;
+    if(screenX < -160){ o.wrap.remove(); return false; }
+    return true;
+  });
+}, 22);
+
+// chart + fx render loop
+setInterval(()=>{ drawChart(); drawFX(); }, 33);
+
+// seed some history + initial cards so it's ALIVE on load
+(function seed(){
+  // seed a wavy, balanced history so the chart fills the panel (not one sharp ramp)
+  for(let i=0;i<240;i++){
+    if(i%30===0){ regimeBias = Math.sin(i*0.13)*0.7; regimeTimer=999; }
+    stepPrice();
+  }
+  regimeTimer=0; // resume normal regime cycling
+  pendingCard=null; // don't auto-spawn a stray card from seeding
+  // pre-mint a handful of cards spread across the river
+  const demo=[{suit:'surge',rank:9,foil:false},{suit:'surge',rank:10,foil:true},{suit:'coil',rank:4,foil:false},
+    {suit:'plunge',rank:12,foil:false},{suit:'burst',rank:13,foil:true},{suit:'surge',rank:11,foil:false}];
+  demo.forEach((c,i)=>{ const wrap=document.createElement('div'); wrap.className='rcard';
+    const el=makeCardEl(c); wrap.appendChild(el);
+    const hint=document.createElement('div'); hint.className='hint'; hint.textContent='tap to forge'; wrap.appendChild(hint);
+    const startX = 70 + i*150; wrap.style.left=startX+'px';
+    const obj={wrap,card:c,startX}; el.addEventListener('click',()=>tryForge(obj)); track.appendChild(wrap); riverCards.push(obj);
+  });
+  // pre-fill three anvils to show a building hand (lit 3× Resonance) on load
+  const h0={suit:'surge',rank:9,foil:false}, h1={suit:'surge',rank:10,foil:true}, h2={suit:'surge',rank:11,foil:false};
+  slots[0]=h0; slots[1]=h1; slots[2]=h2;
+  placeInSlot(0,h0); placeInSlot(1,h1); placeInSlot(2,h2);
+  windowsThisRound=4; lockProg=4/LOCK_WINDOWS; document.getElementById('lockfill').style.width=(lockProg*100)+'%';
+  document.getElementById('lockt').textContent=(LOCK_WINDOWS-4)+' windows to auto-lock';
+  scoreHand();
+})();
+</script>
+</body>
+</html>
