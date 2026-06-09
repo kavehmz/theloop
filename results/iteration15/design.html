@@ -359,7 +359,9 @@ function splitFrac(gate, dir){
   return Math.max(0, Math.min(1, right)); // fraction to RIGHT child
 }
 let headFlow = 0, dirSign = 0;
-function routeFlow(dt){
+// `live` true during a running round (accrues fill, tests bursts);
+// false for idle/settled ambient so the hero animates without affecting payout.
+function routeFlow(dt, live){
   // 1) head flow from market speed (mapped to a friendly L/s scale)
   const speed = Market.speed;            // ~0..6
   const target = Math.min(10, speed*1.9);
@@ -392,6 +394,10 @@ function routeFlow(dt){
   let rJ2 = splitFrac(rig.nodes.J2.gate, dirSign);
   let f_2b = setFlow('C_2b', f_02*rJ2);    // B4
   let f_2a = setFlow('C_2a', f_02*(1-rJ2)); // B3
+
+  // Visual-only ambient (idle/settled): pipes show live flow + head gauge reads,
+  // but no overload bursts and no basin accrual that could affect a payout.
+  if(!live) return;
 
   // 3) basin fill + per-channel burst test (flow over cap heats up)
   const basinFlow = {B1:f_1a, B2:f_1b, B3:f_2a, B4:f_2b};
@@ -725,12 +731,15 @@ function frame(now){
   else { rd.style.background='#3df29a';rd.style.boxShadow='0 0 8px #3df29a'; rt.textContent='CHOP — steady flow, route freely'; }
 
   if(G.phase==='running'){
-    routeFlow(dt);
+    routeFlow(dt, true);
     G.tLeft-=dt;
     if(G.tLeft<=0){ G.tLeft=0; settle('timeout'); }
     // live round yield preview = sum primed
     let pv=0; for(const b of rig.basins){ if(!b.burst&&b.fill>=b.prime) pv+=b.fill*b.mult*G.stake; }
     G.roundYield=pv; $('yieldV').textContent=pv.toFixed(2);
+  } else {
+    // idle/settled: ambient flow so the headrace + pipes stay alive (no accrual)
+    routeFlow(dt, false);
   }
   // timer ui
   $('timerV').textContent=G.tLeft.toFixed(1)+'s';
