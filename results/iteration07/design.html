@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>PULSEPOINT — Deriv</title>
+<style>
+  :root{
+    --bg0:#05070e;
+    --bg1:#0a0f1d;
+    --panel:#0c1326;
+    --grid:rgba(80,120,200,.10);
+    --cyan:#26e6ff;
+    --cyan2:#19a9ff;
+    --mag:#ff3df0;
+    --gold:#ffcf4d;
+    --green:#27f0a8;
+    --red:#ff4d6d;
+    --txt:#dfe9ff;
+    --dim:#7f93bf;
+    --edge:rgba(120,160,255,.14);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html,body{height:100%;}
+  body{
+    background:
+      radial-gradient(1200px 700px at 78% -10%, rgba(38,230,255,.10), transparent 60%),
+      radial-gradient(1000px 700px at 8% 110%, rgba(255,61,240,.10), transparent 60%),
+      linear-gradient(180deg,var(--bg1),var(--bg0));
+    color:var(--txt);
+    font-family:"SF Pro Display","Segoe UI",Inter,system-ui,Arial,sans-serif;
+    overflow:hidden;
+    -webkit-font-smoothing:antialiased;
+  }
+  /* ================= HERO STAGE — locked to 1280x800 region ================= */
+  #stage{
+    position:relative;
+    width:100vw; height:100vh;
+    min-width:1280px; min-height:800px;
+    display:grid;
+    grid-template-columns: 1fr 318px;
+    grid-template-rows: 56px 1fr 132px;
+    grid-template-areas:
+      "top   top"
+      "chart side"
+      "rail  side";
+    gap:12px;
+    padding:14px 16px 16px;
+  }
+
+  /* ---------- top bar ---------- */
+  #top{
+    grid-area:top;
+    display:flex; align-items:center; gap:18px;
+    padding:0 6px;
+  }
+  .brand{display:flex;align-items:center;gap:12px;}
+  .logo{
+    width:34px;height:34px;border-radius:9px;
+    background:conic-gradient(from 210deg,var(--cyan),var(--mag),var(--cyan));
+    box-shadow:0 0 22px rgba(38,230,255,.5);
+    position:relative;
+  }
+  .logo::after{
+    content:"";position:absolute;inset:5px;border-radius:6px;background:var(--bg0);
+  }
+  .logo::before{
+    content:"";position:absolute;left:8px;right:8px;top:50%;height:2px;
+    background:var(--cyan);box-shadow:0 0 8px var(--cyan);transform:translateY(-1px);
+    clip-path:polygon(0 50%,18% 50%,26% 10%,38% 90%,50% 30%,62% 70%,74% 45%,100% 45%);
+  }
+  .name{font-weight:800;letter-spacing:3px;font-size:19px;}
+  .name b{color:var(--cyan);}
+  .tagline{font-size:11px;color:var(--dim);letter-spacing:2px;margin-top:1px;}
+  .top-spacer{flex:1;}
+  .track-pick{display:flex;gap:6px;align-items:center;}
+  .chip{
+    font-size:11px;letter-spacing:.5px;color:var(--dim);
+    border:1px solid var(--edge);border-radius:8px;padding:7px 11px;cursor:pointer;
+    background:rgba(255,255,255,.015);transition:.15s; white-space:nowrap;
+  }
+  .chip .bpm{color:var(--txt);font-weight:700;}
+  .chip.active{color:#03121b;background:linear-gradient(120deg,var(--cyan),var(--cyan2));border-color:transparent;box-shadow:0 0 16px rgba(38,230,255,.4);}
+  .chip:hover{border-color:var(--cyan);}
+  .balance{
+    text-align:right;border:1px solid var(--edge);border-radius:10px;padding:6px 14px;
+    background:rgba(255,255,255,.02);
+  }
+  .balance .lab{font-size:9px;color:var(--dim);letter-spacing:2px;}
+  .balance .val{font-size:18px;font-weight:800;color:var(--gold);text-shadow:0 0 12px rgba(255,207,77,.35);}
+
+  /* ---------- chart ---------- */
+  #chartwrap{
+    grid-area:chart;
+    position:relative;border-radius:16px;overflow:hidden;
+    border:1px solid var(--edge);
+    background:
+      radial-gradient(700px 360px at 70% 18%, rgba(38,230,255,.06), transparent 70%),
+      linear-gradient(180deg,#0a1124,#070b16);
+    box-shadow:inset 0 0 60px rgba(0,0,0,.55);
+  }
+  #chart{position:absolute;inset:0;width:100%;height:100%;}
+  #fx{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;}
+  .chart-tag{
+    position:absolute;top:12px;left:14px;font-size:11px;letter-spacing:2px;color:var(--dim);
+    display:flex;gap:8px;align-items:center;z-index:4;
+  }
+  .live{color:var(--green);font-weight:700;display:flex;align-items:center;gap:6px;}
+  .live::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 10px var(--green);animation:blip 1.4s infinite;}
+  @keyframes blip{0%,100%{opacity:1}50%{opacity:.25}}
+
+  /* flow meter top-right of chart */
+  .flowbox{
+    position:absolute;top:12px;right:14px;z-index:5;text-align:right;
+  }
+  .flow-mult{font-size:34px;font-weight:900;line-height:1;letter-spacing:-1px;
+    color:#fff;text-shadow:0 0 24px rgba(38,230,255,.6);font-variant-numeric:tabular-nums;}
+  .flow-lab{font-size:10px;letter-spacing:3px;color:var(--dim);margin-top:2px;}
+  .flow-bar{margin-top:7px;width:180px;height:7px;border-radius:4px;background:rgba(255,255,255,.06);overflow:hidden;margin-left:auto;border:1px solid var(--edge);}
+  .flow-fill{height:100%;width:0%;background:linear-gradient(90deg,var(--cyan),var(--mag));box-shadow:0 0 14px var(--cyan);transition:width .12s;}
+
+  /* big center verdict */
+  #verdict{
+    position:absolute;left:50%;top:46%;transform:translate(-50%,-50%);
+    font-weight:900;font-size:64px;letter-spacing:2px;pointer-events:none;opacity:0;z-index:6;
+    text-shadow:0 0 30px currentColor;
+  }
+  #subverdict{
+    position:absolute;left:50%;top:58%;transform:translate(-50%,-50%);
+    font-weight:700;font-size:15px;letter-spacing:5px;color:var(--dim);opacity:0;z-index:6;
+  }
+
+  /* phrase pips */
+  .phrase{
+    position:absolute;bottom:12px;left:50%;transform:translateX(-50%);
+    display:flex;gap:9px;z-index:5;
+  }
+  .pip{width:11px;height:11px;border-radius:50%;border:1.5px solid var(--edge);background:rgba(255,255,255,.03);transition:.2s;}
+  .pip.perfect{background:#fff;border-color:#fff;box-shadow:0 0 12px #fff;}
+  .pip.good{background:var(--cyan);border-color:var(--cyan);box-shadow:0 0 10px var(--cyan);}
+  .pip.ok{background:var(--gold);border-color:var(--gold);}
+  .pip.miss{background:var(--red);border-color:var(--red);box-shadow:0 0 8px var(--red);}
+  .pip.cur{transform:scale(1.5);border-color:var(--cyan);box-shadow:0 0 12px var(--cyan);}
+
+  /* ---------- beat rail ---------- */
+  #rail{
+    grid-area:rail;position:relative;border-radius:14px;overflow:hidden;
+    border:1px solid var(--edge);
+    background:linear-gradient(180deg,#0b1224,#080d18);
+  }
+  #railcv{position:absolute;inset:0;width:100%;height:100%;}
+  .rail-strike-label{position:absolute;left:50%;top:8px;transform:translateX(-50%);font-size:10px;letter-spacing:3px;color:var(--cyan);z-index:3;opacity:.8;}
+  .rail-hint{position:absolute;left:14px;bottom:9px;font-size:10px;letter-spacing:2px;color:var(--dim);z-index:3;}
+  .rail-hint b{color:var(--txt);background:rgba(255,255,255,.06);border:1px solid var(--edge);border-radius:5px;padding:2px 8px;}
+
+  /* ---------- side panel ---------- */
+  #side{
+    grid-area:side;border-radius:16px;border:1px solid var(--edge);
+    background:linear-gradient(180deg,rgba(16,24,46,.9),rgba(9,14,28,.95));
+    padding:16px;display:flex;flex-direction:column;gap:13px;
+    box-shadow:inset 0 0 40px rgba(0,0,0,.4);
+  }
+  .panel-title{font-size:11px;letter-spacing:3px;color:var(--dim);}
+  .stake-row{display:flex;align-items:center;gap:10px;}
+  .stake-val{flex:1;font-size:30px;font-weight:900;color:var(--gold);text-shadow:0 0 14px rgba(255,207,77,.3);font-variant-numeric:tabular-nums;}
+  .stake-cur{font-size:14px;color:var(--dim);font-weight:700;}
+  .stepper{display:flex;gap:6px;}
+  .step{width:38px;height:38px;border-radius:9px;border:1px solid var(--edge);background:rgba(255,255,255,.03);color:var(--txt);font-size:20px;font-weight:700;cursor:pointer;transition:.12s;}
+  .step:hover{border-color:var(--cyan);color:var(--cyan);}
+  .seg{display:flex;gap:6px;}
+  .seg button{flex:1;padding:9px 0;border-radius:9px;border:1px solid var(--edge);background:rgba(255,255,255,.02);color:var(--dim);font-weight:700;font-size:13px;cursor:pointer;transition:.12s;}
+  .seg button.active{color:#03121b;background:linear-gradient(120deg,var(--cyan),var(--cyan2));border-color:transparent;}
+  .divider{height:1px;background:var(--edge);margin:1px 0;}
+
+  .statgrid{display:grid;grid-template-columns:1fr 1fr;gap:9px;}
+  .stat{border:1px solid var(--edge);border-radius:10px;padding:9px 11px;background:rgba(255,255,255,.015);}
+  .stat .k{font-size:9px;letter-spacing:2px;color:var(--dim);}
+  .stat .v{font-size:20px;font-weight:800;margin-top:2px;font-variant-numeric:tabular-nums;}
+  .stat .v.cyan{color:var(--cyan);}
+  .stat .v.gold{color:var(--gold);}
+
+  .cashout{
+    border:1px solid var(--edge);border-radius:12px;padding:11px 13px;
+    background:linear-gradient(120deg,rgba(38,230,255,.06),rgba(255,61,240,.05));
+  }
+  .cashout .row{display:flex;justify-content:space-between;align-items:baseline;}
+  .cashout .lab{font-size:10px;letter-spacing:2px;color:var(--dim);}
+  .cashout .amt{font-size:26px;font-weight:900;color:var(--green);text-shadow:0 0 14px rgba(39,240,168,.4);font-variant-numeric:tabular-nums;}
+
+  .actions{margin-top:auto;display:flex;flex-direction:column;gap:9px;}
+  .btn{
+    border:none;border-radius:13px;padding:15px;font-size:16px;font-weight:900;letter-spacing:1.5px;
+    cursor:pointer;transition:.14s;position:relative;overflow:hidden;
+  }
+  .btn-go{background:linear-gradient(120deg,var(--cyan),var(--cyan2));color:#03121b;box-shadow:0 0 28px rgba(38,230,255,.5);}
+  .btn-go:hover{transform:translateY(-1px);box-shadow:0 0 38px rgba(38,230,255,.7);}
+  .btn-tap{background:linear-gradient(120deg,#1a2b4d,#16203f);}
+  .btn-ride{background:linear-gradient(120deg,var(--mag),#c01ecf);color:#fff;box-shadow:0 0 26px rgba(255,61,240,.4);}
+  .btn-ride:disabled{opacity:.35;cursor:not-allowed;box-shadow:none;}
+  .btn:disabled{filter:grayscale(.3);}
+
+  .tapzone{
+    border:1.5px dashed var(--edge);border-radius:13px;padding:14px;text-align:center;
+    color:var(--dim);font-size:12px;letter-spacing:2px;cursor:pointer;user-select:none;transition:.1s;
+  }
+  .tapzone.armed{border-color:var(--cyan);color:var(--cyan);background:rgba(38,230,255,.05);}
+  .tapzone.flash{background:rgba(255,255,255,.18);}
+  .tapzone b{display:block;font-size:22px;color:var(--txt);font-weight:900;margin-top:3px;letter-spacing:3px;}
+
+  .footnote{font-size:9.5px;color:var(--dim);letter-spacing:.4px;line-height:1.5;text-align:center;opacity:.7;}
+
+  /* below-the-fold explainer */
+  #explain{
+    position:relative;z-index:1;padding:46px 8vw 70px;
+    background:linear-gradient(180deg,var(--bg0),#04060c);
+    border-top:1px solid var(--edge);
+  }
+  #explain h2{font-size:13px;letter-spacing:5px;color:var(--cyan);margin-bottom:18px;}
+  .cards{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;}
+  .card{border:1px solid var(--edge);border-radius:14px;padding:18px;background:rgba(255,255,255,.015);}
+  .card .n{font-size:11px;color:var(--mag);letter-spacing:2px;font-weight:800;}
+  .card h3{font-size:15px;margin:6px 0 8px;}
+  .card p{font-size:12.5px;color:var(--dim);line-height:1.6;}
+
+  /* drop banner */
+  #dropbanner{
+    position:absolute;left:50%;top:18%;transform:translateX(-50%);z-index:6;
+    font-weight:900;letter-spacing:8px;font-size:22px;color:var(--mag);
+    text-shadow:0 0 24px var(--mag);opacity:0;
+  }
+</style>
+</head>
+<body>
+
+<div id="stage">
+
+  <!-- TOP BAR -->
+  <div id="top">
+    <div class="brand">
+      <div class="logo"></div>
+      <div>
+        <div class="name">PULSE<b>POINT</b></div>
+        <div class="tagline">TAP THE MARKET'S TURN · RIDE THE FLOW</div>
+      </div>
+    </div>
+    <div class="top-spacer"></div>
+    <div class="track-pick" id="trackPick">
+      <span class="chip" data-vol="0.6">Volatility 10 · <span class="bpm">SLOW</span></span>
+      <span class="chip active" data-vol="1.0">Volatility 50 · <span class="bpm">GROOVE</span></span>
+      <span class="chip" data-vol="1.7">Volatility 100 · <span class="bpm">RUSH</span></span>
+    </div>
+    <div class="balance">
+      <div class="lab">BALANCE</div>
+      <div class="val">$<span id="bal">1,000.00</span></div>
+    </div>
+  </div>
+
+  <!-- CHART -->
+  <div id="chartwrap">
+    <canvas id="chart"></canvas>
+    <canvas id="fx"></canvas>
+    <div class="chart-tag"><span class="live">LIVE</span><span id="symtag">VOL 50 INDEX · momentum oscillator</span></div>
+    <div class="flowbox">
+      <div class="flow-mult" id="flowMult">×1.0</div>
+      <div class="flow-lab">FLOW MULTIPLIER</div>
+      <div class="flow-bar"><div class="flow-fill" id="flowFill"></div></div>
+    </div>
+    <div id="dropbanner">▶ THE DROP ◀</div>
+    <div id="verdict"></div>
+    <div id="subverdict"></div>
+    <div class="phrase" id="phrase"></div>
+  </div>
+
+  <!-- BEAT RAIL -->
+  <div id="rail">
+    <canvas id="railcv"></canvas>
+    <div class="rail-strike-label">▾ STRIKE ▾</div>
+    <div class="rail-hint">Tap <b>SPACE</b> or the strike pad at the price turn</div>
+  </div>
+
+  <!-- SIDE PANEL -->
+  <div id="side">
+    <div class="panel-title">YOUR STAKE</div>
+    <div class="stake-row">
+      <div class="step" id="stakeMinus">−</div>
+      <div class="stake-val">$<span id="stakeVal">5</span><span class="stake-cur"></span></div>
+      <div class="step" id="stakePlus">+</div>
+    </div>
+
+    <div class="panel-title">PHRASE LENGTH</div>
+    <div class="seg" id="phraseSeg">
+      <button data-n="4">4</button>
+      <button data-n="8" class="active">8</button>
+      <button data-n="16">16</button>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="statgrid">
+      <div class="stat"><div class="k">BEAT</div><div class="v cyan"><span id="beatN">0</span>/<span id="beatTot">8</span></div></div>
+      <div class="stat"><div class="k">PERFECTS</div><div class="v"><span id="perfN">0</span></div></div>
+      <div class="stat"><div class="k">BEST CHAIN</div><div class="v"><span id="chainN">0</span></div></div>
+      <div class="stat"><div class="k">GRADE</div><div class="v gold" id="gradeV">—</div></div>
+    </div>
+
+    <div class="cashout">
+      <div class="row"><span class="lab">RUNNING PAYOUT</span></div>
+      <div class="row"><span class="amt">$<span id="payout">0.00</span></span><span class="lab" id="payMult">×0.0</span></div>
+    </div>
+
+    <div class="tapzone" id="tapzone">STRIKE PAD<b id="tapHint">— ARM A RUN —</b></div>
+
+    <div class="actions">
+      <button class="btn btn-ride" id="rideBtn" disabled>RIDE THE DROP →</button>
+      <button class="btn btn-go" id="goBtn">▶ START PHRASE</button>
+      <div class="footnote">Outcome is graded on timing accuracy vs. real price reversals. A sloppy run still pays; a clean run pays big. Demo balance only.</div>
+    </div>
+  </div>
+</div>
+
+<!-- BELOW THE FOLD -->
+<div id="explain">
+  <h2>HOW PULSEPOINT WORKS</h2>
+  <div class="cards">
+    <div class="card"><div class="n">01 · THE BEAT</div><h3>The market keeps time</h3><p>Price velocity is smoothed into a momentum oscillator. Every zero-crossing is a real local top or bottom — a beat. Choppy markets stutter; trends fall silent then snap.</p></div>
+    <div class="card"><div class="n">02 · THE TAP</div><h3>Lock the turn</h3><p>A reticle contracts toward the predicted reversal. Tap on the turn. Your error is graded PERFECT / GOOD / OK / MISS — no direction guessing, only the moment.</p></div>
+    <div class="card"><div class="n">03 · THE FLOW</div><h3>Chain it</h3><p>Unbroken on-beat hits braid a Flow multiplier and ramp the heat. A miss resets Flow to ×1 but never busts you — the phrase plays on.</p></div>
+    <div class="card"><div class="n">04 · THE DROP</div><h3>Ride for more</h3><p>When Flow is hot, RIDE into a volatility-driven Drop: faster, tighter beats for fatter multipliers. Bail anytime to bank. Phrase ends → grade reveal.</p></div>
+  </div>
+</div>
+
+<script>
+(() => {
+"use strict";
+/* ====================================================================== */
+/*  PULSEPOINT — live-ish market rhythm prototype                          */
+/* ====================================================================== */
+const $ = s => document.querySelector(s);
+
+const chart = $("#chart"), cx = chart.getContext("2d");
+const fx = $("#fx"), fxc = fx.getContext("2d");
+const rail = $("#railcv"), rc = rail.getContext("2d");
+
+function fit(c){const r=c.getBoundingClientRect();const d=Math.min(devicePixelRatio||1,2);
+  c.width=Math.max(2,r.width*d); c.height=Math.max(2,r.height*d);
+  c.getContext("2d").setTransform(d,0,0,d,0,0); return {w:r.width,h:r.height};}
+let CW,CH,RW,RH;
+function resizeAll(){const a=fit(chart);CW=a.w;CH=a.h;fit(fx);const b=fit(rail);RW=b.w;RH=b.h;}
+addEventListener("resize",resizeAll);
+
+/* ---------------- live market simulation ---------------- */
+const N = 320;                 // points on screen
+const px = [];                 // price history
+let price = 100, drift = 0, vel = 0;
+let VOL = 1.0;                 // chosen track volatility
+// momentum oscillator (smoothed velocity) + history
+const mom = [];
+let momS = 0;
+// detect reversals -> beats
+let lastMomSign = 0;
+let beats = [];                // {t, x} recent true beat timestamps for cadence
+let interval = 900;            // running estimate of ms between beats (cadence)
+let lastBeatTime = performance.now();
+let nextBeatPredicted = lastBeatTime + interval;
+
+for(let i=0;i<N;i++){ px.push(price); mom.push(0); }
+
+function stepMarket(dt){
+  // organic price: mean-reverting + impulses, vol scaled by track
+  const noise = (Math.random()-0.5);
+  drift += (noise*0.9 - drift*0.05) * VOL;
+  // occasional impulse
+  if(Math.random()<0.012*VOL) drift += (Math.random()-0.5)*6*VOL;
+  vel = drift*0.10;
+  price += vel;
+  // gentle pull to center band
+  price += (100 - price)*0.004;
+  px.push(price); if(px.length>N) px.shift();
+  // momentum oscillator = smoothed velocity
+  momS += (vel - momS)*0.18;
+  mom.push(momS); if(mom.length>N) mom.shift();
+}
+
+/* ---------------- beat detection ---------------- */
+function detectBeat(now){
+  const m = momS;
+  const sign = m>0.02?1:(m<-0.02?-1:lastMomSign);
+  let fired=false;
+  if(lastMomSign!==0 && sign!==0 && sign!==lastMomSign){
+    // zero-crossing of momentum => price turning point => BEAT
+    const gap = now - lastBeatTime;
+    if(gap>300){ // debounce
+      if(beats.length>0){ interval += (gap-interval)*0.35; }
+      interval = Math.max(420, Math.min(2200, interval));
+      lastBeatTime = now;
+      nextBeatPredicted = now + interval;
+      beats.push(now); if(beats.length>10) beats.shift();
+      fired=true;
+    }
+  }
+  if(sign!==0) lastMomSign=sign;
+  return fired;
+}
+
+/* ====================================================================== */
+/*  GAME STATE                                                             */
+/* ====================================================================== */
+const G = {
+  active:false, armed:false,
+  stake:5, phraseLen:8, beatIdx:0,
+  flow:1.0, chain:0, bestChain:0, perfects:0,
+  results:[],            // 'perfect'|'good'|'ok'|'miss'
+  payout:0, payMult:0,
+  drop:false, dropReady:false,
+  windowOpen:false,      // a beat is currently within tap-able window
+  windowCenter:0,        // predicted/true beat time
+  windowGraded:false,
+  bal:1000,
+};
+
+const MULT = {perfect:1.9, good:1.35, ok:1.05, miss:0};
+// timing thresholds (ms) — tightened in drop
+function thresholds(){
+  return G.drop ? {perfect:70, good:150, ok:260} : {perfect:95, good:200, ok:340};
+}
+
+/* ---------------- UI refs ---------------- */
+const ui = {
+  bal:$("#bal"), stake:$("#stakeVal"), beatN:$("#beatN"), beatTot:$("#beatTot"),
+  perfN:$("#perfN"), chainN:$("#chainN"), gradeV:$("#gradeV"),
+  payout:$("#payout"), payMult:$("#payMult"), flowMult:$("#flowMult"), flowFill:$("#flowFill"),
+  phrase:$("#phrase"), tapzone:$("#tapzone"), tapHint:$("#tapHint"),
+  goBtn:$("#goBtn"), rideBtn:$("#rideBtn"), verdict:$("#verdict"), subverdict:$("#subverdict"),
+  dropbanner:$("#dropbanner"), symtag:$("#symtag"),
+};
+
+function fmt(n){return n.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});}
+
+function buildPips(){
+  ui.phrase.innerHTML="";
+  for(let i=0;i<G.phraseLen;i++){const d=document.createElement("div");d.className="pip";ui.phrase.appendChild(d);}
+}
+function paintPips(){
+  [...ui.phrase.children].forEach((p,i)=>{
+    p.className="pip";
+    if(i<G.results.length) p.classList.add(G.results[i]);
+    if(i===G.beatIdx && G.active) p.classList.add("cur");
+  });
+}
+
+function refreshHUD(){
+  ui.bal.textContent=fmt(G.bal);
+  ui.stake.textContent=G.stake;
+  ui.beatN.textContent=Math.min(G.beatIdx,G.phraseLen);
+  ui.beatTot.textContent=G.phraseLen;
+  ui.perfN.textContent=G.perfects;
+  ui.chainN.textContent=G.bestChain;
+  ui.flowMult.textContent="×"+G.flow.toFixed(1);
+  ui.flowFill.style.width=Math.min(100,(G.flow-1)/4*100)+"%";
+  ui.payout.textContent=fmt(G.payout);
+  ui.payMult.textContent="×"+G.payMult.toFixed(2);
+  ui.rideBtn.disabled = !(G.active && G.dropReady && !G.drop);
+}
+
+/* ---------------- run lifecycle ---------------- */
+function startRun(){
+  if(G.active) return;
+  if(G.bal < G.stake){flashVerdict("NO FUNDS","#ff4d6d");return;}
+  G.bal -= G.stake;
+  G.active=true; G.armed=true; G.beatIdx=0; G.flow=1.0; G.chain=0; G.bestChain=0;
+  G.perfects=0; G.results=[]; G.payout=0; G.payMult=0; G.drop=false; G.dropReady=false;
+  G.windowOpen=false; G.windowGraded=true;
+  buildPips(); paintPips();
+  ui.goBtn.textContent="● PLAYING…"; ui.goBtn.disabled=true;
+  ui.tapzone.classList.add("armed"); ui.tapHint.textContent="WATCH FOR THE TURN";
+  ui.gradeV.textContent="—";
+  // align next predicted beat
+  nextBeatPredicted = performance.now() + interval*0.8;
+  refreshHUD();
+}
+
+function endRun(){
+  G.active=false; G.armed=false; G.drop=false;
+  ui.goBtn.textContent="▶ START PHRASE"; ui.goBtn.disabled=false;
+  ui.tapzone.classList.remove("armed"); ui.tapHint.textContent="— ARM A RUN —";
+  ui.dropbanner.style.opacity=0;
+  // grade
+  const score = gradeScore();
+  G.bal += G.payout;
+  flashVerdict(score.grade, score.color, true);
+  ui.gradeV.textContent=score.grade;
+  ui.gradeV.style.color=score.color;
+  if(G.payout>0) bigParticles(score.color);
+  refreshHUD();
+}
+
+function gradeScore(){
+  const p=G.perfects, n=G.phraseLen;
+  const ratio = p/n;
+  if(ratio>=0.85) return {grade:"S",color:"#ffcf4d"};
+  if(ratio>=0.6)  return {grade:"A",color:"#26e6ff"};
+  if(ratio>=0.35) return {grade:"B",color:"#27f0a8"};
+  if(G.payout>0)  return {grade:"C",color:"#7f93bf"};
+  return {grade:"D",color:"#ff4d6d"};
+}
+
+/* ---------------- grading a tap ---------------- */
+function grade(err){
+  const T=thresholds();
+  let kind;
+  if(err<=T.perfect) kind="perfect";
+  else if(err<=T.good) kind="good";
+  else if(err<=T.ok) kind="ok";
+  else kind="miss";
+  applyResult(kind, err);
+}
+
+function applyResult(kind, err){
+  G.results[G.beatIdx]=kind;
+  const dropBonus = G.drop?1.5:1.0;
+  if(kind==="miss"){
+    G.chain=0; G.flow=1.0;
+    flashVerdict("MISS","#ff4d6d"); shake(8); redFlash();
+  } else {
+    if(kind==="perfect"){G.perfects++; spawnBurst("#ffffff",26); flashVerdict("PERFECT","#ffffff"); shake(6);}
+    else if(kind==="good"){spawnBurst("#26e6ff",16); flashVerdict("GOOD","#26e6ff"); shake(3);}
+    else {spawnBurst("#ffcf4d",10); flashVerdict("OK","#ffcf4d");}
+    G.chain++; G.bestChain=Math.max(G.bestChain,G.chain);
+    // flow grows with chain
+    G.flow = Math.min(5.0, 1.0 + G.chain*0.28*(G.drop?1.4:1.0));
+    // accumulate payout
+    G.payout += G.stake * MULT[kind] * dropBonus * (0.6 + 0.4*G.flow/2);
+    if(G.chain>=3 && !G.drop) G.dropReady=true;
+  }
+  G.payMult = G.payout/Math.max(G.stake,0.0001);
+  G.beatIdx++;
+  paintPips();
+  refreshHUD();
+  // pad flash
+  ui.tapzone.classList.add("flash");
+  setTimeout(()=>ui.tapzone.classList.remove("flash"),90);
+  if(G.beatIdx>=G.phraseLen) setTimeout(endRun,520);
+}
+
+/* ---------------- tap input ---------------- */
+function doTap(){
+  if(!G.active) return;
+  const now=performance.now();
+  if(G.windowOpen && !G.windowGraded){
+    const err=Math.abs(now - G.windowCenter);
+    G.windowGraded=true; G.windowOpen=false;
+    grade(err);
+  } else {
+    // tapped with no live beat near -> treat as a (forgiving) early/late miss-ish "ok/miss"
+    const errToPred=Math.abs(now - nextBeatPredicted);
+    if(errToPred<thresholds().ok){ G.windowGraded=true; grade(errToPred); }
+    else { // wasted tap
+      ui.tapzone.classList.add("flash"); setTimeout(()=>ui.tapzone.classList.remove("flash"),80);
+      shake(2);
+      flashVerdict("…","#7f93bf");
+    }
+  }
+}
+
+/* a real beat fired from the market while a run is active */
+function onLiveBeat(now){
+  if(!G.active || G.beatIdx>=G.phraseLen) return;
+  // open the tap window centered on this true turn
+  G.windowCenter=now; G.windowOpen=true; G.windowGraded=false;
+  // auto-resolve if player never taps (counts as miss) after window passes
+  const w = thresholds().ok + 120;
+  setTimeout(()=>{
+    if(G.active && G.windowOpen && !G.windowGraded && G.windowCenter===now){
+      G.windowOpen=false; G.windowGraded=true;
+      applyResult("miss", 999);
+    }
+  }, w);
+}
+
+/* ---------------- RIDE the drop ---------------- */
+ui.rideBtn.onclick=()=>{
+  if(!(G.active && G.dropReady && !G.drop)) return;
+  G.drop=true; G.dropReady=false;
+  ui.dropbanner.style.opacity=1;
+  ui.dropbanner.animate([{transform:"translateX(-50%) scale(.6)",opacity:0},{transform:"translateX(-50%) scale(1.1)",opacity:1},{transform:"translateX(-50%) scale(1)",opacity:1}],{duration:600,easing:"cubic-bezier(.2,1.4,.4,1)"});
+  // surge volatility for the drop
+  drift += (Math.random()-0.5)*8;
+  shake(10);
+};
+
+/* ====================================================================== */
+/*  VISUAL FEEDBACK                                                        */
+/* ====================================================================== */
+let shakeAmt=0, redFx=0;
+function shake(n){shakeAmt=Math.max(shakeAmt,n);}
+function redFlash(){redFx=1;}
+function flashVerdict(text,color,big){
+  const v=ui.verdict, s=ui.subverdict;
+  v.textContent=text; v.style.color=color;
+  v.style.fontSize=(big?96:64)+"px";
+  v.animate([{opacity:0,transform:"translate(-50%,-50%) scale(.7)"},{opacity:1,transform:"translate(-50%,-50%) scale(1.05)"},{opacity:0,transform:"translate(-50%,-50%) scale(1.2)"}],{duration:big?1400:680,easing:"ease-out"});
+  if(big){
+    const sc=gradeScore();
+    s.textContent = "PAYOUT  $"+fmt(G.payout)+"   ·   ×"+G.payMult.toFixed(2);
+    s.style.color=color;
+    s.animate([{opacity:0},{opacity:1},{opacity:1},{opacity:0}],{duration:1600,easing:"ease-out"});
+  }
+}
+
+/* particles */
+const parts=[];
+function spawnBurst(color,count){
+  // emit at price head position
+  const hx=CW-90, hy=priceHeadY();
+  for(let i=0;i<count;i++){
+    const a=Math.random()*Math.PI*2, sp=2+Math.random()*5;
+    parts.push({x:hx,y:hy,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,life:1,color,r:1.5+Math.random()*2.5});
+  }
+}
+function bigParticles(color){
+  for(let i=0;i<70;i++){
+    const a=Math.random()*Math.PI*2, sp=2+Math.random()*8;
+    parts.push({x:CW/2,y:CH*0.46,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,life:1,color,r:2+Math.random()*3});
+  }
+}
+let shock=[];
+function shockwave(){const hx=CW-90,hy=priceHeadY();shock.push({x:hx,y:hy,r:6,life:1});}
+
+/* ---------------- price head Y mapping ---------------- */
+let pMin=90,pMax=110;
+function priceHeadY(){
+  const p=px[px.length-1];
+  return CH - ((p-pMin)/(pMax-pMin))*CH*0.8 - CH*0.1;
+}
+
+/* ====================================================================== */
+/*  RENDER                                                                 */
+/* ====================================================================== */
+function drawChart(){
+  cx.clearRect(0,0,CW,CH);
+  // dynamic range
+  let lo=Infinity,hi=-Infinity;
+  for(const p of px){if(p<lo)lo=p;if(p>hi)hi=p;}
+  const pad=(hi-lo)*0.25+2; lo-=pad; hi+=pad;
+  pMin += (lo-pMin)*0.08; pMax += (hi-pMax)*0.08;
+  const X=i=> (i/(N-1))*(CW-70);
+  const Y=p=> CH - ((p-pMin)/(pMax-pMin))*CH*0.82 - CH*0.09;
+
+  // grid
+  cx.strokeStyle="rgba(80,120,200,.08)";cx.lineWidth=1;
+  for(let g=0;g<=6;g++){const y=CH*0.08+g*(CH*0.84/6);cx.beginPath();cx.moveTo(0,y);cx.lineTo(CW,y);cx.stroke();}
+
+  // heat from flow
+  const heat=Math.min(1,(G.flow-1)/4);
+  // area fill under price
+  const grad=cx.createLinearGradient(0,0,0,CH);
+  grad.addColorStop(0,`rgba(${38+heat*200},${230-heat*100},255,${0.22+heat*0.25})`);
+  grad.addColorStop(1,"rgba(38,230,255,0)");
+  cx.beginPath(); cx.moveTo(X(0),CH);
+  for(let i=0;i<px.length;i++) cx.lineTo(X(i),Y(px[i]));
+  cx.lineTo(X(px.length-1),CH); cx.closePath();
+  cx.fillStyle=grad; cx.fill();
+
+  // price line
+  cx.beginPath();
+  for(let i=0;i<px.length;i++){const x=X(i),y=Y(px[i]); i?cx.lineTo(x,y):cx.moveTo(x,y);}
+  cx.lineWidth=2.4;
+  cx.strokeStyle=`rgb(${120+heat*135},${235-heat*40},255)`;
+  cx.shadowColor="rgba(38,230,255,.9)"; cx.shadowBlur=14+heat*22;
+  cx.stroke(); cx.shadowBlur=0;
+
+  // momentum oscillator (bottom inset, baseline = zero) — the "beat track"
+  const baseY=CH*0.86;
+  cx.strokeStyle="rgba(255,61,240,.55)"; cx.lineWidth=1.6;
+  cx.beginPath();
+  let mlo=-1,mhi=1; for(const m of mom){mlo=Math.min(mlo,m);mhi=Math.max(mhi,m);}
+  const mr=Math.max(0.6,Math.max(Math.abs(mlo),Math.abs(mhi)));
+  for(let i=0;i<mom.length;i++){const x=X(i),y=baseY - (mom[i]/mr)*(CH*0.07); i?cx.lineTo(x,y):cx.moveTo(x,y);}
+  cx.shadowColor="rgba(255,61,240,.6)";cx.shadowBlur=8;cx.stroke();cx.shadowBlur=0;
+  // zero line
+  cx.strokeStyle="rgba(255,61,240,.18)";cx.setLineDash([4,5]);cx.beginPath();cx.moveTo(0,baseY);cx.lineTo(CW,baseY);cx.stroke();cx.setLineDash([]);
+
+  // price head + reticle
+  const hx=X(px.length-1), hy=Y(px[px.length-1]);
+  // contracting reticle anticipating the next beat
+  if(G.active){
+    const now=performance.now();
+    const frac=Math.max(0,Math.min(1,(nextBeatPredicted-now)/interval)); // 1 far,0 at beat
+    const rr=12+frac*46;
+    const close=1-frac;
+    cx.strokeStyle=`rgba(${38+close*200},${230},${255},${0.35+close*0.6})`;
+    cx.lineWidth=2+close*2;
+    cx.beginPath();cx.arc(hx,hy,rr,0,Math.PI*2);cx.stroke();
+    if(close>0.86){ // about to fire — glow ring
+      cx.strokeStyle="rgba(255,255,255,.9)";cx.lineWidth=2;
+      cx.beginPath();cx.arc(hx,hy,12,0,Math.PI*2);cx.stroke();
+    }
+  }
+  // head dot
+  cx.fillStyle="#fff";cx.shadowColor="#26e6ff";cx.shadowBlur=18;
+  cx.beginPath();cx.arc(hx,hy,4.5,0,Math.PI*2);cx.fill();cx.shadowBlur=0;
+  // dashed price guide
+  cx.strokeStyle="rgba(255,255,255,.12)";cx.setLineDash([3,5]);
+  cx.beginPath();cx.moveTo(0,hy);cx.lineTo(hx,hy);cx.stroke();cx.setLineDash([]);
+}
+
+function drawFX(){
+  fxc.clearRect(0,0,CW,CH);
+  // shockwaves
+  for(let i=shock.length-1;i>=0;i--){const s=shock[i];s.r+=6;s.life-=0.04;
+    fxc.strokeStyle=`rgba(255,255,255,${s.life*0.5})`;fxc.lineWidth=2;
+    fxc.beginPath();fxc.arc(s.x,s.y,s.r,0,Math.PI*2);fxc.stroke();
+    if(s.life<=0)shock.splice(i,1);}
+  // particles
+  for(let i=parts.length-1;i>=0;i--){const p=parts[i];
+    p.x+=p.vx;p.y+=p.vy;p.vy+=0.12;p.vx*=0.98;p.life-=0.022;
+    fxc.globalAlpha=Math.max(0,p.life);
+    fxc.fillStyle=p.color;fxc.shadowColor=p.color;fxc.shadowBlur=10;
+    fxc.beginPath();fxc.arc(p.x,p.y,p.r,0,Math.PI*2);fxc.fill();
+    if(p.life<=0)parts.splice(i,1);}
+  fxc.globalAlpha=1;fxc.shadowBlur=0;
+  // red miss flash
+  if(redFx>0){fxc.fillStyle=`rgba(255,40,80,${redFx*0.18})`;fxc.fillRect(0,0,CW,CH);redFx-=0.05;}
+}
+
+/* ---------------- beat rail render ---------------- */
+let railMarkers=[]; // {bornPred:time it should reach strike}
+function drawRail(){
+  rc.clearRect(0,0,RW,RH);
+  const strikeX=RW/2, midY=RH/2;
+  // base line
+  rc.strokeStyle="rgba(120,160,255,.12)";rc.lineWidth=1;
+  rc.beginPath();rc.moveTo(0,midY);rc.lineTo(RW,midY);rc.stroke();
+  // strike zone
+  const grad=rc.createLinearGradient(strikeX-60,0,strikeX+60,0);
+  grad.addColorStop(0,"rgba(38,230,255,0)");grad.addColorStop(.5,"rgba(38,230,255,.18)");grad.addColorStop(1,"rgba(38,230,255,0)");
+  rc.fillStyle=grad;rc.fillRect(strikeX-60,0,120,RH);
+  rc.strokeStyle="rgba(38,230,255,.7)";rc.lineWidth=2;
+  rc.beginPath();rc.moveTo(strikeX,6);rc.lineTo(strikeX,RH-6);rc.stroke();
+
+  const now=performance.now();
+  // incoming markers approach the strike based on predicted beat time
+  // marker x: maps remaining time to horizontal distance (approaching from right)
+  const lead=interval; // ms of lead shown
+  // draw the next predicted beat marker + a couple beyond
+  for(let k=0;k<4;k++){
+    const t = nextBeatPredicted + k*interval;
+    const rem = t-now;
+    const x = strikeX + (rem/lead)*(RW/2-30);
+    if(x<-20||x>RW+20) continue;
+    const onStrike = Math.abs(x-strikeX)<8;
+    const alpha=k===0?1:0.4-k*0.08;
+    rc.fillStyle=onStrike?"#ffffff":(k===0?"rgba(38,230,255,.95)":`rgba(38,230,255,${Math.max(0.1,alpha)})`);
+    rc.shadowColor="#26e6ff";rc.shadowBlur=onStrike?20:(k===0?14:4);
+    const h=k===0?(onStrike?26:18):12;
+    rc.fillRect(x-2.5, midY-h, 5, h*2);
+    rc.shadowBlur=0;
+  }
+  // momentum-as-waveform behind the rail (subtle)
+  rc.strokeStyle="rgba(255,61,240,.25)";rc.lineWidth=1.4;rc.beginPath();
+  let mr=0.8;for(const m of mom)mr=Math.max(mr,Math.abs(m));
+  for(let i=0;i<mom.length;i++){const x=(i/(mom.length-1))*RW;const y=midY-(mom[i]/mr)*(RH*0.30);i?rc.lineTo(x,y):rc.moveTo(x,y);}
+  rc.stroke();
+
+  // flow heat tint at edges
+  const heat=Math.min(1,(G.flow-1)/4);
+  if(heat>0){rc.fillStyle=`rgba(255,61,240,${heat*0.10})`;rc.fillRect(0,0,RW,RH);}
+}
+
+/* ====================================================================== */
+/*  MAIN LOOP                                                              */
+/* ====================================================================== */
+let last=performance.now(), acc=0;
+function loop(now){
+  const dt=now-last; last=now;
+  // step market at ~60Hz-ish
+  acc+=dt;
+  while(acc>16){ stepMarket(16); acc-=16;
+    if(detectBeat(performance.now())){ onLiveBeat(performance.now()); shockwave(); }
+  }
+  // apply shake
+  const sx=(Math.random()-0.5)*shakeAmt, sy=(Math.random()-0.5)*shakeAmt;
+  chart.style.transform=fx.style.transform=`translate(${sx}px,${sy}px)`;
+  shakeAmt*=0.82; if(shakeAmt<0.2)shakeAmt=0;
+
+  drawChart(); drawFX(); drawRail();
+  refreshHUDLight();
+  requestAnimationFrame(loop);
+}
+function refreshHUDLight(){
+  // light per-frame updates (flow bar + payout already set on events; keep flow bar smooth)
+  ui.flowFill.style.width=Math.min(100,(G.flow-1)/4*100)+"%";
+}
+
+/* ====================================================================== */
+/*  CONTROLS                                                               */
+/* ====================================================================== */
+ui.goBtn.onclick=startRun;
+ui.tapzone.onclick=doTap;
+addEventListener("keydown",e=>{
+  if(e.code==="Space"){e.preventDefault(); if(!G.active) startRun(); else doTap();}
+});
+chart.parentElement.addEventListener("click",()=>{ if(G.active) doTap(); });
+
+$("#stakePlus").onclick=()=>{G.stake=Math.min(500,G.stake+5);refreshHUD();};
+$("#stakeMinus").onclick=()=>{G.stake=Math.max(1,G.stake-5);refreshHUD();};
+document.querySelectorAll("#phraseSeg button").forEach(b=>{
+  b.onclick=()=>{ if(G.active)return; document.querySelectorAll("#phraseSeg button").forEach(x=>x.classList.remove("active"));
+    b.classList.add("active"); G.phraseLen=+b.dataset.n; ui.beatTot.textContent=G.phraseLen; buildPips(); refreshHUD();};
+});
+document.querySelectorAll("#trackPick .chip").forEach(c=>{
+  c.onclick=()=>{ if(G.active)return; document.querySelectorAll("#trackPick .chip").forEach(x=>x.classList.remove("active"));
+    c.classList.add("active"); VOL=+c.dataset.vol;
+    const map={"0.6":"VOL 10 INDEX · ballad","1":"VOL 50 INDEX · groove","1.7":"VOL 100 INDEX · drum & bass"};
+    ui.symtag.textContent=map[c.dataset.vol]; };
+});
+
+/* ---------------- boot ---------------- */
+resizeAll();
+buildPips();
+refreshHUD();
+// demo auto-tap helper OFF; warm market
+for(let i=0;i<200;i++){stepMarket(16);}
+requestAnimationFrame(loop);
+
+})();
+</script>
+</body>
+</html>
