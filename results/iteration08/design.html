@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>TOLLGATE</title>
+<style>
+  :root{
+    --bg:#05070d;
+    --panel:rgba(14,20,34,0.72);
+    --line:rgba(120,150,210,0.10);
+    --cyan:#38e1ff;
+    --cyan-soft:#7af0ff;
+    --amber:#ffc24b;
+    --green:#41f7a0;
+    --red:#ff5d73;
+    --txt:#e7eefc;
+    --dim:#7e8db0;
+    --font:"SF Pro Display",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:var(--bg);
+    color:var(--txt);
+    font-family:var(--font);
+    overflow-x:hidden;
+    -webkit-font-smoothing:antialiased;
+  }
+  /* ---------- HERO (1280x800 viewport) ---------- */
+  #hero{
+    position:relative;
+    width:100%;
+    height:100vh;
+    min-height:800px;
+    overflow:hidden;
+    background:
+      radial-gradient(1200px 600px at 22% -8%, rgba(56,225,255,0.10), transparent 60%),
+      radial-gradient(900px 700px at 105% 120%, rgba(255,194,75,0.07), transparent 55%),
+      linear-gradient(180deg,#070a12 0%, #05070d 60%, #04060b 100%);
+  }
+  /* top bar */
+  #topbar{
+    position:absolute; top:0; left:0; right:0; height:58px; z-index:30;
+    display:flex; align-items:center; gap:20px; padding:0 24px;
+    background:linear-gradient(180deg, rgba(7,10,18,0.92), rgba(7,10,18,0.0));
+  }
+  .brand{display:flex; align-items:center; gap:11px; font-weight:800; letter-spacing:.5px; font-size:19px}
+  .brand .mark{
+    width:26px;height:26px;border-radius:7px;position:relative;
+    background:linear-gradient(135deg,var(--cyan),#1b9bd6);
+    box-shadow:0 0 18px rgba(56,225,255,.6);
+  }
+  .brand .mark::before{content:"";position:absolute;inset:7px 5px;border-left:3px solid #04101a;border-right:3px solid #04101a}
+  .brand b{background:linear-gradient(90deg,#fff,var(--cyan-soft));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .brand span{color:var(--dim);font-weight:600;font-size:11px;letter-spacing:2px;margin-left:2px}
+  .topspacer{flex:1}
+  .pill{
+    display:flex;flex-direction:column;align-items:flex-end;line-height:1.05;
+    padding:7px 16px;border-radius:11px;background:rgba(255,255,255,.03);
+    border:1px solid var(--line);
+  }
+  .pill .lab{font-size:9.5px;letter-spacing:1.6px;color:var(--dim);font-weight:700}
+  .pill .val{font-size:18px;font-weight:800;font-variant-numeric:tabular-nums}
+  .pill .val.bal{color:var(--green)}
+  .pill.live .val{color:#fff;display:flex;align-items:center;gap:7px}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 10px var(--green);animation:blink 1.4s infinite}
+  @keyframes blink{0%,100%{opacity:1}50%{opacity:.35}}
+
+  /* stage: chart + ladder */
+  #stage{position:absolute; top:58px; left:0; right:0; bottom:96px; display:flex}
+  #chartwrap{position:relative; flex:1; min-width:0}
+  #chart{position:absolute; inset:0; width:100%; height:100%}
+  #fx{position:absolute; inset:0; width:100%; height:100%; pointer-events:none}
+  /* ladder */
+  #ladder{
+    position:relative; width:312px; flex:none;
+    border-left:1px solid rgba(120,150,210,.14);
+    background:linear-gradient(90deg, rgba(10,15,27,.0), rgba(10,15,27,.55) 30%);
+    overflow:hidden;
+  }
+  #ladderHead{
+    position:absolute;top:0;left:0;right:0;height:34px;z-index:6;
+    display:flex;align-items:center;justify-content:space-between;
+    padding:0 16px;font-size:10px;letter-spacing:1.6px;color:var(--dim);font-weight:700;
+    background:linear-gradient(180deg,rgba(8,12,21,.95),rgba(8,12,21,0));
+  }
+  #gates{position:absolute; top:0; left:0; right:0; bottom:0}
+  .gate{
+    position:absolute; left:8px; right:8px; height:42px; margin-top:-21px;
+    display:flex; align-items:center; gap:10px; padding:0 12px;
+    border-radius:11px;
+    background:linear-gradient(90deg, rgba(30,40,64,.30), rgba(20,28,48,.55));
+    border:1px solid rgba(120,150,210,.12);
+    cursor:pointer; user-select:none;
+    transition:border-color .18s, background .18s, transform .12s, box-shadow .25s;
+    will-change:top;
+  }
+  .gate:hover{border-color:rgba(56,225,255,.5); transform:translateX(-2px)}
+  .gate .heat{
+    position:absolute; inset:0; border-radius:11px; pointer-events:none; opacity:0;
+    background:linear-gradient(90deg, rgba(255,93,115,.0), rgba(255,93,115,.22));
+    transition:opacity .25s;
+  }
+  .gate.hot .heat{opacity:1}
+  .gate.hot{border-color:rgba(255,140,90,.45)}
+  .gate .lvl{font-size:13px; font-weight:800; font-variant-numeric:tabular-nums; min-width:62px; color:#cfe0ff}
+  .gate .mid{flex:1; display:flex; flex-direction:column; line-height:1.1}
+  .gate .rentlab{font-size:8.5px; letter-spacing:1.2px; color:var(--dim); font-weight:700}
+  .gate .rent{font-size:14px; font-weight:800; font-variant-numeric:tabular-nums; color:#fff}
+  .gate .rent .arrow{font-size:10px; margin-left:3px}
+  .gate .toll{
+    text-align:right; line-height:1.05; min-width:54px;
+  }
+  .gate .toll .x{font-size:15px; font-weight:800; color:var(--amber); font-variant-numeric:tabular-nums}
+  .gate .toll .tl{font-size:8px; letter-spacing:1px; color:var(--dim); font-weight:700}
+  .gate.owned{
+    background:linear-gradient(90deg, rgba(56,225,255,.10), rgba(56,225,255,.20));
+    border-color:rgba(56,225,255,.65);
+    box-shadow:0 0 22px rgba(56,225,255,.28), inset 0 0 16px rgba(56,225,255,.10);
+  }
+  .gate.owned .rent{color:var(--cyan-soft)}
+  .flag{
+    position:absolute; left:-3px; top:50%; transform:translateY(-50%);
+    width:0;height:0;border-top:7px solid transparent;border-bottom:7px solid transparent;
+    border-left:11px solid var(--cyan); filter:drop-shadow(0 0 6px var(--cyan)); display:none;
+  }
+  .gate.owned .flag{display:block}
+  .ownbadge{
+    position:absolute; right:8px; top:-7px; font-size:8px; font-weight:800; letter-spacing:.5px;
+    background:var(--cyan); color:#04121a; padding:2px 6px; border-radius:6px; display:none;
+    box-shadow:0 0 12px rgba(56,225,255,.6);
+  }
+  .gate.owned .ownbadge{display:block}
+  .gate.flipnow{ outline:none; }
+  .gate.owned:hover{ background:linear-gradient(90deg, rgba(65,247,160,.12), rgba(65,247,160,.24)); border-color:var(--green) }
+  .gate.owned:hover .rent{color:var(--green)}
+  .flipcue{display:none; font-size:8px; font-weight:800; color:#04121a; background:var(--green); padding:2px 5px;border-radius:5px; position:absolute; left:50%; bottom:-7px; transform:translateX(-50%); letter-spacing:.5px; box-shadow:0 0 10px var(--green)}
+  .gate.owned:hover .flipcue{display:block}
+
+  /* price tag on chart */
+  #priceTag{
+    position:absolute; right:0; transform:translateY(-50%); z-index:8;
+    background:linear-gradient(90deg, rgba(56,225,255,.0), var(--cyan));
+    color:#04121a; font-weight:800; font-size:13px; font-variant-numeric:tabular-nums;
+    padding:4px 10px 4px 16px; border-radius:0 4px 4px 0; white-space:nowrap;
+    box-shadow:0 0 18px rgba(56,225,255,.5);
+  }
+  #priceTag::after{content:"";position:absolute;left:-1px;top:0;bottom:0;width:2px;background:#fff}
+
+  /* floating toasts on wins */
+  .toast{
+    position:absolute; z-index:40; pointer-events:none; font-weight:900;
+    font-variant-numeric:tabular-nums; white-space:nowrap;
+    text-shadow:0 2px 14px rgba(0,0,0,.6);
+    animation:rise 1.25s cubic-bezier(.2,.7,.3,1) forwards;
+  }
+  @keyframes rise{0%{opacity:0;transform:translate(-50%,6px) scale(.8)}15%{opacity:1}100%{opacity:0;transform:translate(-50%,-58px) scale(1.05)}}
+
+  /* bottom control deck */
+  #deck{
+    position:absolute; left:0; right:0; bottom:0; height:96px; z-index:30;
+    display:flex; align-items:center; gap:18px; padding:0 24px;
+    background:linear-gradient(0deg, rgba(7,10,18,.96), rgba(7,10,18,.55) 70%, rgba(7,10,18,0));
+    border-top:1px solid rgba(120,150,210,.10);
+  }
+  .stakebox{display:flex;flex-direction:column;gap:6px}
+  .stakebox .cap{font-size:9.5px;letter-spacing:1.7px;color:var(--dim);font-weight:700}
+  .stakerow{display:flex;align-items:center;gap:8px}
+  .stk{
+    width:46px;height:38px;border-radius:10px;border:1px solid var(--line);
+    background:rgba(255,255,255,.03); color:var(--txt); font-weight:800; font-size:14px;
+    cursor:pointer; transition:.15s; font-variant-numeric:tabular-nums;
+  }
+  .stk:hover{border-color:rgba(56,225,255,.5)}
+  .stk.on{background:linear-gradient(135deg,var(--cyan),#1b9bd6); color:#04121a; border-color:transparent; box-shadow:0 0 16px rgba(56,225,255,.45)}
+  .deckspacer{flex:1}
+  .hint{
+    max-width:560px; font-size:12.5px; color:var(--dim); line-height:1.5;
+  }
+  .hint b{color:#cfe0ff;font-weight:700}
+  .hint .k{display:inline-block;padding:1px 7px;border-radius:6px;background:rgba(56,225,255,.14);color:var(--cyan-soft);font-weight:700;margin:0 1px}
+  .hint .k.flip{background:rgba(65,247,160,.14);color:var(--green)}
+  .legend{display:flex;gap:18px;align-items:center}
+  .lg{display:flex;align-items:center;gap:7px;font-size:11px;color:var(--dim);font-weight:600}
+  .sw{width:13px;height:13px;border-radius:4px}
+
+  /* portfolio chips */
+  #folio{position:absolute; left:24px; top:74px; z-index:20; display:flex; flex-direction:column; gap:7px; width:210px}
+  .fcard{
+    display:flex; align-items:center; gap:9px; padding:8px 11px; border-radius:11px;
+    background:var(--panel); backdrop-filter:blur(8px);
+    border:1px solid rgba(56,225,255,.22);
+    box-shadow:0 6px 22px rgba(0,0,0,.35);
+    animation:pop .3s cubic-bezier(.2,.9,.3,1.2);
+  }
+  @keyframes pop{0%{opacity:0;transform:translateY(-6px) scale(.92)}100%{opacity:1;transform:none}}
+  .fcard .fl{width:8px;height:30px;border-radius:3px;background:var(--cyan);box-shadow:0 0 10px var(--cyan)}
+  .fcard .fm{flex:1;line-height:1.15}
+  .fcard .fm .a{font-size:12px;font-weight:800;color:#fff;font-variant-numeric:tabular-nums}
+  .fcard .fm .b{font-size:9.5px;color:var(--dim);font-weight:600}
+  .fcard .fpl{font-size:12.5px;font-weight:800;font-variant-numeric:tabular-nums}
+  .fcard .fpl.up{color:var(--green)} .fcard .fpl.dn{color:var(--red)}
+  #folioHead{font-size:9.5px;letter-spacing:1.8px;color:var(--dim);font-weight:700;padding-left:3px;opacity:.85}
+
+  /* intro coachmark */
+  #coach{
+    position:absolute; z-index:45; left:50%; top:50%; transform:translate(-50%,-50%);
+    width:430px; padding:26px 28px; border-radius:18px; text-align:center;
+    background:linear-gradient(160deg, rgba(18,26,44,.96), rgba(10,15,27,.96));
+    border:1px solid rgba(56,225,255,.3); box-shadow:0 24px 80px rgba(0,0,0,.6), 0 0 50px rgba(56,225,255,.15);
+  }
+  #coach h2{font-size:23px;font-weight:900;letter-spacing:.5px;margin-bottom:6px}
+  #coach h2 b{background:linear-gradient(90deg,#fff,var(--cyan-soft));-webkit-background-clip:text;background-clip:text;color:transparent}
+  #coach p{font-size:13px;color:#aebbd8;line-height:1.6;margin-bottom:16px}
+  #coach p b{color:var(--cyan-soft)}
+  #coach button{
+    font-family:var(--font); font-weight:800; font-size:14px; letter-spacing:.5px;
+    padding:12px 30px; border-radius:12px; border:none; cursor:pointer; color:#04121a;
+    background:linear-gradient(135deg,var(--cyan),#1b9bd6); box-shadow:0 0 26px rgba(56,225,255,.5);
+    transition:transform .12s;
+  }
+  #coach button:hover{transform:translateY(-2px)}
+
+  /* below-fold explainer */
+  #below{max-width:1100px;margin:0 auto;padding:64px 32px 90px}
+  #below h3{font-size:13px;letter-spacing:3px;color:var(--cyan);font-weight:800;margin-bottom:10px}
+  #below h1{font-size:34px;font-weight:900;margin-bottom:26px;line-height:1.15}
+  #below h1 b{background:linear-gradient(90deg,var(--cyan-soft),var(--amber));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-bottom:18px}
+  .ec{padding:22px;border-radius:16px;background:var(--panel);border:1px solid var(--line)}
+  .ec .n{font-size:12px;font-weight:800;color:var(--cyan);letter-spacing:1px;margin-bottom:8px}
+  .ec h4{font-size:17px;margin-bottom:8px}
+  .ec p{font-size:13.5px;color:var(--dim);line-height:1.6}
+  .scrollcue{position:absolute;left:50%;bottom:8px;transform:translateX(-50%);font-size:10px;letter-spacing:2px;color:var(--dim);z-index:31;animation:blink 2s infinite;font-weight:700}
+</style>
+</head>
+<body>
+<section id="hero">
+  <div id="topbar">
+    <div class="brand"><span class="mark"></span><b>TOLLGATE</b><span>BID · OWN · COLLECT</span></div>
+    <div class="topspacer"></div>
+    <div class="pill live"><div class="lab">SYNTHETIC · VOL 75</div><div class="val"><span class="dot"></span><span id="hdrPrice">10000.0</span></div></div>
+    <div class="pill"><div class="lab">SESSION P/L</div><div class="val" id="hdrPL">+0.00</div></div>
+    <div class="pill"><div class="lab">BALANCE</div><div class="val bal" id="hdrBal">1,000.00</div></div>
+  </div>
+
+  <div id="stage">
+    <div id="chartwrap">
+      <canvas id="chart"></canvas>
+      <canvas id="fx"></canvas>
+      <div id="priceTag">10000.0</div>
+      <div id="folio">
+        <div id="folioHead">YOUR GATES</div>
+      </div>
+    </div>
+    <div id="ladder">
+      <div id="ladderHead"><span>TOLLGATE LADDER</span><span>RENT · TOLL</span></div>
+      <div id="gates"></div>
+    </div>
+  </div>
+
+  <div id="deck">
+    <div class="stakebox">
+      <div class="cap">STAKE PER GATE</div>
+      <div class="stakerow">
+        <button class="stk" data-s="5">5</button>
+        <button class="stk on" data-s="10">10</button>
+        <button class="stk" data-s="25">25</button>
+        <button class="stk" data-s="50">50</button>
+      </div>
+    </div>
+    <div class="legend">
+      <div class="lg"><span class="sw" style="background:linear-gradient(135deg,#38e1ff,#1b9bd6)"></span>Owned</div>
+      <div class="lg"><span class="sw" style="background:linear-gradient(90deg,#3a2840,#ff5d73)"></span>Hot (demand)</div>
+      <div class="lg"><span class="sw" style="background:var(--amber)"></span>Toll multiplier</div>
+    </div>
+    <div class="deckspacer"></div>
+    <div class="hint">
+      <b>Buy a gate</b> to own that price level. <span class="k">CLICK</span> a gate to claim it for the stake (its rent).
+      Hold for the price to <b>touch</b> it → collect the <b>toll</b>. Or <span class="k flip">HOVER + CLICK</span> an owned gate to <b>flip</b> it for its risen rent.
+    </div>
+  </div>
+
+  <div id="coach">
+    <h2>Welcome to <b>TOLLGATE</b></h2>
+    <p>The price is a comet on a road. To its right stands a ladder of <b>tollgates</b> — future price levels you can <b>own</b>.
+    Buy a gate cheap. Rent on it <b>climbs as the price drives toward it</b>. Then choose: <b>hold</b> for the price to crash through and pay the full toll, or <b>flip</b> your claim for the risen rent. Far gates pay huge — if the price stretches to reach them.</p>
+    <button id="startBtn">ENTER THE MARKET</button>
+  </div>
+
+  <div class="scrollcue">SCROLL FOR HOW IT WORKS ↓</div>
+</section>
+
+<section id="below">
+  <h3>MARKET MICROSTRUCTURE, PLAYABLE</h3>
+  <h1>Own the levels the price is about to <b>visit</b>.</h1>
+  <div class="cards">
+    <div class="ec"><div class="n">01 · BID</div><h4>Buy a future level</h4><p>Each gate is a discrete price level with a live <b>rent</b> (bid price) and a <b>toll</b> multiplier. Near gates are cheap and pay small; far gates cost more in expectation and pay big — because the price has to stretch to reach them.</p></div>
+    <div class="ec"><div class="n">02 · DEMAND</div><h4>Rent moves with the price</h4><p>As the live comet drifts toward a gate, rival bidders pile in and its rent inflates in real time — driven by distance and momentum, not RNG. Buy before the wave; the gate you grabbed cheap turns hot.</p></div>
+    <div class="ec"><div class="n">03 · COLLECT</div><h4>Touch, or flip</h4><p><b>Touch:</b> the price reaches your gate's lane → it detonates and pays the full toll. <b>Flip:</b> sell your claim into the inflamed market for its risen rent, banking the spread before the touch ever happens.</p></div>
+  </div>
+  <div class="cards">
+    <div class="ec"><div class="n">WHY IT'S DIFFERENT</div><h4>Not up/down. Not a crash multiplier.</h4><p>There's no single number climbing to a bust. Outcomes are decided by whether the price path <b>spatially reaches</b> the levels you bought — and by a live bid you can sell into. It's the order book, turned into a board you can play.</p></div>
+    <div class="ec"><div class="n">DERIV FIT</div><h4>Strikes & barriers, gamified</h4><p>It mirrors real strike/barrier instruments and order-book pricing: bids that inflate with demand, mark-to-market exits, payoffs on a level being touched. The exact intuition a Deriv trader lives in — as a one-tap arcade game.</p></div>
+    <div class="ec"><div class="n">THE LOOP</div><h4>Two exits, zero idle</h4><p>Every owned gate is a live question: ride for the toll or flip the spread? The rent ticker never stops, the comet never stops, and the near-miss — price reversing one lane short — keeps you reaching for one more round.</p></div>
+  </div>
+</section>
+
+<script>
+(function(){
+  "use strict";
+  // ---------- canvases ----------
+  const chart = document.getElementById('chart');
+  const fx = document.getElementById('fx');
+  const cctx = chart.getContext('2d');
+  const fctx = fx.getContext('2d');
+  let W=0,H=0,DPR=Math.min(window.devicePixelRatio||1,2);
+
+  function resize(){
+    const wrap = document.getElementById('chartwrap');
+    const r = wrap.getBoundingClientRect();
+    W=r.width; H=r.height;
+    [chart,fx].forEach(c=>{c.width=W*DPR;c.height=H*DPR;c.style.width=W+'px';c.style.height=H+'px';});
+    cctx.setTransform(DPR,0,0,DPR,0,0);
+    fctx.setTransform(DPR,0,0,DPR,0,0);
+  }
+  window.addEventListener('resize',()=>{resize();});
+
+  // ---------- price model ----------
+  const N = 220;               // points across chart
+  let price = 10000;
+  let vel = 0;
+  const hist = [];
+  for(let i=0;i<N;i++){ hist.push(price); }
+  let drift = 0, driftTarget = 0, driftTimer = 0;
+
+  function stepPrice(){
+    // momentum + regime drift + noise (synthetic-index feel)
+    driftTimer--;
+    if(driftTimer<=0){
+      driftTarget = (Math.random()-0.5)*2.6;
+      driftTimer = 60 + Math.random()*120;
+    }
+    drift += (driftTarget - drift)*0.03;
+    const noise = (Math.random()-0.5)*2.0;
+    vel = vel*0.86 + (drift + noise)*0.9;
+    price += vel;
+    hist.push(price);
+    if(hist.length>N) hist.shift();
+  }
+
+  // price -> y mapping uses a rolling window range
+  let viewMin=price-60, viewMax=price+60;
+  function updateView(){
+    let mn=Infinity,mx=-Infinity;
+    for(let i=0;i<hist.length;i++){ if(hist[i]<mn)mn=hist[i]; if(hist[i]>mx)mx=hist[i]; }
+    // include owned/visible gates so ladder + chart share scale
+    gates.forEach(g=>{ if(g.level<mn)mn=g.level; if(g.level>mx)mx=g.level; });
+    const pad=(mx-mn)*0.18 + 14;
+    mn-=pad; mx+=pad;
+    viewMin += (mn-viewMin)*0.08;
+    viewMax += (mx-viewMax)*0.08;
+  }
+  function yOf(p){ return H - ((p-viewMin)/(viewMax-viewMin))*H; }
+
+  // ---------- gates (the auction) ----------
+  // gate spacing in price units
+  const GAP = 16;
+  let gates = [];        // active gate objects
+  let gateSeq = 0;
+  const gatesEl = document.getElementById('gates');
+
+  function tollMultiplier(distLanes){
+    // farther => bigger multiplier (odds). distLanes in {1,2,3,...}
+    const d = Math.max(1, distLanes);
+    return +(1.25 + Math.pow(d,1.55)*0.55).toFixed(2);
+  }
+
+  function baseRent(distLanes){
+    // fair-ish rent ~ stake/odds with house spread; here a unitless "rent index" scaled by stake later
+    const m = tollMultiplier(distLanes);
+    return 1/m; // fraction of stake; closer gate => higher base rent fraction
+  }
+
+  function makeGate(level, dirLanes){
+    const g = {
+      id: ++gateSeq,
+      level,
+      dirLanes,                       // signed lane distance from anchor at creation
+      mult: tollMultiplier(Math.abs(dirLanes)),
+      owned:false, paid:0, stake:0,
+      heat:0,                          // 0..1 demand heat
+      el:null, alive:true, flashOff:0,
+      bornView: 0,
+    };
+    // DOM
+    const el = document.createElement('div');
+    el.className='gate';
+    el.innerHTML = `
+      <span class="flag"></span>
+      <span class="ownbadge">OWNED</span>
+      <span class="flipcue">FLIP ↩</span>
+      <div class="heat"></div>
+      <span class="lvl">${level.toFixed(1)}</span>
+      <div class="mid"><span class="rentlab">RENT</span><span class="rent">—</span></div>
+      <div class="toll"><span class="x">×${g.mult.toFixed(2)}</span><span class="tl">TOLL</span></div>`;
+    el.addEventListener('click',()=>onGateClick(g));
+    gatesEl.appendChild(el);
+    g.el = el;
+    g.rentEl = el.querySelector('.rent');
+    gates.push(g);
+    return g;
+  }
+
+  // keep a ladder of gates spanning current view, snapped to GAP grid
+  function ensureGates(){
+    const anchor = Math.round(price/GAP)*GAP;
+    const span = Math.ceil((viewMax-viewMin)/GAP/2)+2;
+    const wanted = new Set();
+    for(let k=-span;k<=span;k++){
+      const lvl = anchor + k*GAP;
+      wanted.add(lvl);
+      if(!gates.find(g=>Math.abs(g.level-lvl)<0.001)){
+        const dirLanes = Math.round((lvl-price)/GAP);
+        if(Math.abs(dirLanes)>=1) makeGate(lvl, dirLanes); // skip the at-price lane
+      }
+    }
+    // cull gates far outside view (and not owned) — expire owned ones (loss)
+    for(const g of gates){
+      const y = yOf(g.level);
+      const off = (y < -60 || y > H+60);
+      if(off && !g.owned){ retireGate(g); }
+      else if(off && g.owned){
+        // owned gate scrolled off untouched -> expire worthless (rent already sunk)
+        toast(W-150, y<0?20:H-20, '−'+g.paid.toFixed(0), 'var(--red)', 18);
+        retireGate(g);
+      }
+    }
+  }
+  function retireGate(g){
+    g.alive=false;
+    if(g.el && g.el.parentNode){ g.el.style.transition='opacity .3s, transform .3s'; g.el.style.opacity='0'; g.el.style.transform='translateX(14px)'; const e=g.el; setTimeout(()=>{ if(e.parentNode) e.parentNode.removeChild(e); },320);}
+    gates = gates.filter(x=>x!==g);
+    renderFolio();
+  }
+
+  // ---------- demand pricing (live rent) ----------
+  function gateRent(g){
+    // distance in lanes from current price (always >=0 magnitude)
+    const distLanes = Math.abs(g.level-price)/GAP;
+    // proximity demand: closer => hotter. momentum toward the gate adds heat.
+    const towards = Math.sign(g.level-price)===Math.sign(vel) ? Math.min(1, Math.abs(vel)/2.4) : 0;
+    const prox = Math.max(0, 1 - distLanes/6);           // 0..1 by closeness
+    const heatTarget = Math.min(1, prox*0.85 + towards*0.6);
+    g.heat += (heatTarget-g.heat)*0.12;
+    // rent fraction of stake: rises with heat, bounded below by fair fraction
+    const fair = baseRent(Math.max(1,distLanes));
+    const frac = fair * (0.78 + g.heat*1.9);             // demand multiplies rent
+    return { frac, distLanes };
+  }
+
+  // ---------- player state ----------
+  let balance = 1000, sessionPL = 0, stake = 10;
+  const hdrBal=document.getElementById('hdrBal'), hdrPL=document.getElementById('hdrPL'),
+        hdrPrice=document.getElementById('hdrPrice'), hdrPriceTag=document.getElementById('priceTag');
+
+  function fmt(n){ return n.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}); }
+  function setBalance(){ hdrBal.textContent = fmt(balance); }
+  function setPL(){
+    hdrPL.textContent = (sessionPL>=0?'+':'')+fmt(sessionPL);
+    hdrPL.style.color = sessionPL>=0 ? 'var(--green)' : 'var(--red)';
+  }
+  setBalance(); setPL();
+
+  // stake buttons
+  document.querySelectorAll('.stk').forEach(b=>{
+    b.addEventListener('click',()=>{
+      document.querySelectorAll('.stk').forEach(x=>x.classList.remove('on'));
+      b.classList.add('on'); stake = +b.dataset.s;
+    });
+  });
+
+  function onGateClick(g){
+    if(!g.alive) return;
+    if(g.owned){
+      // FLIP: sell at current rent
+      const { frac } = gateRent(g);
+      const sell = stakeRent(g.stake, frac);
+      balance += sell;
+      const profit = sell - g.paid;
+      sessionPL += profit;
+      setBalance(); setPL();
+      const y = yOf(g.level);
+      toast(W-160, y, (profit>=0?'+':'−')+Math.abs(profit).toFixed(0), profit>=0?'var(--green)':'var(--red)', 19, 'FLIP');
+      coinSpray(W-30, y, profit>=0?'var(--green)':'var(--red)');
+      retireGate(g);
+    } else {
+      // BUY: pay current rent
+      const { frac } = gateRent(g);
+      const cost = stakeRent(g.stake||stake, frac);
+      if(cost>balance) return;
+      g.stake = stake;
+      g.paid = cost;
+      g.owned = true;
+      balance -= cost;
+      sessionPL -= cost; // mark spent; touch/flip credits back
+      setBalance(); setPL();
+      g.el.classList.add('owned');
+      ping(g.level);
+      renderFolio();
+    }
+  }
+  function stakeRent(stk, frac){ return +(stk*frac).toFixed(2); }
+
+  // ---------- touch resolution ----------
+  let lastPrice = price;
+  function checkTouches(){
+    for(const g of gates.slice()){
+      if(!g.owned||!g.alive) continue;
+      const crossed = (lastPrice - g.level)*(price - g.level) <= 0; // sign change => crossed lane
+      if(crossed){
+        const toll = +(g.stake * g.mult).toFixed(2);
+        balance += toll; sessionPL += toll;
+        setBalance(); setPL();
+        const y=yOf(g.level);
+        detonate(W-2, y, g.level);
+        toast(W-150, y, '+'+toll.toFixed(0), 'var(--amber)', 24, 'TOLL ×'+g.mult.toFixed(2));
+        retireGate(g);
+      }
+    }
+    lastPrice = price;
+  }
+
+  // ---------- portfolio chips ----------
+  const folioEl = document.getElementById('folio');
+  function renderFolio(){
+    // clear except head
+    folioEl.querySelectorAll('.fcard').forEach(c=>c.remove());
+    const owned = gates.filter(g=>g.owned).sort((a,b)=>Math.abs(a.level-price)-Math.abs(b.level-price)).slice(0,4);
+    for(const g of owned){
+      const { frac } = gateRent(g);
+      const mark = stakeRent(g.stake, frac);
+      const pl = mark - g.paid;
+      const c=document.createElement('div'); c.className='fcard';
+      c.innerHTML=`<div class="fl"></div>
+        <div class="fm"><div class="a">${g.level.toFixed(1)}</div><div class="b">paid ${g.paid.toFixed(1)} · ×${g.mult.toFixed(2)}</div></div>
+        <div class="fpl ${pl>=0?'up':'dn'}">${pl>=0?'+':'−'}${Math.abs(pl).toFixed(1)}</div>`;
+      folioEl.appendChild(c);
+    }
+  }
+
+  // ---------- FX ----------
+  const parts=[]; const shocks=[]; const toasts=[];
+  function detonate(x,y,level){
+    shocks.push({x,y,r:6,max:Math.max(W,H)*0.5,a:1});
+    for(let i=0;i<46;i++){
+      const an=Math.random()*Math.PI*2, sp=2+Math.random()*7;
+      parts.push({x,y,vx:Math.cos(an)*sp,vy:Math.sin(an)*sp - 1, life:1, col: Math.random()<.5?'255,194,75':'56,225,255', sz:2+Math.random()*3});
+    }
+  }
+  function coinSpray(x,y,col){
+    const rgb = col.includes('green')?'65,247,160':(col.includes('red')?'255,93,115':'255,194,75');
+    for(let i=0;i<18;i++){
+      const an=-Math.PI/2 + (Math.random()-0.5)*1.4, sp=2+Math.random()*5;
+      parts.push({x,y,vx:Math.cos(an)*sp,vy:Math.sin(an)*sp,life:1,col:rgb,sz:2+Math.random()*2.5});
+    }
+  }
+  function ping(level){
+    const y=yOf(level);
+    shocks.push({x:W-2,y,r:4,max:120,a:.8,thin:true});
+  }
+  function toast(x,y,text,col,size,sub){
+    const t=document.createElement('div'); t.className='toast';
+    t.style.left=x+'px'; t.style.top=y+'px'; t.style.color=col; t.style.fontSize=(size||18)+'px'; t.style.transform='translateX(-50%)';
+    t.innerHTML = (sub?`<span style="font-size:.5em;letter-spacing:1px;opacity:.85;display:block;text-align:center;margin-bottom:2px">${sub}</span>`:'')+text;
+    document.getElementById('chartwrap').appendChild(t);
+    setTimeout(()=>{ if(t.parentNode)t.parentNode.removeChild(t); },1300);
+  }
+
+  // ---------- draw chart ----------
+  let tline=0;
+  function drawChart(){
+    cctx.clearRect(0,0,W,H);
+    // grid
+    cctx.lineWidth=1;
+    cctx.strokeStyle='rgba(120,150,210,0.06)';
+    const rows=8;
+    for(let i=0;i<=rows;i++){ const y=H*i/rows; cctx.beginPath(); cctx.moveTo(0,y); cctx.lineTo(W,y); cctx.stroke(); }
+    const cols=10;
+    for(let i=0;i<=cols;i++){ const x=W*i/cols; cctx.beginPath(); cctx.moveTo(x,0); cctx.lineTo(x,H); cctx.stroke(); }
+
+    // gate guide lines across chart (faint), highlight owned
+    for(const g of gates){
+      const y=yOf(g.level);
+      if(y<-4||y>H+4) continue;
+      if(g.owned){
+        cctx.strokeStyle='rgba(56,225,255,'+(0.20+0.25*g.heat)+')';
+        cctx.lineWidth=1.5;
+        cctx.setLineDash([2,5]);
+      } else {
+        cctx.strokeStyle='rgba(255,93,115,'+(0.05+0.18*g.heat)+')';
+        cctx.lineWidth=1; cctx.setLineDash([1,7]);
+      }
+      cctx.beginPath(); cctx.moveTo(0,y); cctx.lineTo(W,y); cctx.stroke();
+    }
+    cctx.setLineDash([]);
+
+    // price line + glow trail
+    const n=hist.length;
+    const stepX = W/(N-1);
+    // area under
+    cctx.beginPath();
+    for(let i=0;i<n;i++){ const x=i*stepX, y=yOf(hist[i]); if(i===0)cctx.moveTo(x,y); else cctx.lineTo(x,y);}
+    cctx.lineTo((n-1)*stepX,H); cctx.lineTo(0,H); cctx.closePath();
+    const grd=cctx.createLinearGradient(0,0,0,H);
+    grd.addColorStop(0,'rgba(56,225,255,0.16)'); grd.addColorStop(1,'rgba(56,225,255,0)');
+    cctx.fillStyle=grd; cctx.fill();
+    // line
+    cctx.lineJoin='round'; cctx.lineCap='round';
+    cctx.shadowColor='rgba(56,225,255,0.9)'; cctx.shadowBlur=14;
+    cctx.strokeStyle='#7af0ff'; cctx.lineWidth=2.4;
+    cctx.beginPath();
+    for(let i=0;i<n;i++){ const x=i*stepX, y=yOf(hist[i]); if(i===0)cctx.moveTo(x,y); else cctx.lineTo(x,y);}
+    cctx.stroke();
+    cctx.shadowBlur=0;
+    // head comet
+    const hx=(n-1)*stepX, hy=yOf(price);
+    const pulse=2+Math.sin(tline*0.18)*1;
+    cctx.beginPath(); cctx.arc(hx,hy,6+pulse,0,Math.PI*2);
+    cctx.fillStyle='rgba(56,225,255,0.18)'; cctx.fill();
+    cctx.beginPath(); cctx.arc(hx,hy,3.4,0,Math.PI*2);
+    cctx.fillStyle='#fff'; cctx.shadowColor='#7af0ff'; cctx.shadowBlur=18; cctx.fill(); cctx.shadowBlur=0;
+
+    // price tag follows head
+    hdrPriceTag.style.top = hy+'px';
+    hdrPriceTag.textContent = price.toFixed(1);
+    hdrPrice.textContent = price.toFixed(1);
+  }
+
+  function drawFX(){
+    fctx.clearRect(0,0,W,H);
+    // shockwaves
+    for(let i=shocks.length-1;i>=0;i--){
+      const s=shocks[i]; s.r += (s.thin?6:18); s.a -= (s.thin?0.05:0.03);
+      if(s.a<=0){ shocks.splice(i,1); continue; }
+      fctx.beginPath(); fctx.arc(s.x,s.y,s.r,0,Math.PI*2);
+      fctx.strokeStyle='rgba('+(s.thin?'56,225,255,':'255,194,75,')+s.a+')';
+      fctx.lineWidth = s.thin?1.5:3; fctx.stroke();
+    }
+    // particles
+    for(let i=parts.length-1;i>=0;i--){
+      const p=parts[i]; p.x+=p.vx; p.y+=p.vy; p.vy+=0.16; p.vx*=0.98; p.life-=0.02;
+      if(p.life<=0){ parts.splice(i,1); continue; }
+      fctx.globalAlpha=Math.max(0,p.life);
+      fctx.fillStyle='rgb('+p.col+')';
+      fctx.beginPath(); fctx.arc(p.x,p.y,p.sz,0,Math.PI*2); fctx.fill();
+    }
+    fctx.globalAlpha=1;
+  }
+
+  // ---------- ladder DOM update ----------
+  function updateLadder(){
+    for(const g of gates){
+      const y=yOf(g.level);
+      g.el.style.top = y+'px';
+      const visible = y>24 && y<H-2;
+      g.el.style.display = visible?'flex':'none';
+      if(!visible) continue;
+      const { frac } = gateRent(g);
+      const rentVal = stakeRent(g.owned?g.stake:stake, frac);
+      // rent display + arrow
+      const prev = g._lastRent||rentVal;
+      const arrow = rentVal>prev+0.01?'<span class="arrow" style="color:var(--green)">▲</span>': rentVal<prev-0.01?'<span class="arrow" style="color:var(--red)">▼</span>':'';
+      g.rentEl.innerHTML = rentVal.toFixed(1)+arrow;
+      g._lastRent=rentVal;
+      // hot styling
+      if(g.heat>0.45) g.el.classList.add('hot'); else g.el.classList.remove('hot');
+    }
+  }
+
+  // ---------- main loop ----------
+  let running=false, acc=0, last=performance.now();
+  function loop(now){
+    const dt=Math.min(50, now-last); last=now; acc+=dt;
+    // fixed-ish price step ~ every 90ms
+    while(acc>=90){ if(running){ stepPrice(); checkTouches(); } acc-=90; }
+    updateView();
+    ensureGates();
+    drawChart();
+    drawFX();
+    updateLadder();
+    if(running && (tline%18===0)) renderFolio();
+    tline++;
+    requestAnimationFrame(loop);
+  }
+
+  // ---------- boot ----------
+  function boot(){
+    resize();
+    // seed a richer history
+    for(let i=0;i<N;i++){ stepPrice(); }
+    lastPrice=price;
+    updateView(); ensureGates(); updateLadder();
+    requestAnimationFrame(loop);
+  }
+  document.getElementById('startBtn').addEventListener('click',()=>{
+    const c=document.getElementById('coach');
+    c.style.transition='opacity .35s, transform .35s'; c.style.opacity='0'; c.style.transform='translate(-50%,-50%) scale(.96)';
+    setTimeout(()=>{ c.style.display='none'; },360);
+    running=true;
+    // auto-buy a demo gate so the board reads instantly
+    setTimeout(()=>{
+      const cand = gates.filter(g=>g.level>price && Math.abs(g.level-price)/GAP<=3).sort((a,b)=>a.level-b.level)[0];
+      if(cand) onGateClick(cand);
+    },400);
+  });
+  boot();
+  // give it life even before "start" so the hero is never static
+  running=true;
+  setTimeout(()=>{ if(document.getElementById('coach').style.display!=='none') running=true; },50);
+})();
+</script>
+</body>
+</html>
