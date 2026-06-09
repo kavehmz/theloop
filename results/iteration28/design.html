@@ -424,8 +424,9 @@
     moveTicker(dt);
 
     if(phase===PHASE.CARD){
-      // gentle pre-race jitter at gate
-      for(let i=0;i<N;i++){ vis[i]=vis[i]*0.9+0.0006*9; }
+      // gentle pre-race jitter at gate (kept near race-speed scale so runners
+      // don't enter the race with a huge carried-over vis and teleport to the wire)
+      for(let i=0;i<N;i++){ vis[i]=vis[i]*0.9+0.00002; }
       if(phaseT>CARD_MS && !locked){
         // auto-lock default order if player idle (keeps demo alive)
         locked=true; balance-=100; updateBal();
