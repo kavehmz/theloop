@@ -773,8 +773,8 @@ function drawRail(){
 let last=performance.now(), acc=0;
 function loop(now){
   const dt=now-last; last=now;
-  // step market at ~60Hz-ish
-  acc+=dt;
+  // step market at ~60Hz-ish (clamp to avoid a huge catch-up burst after tab backgrounding)
+  acc+=Math.min(dt,100);
   while(acc>16){ stepMarket(16); acc-=16;
     if(detectBeat(performance.now())){ onLiveBeat(performance.now()); shockwave(); }
   }
@@ -811,8 +811,8 @@ document.querySelectorAll("#phraseSeg button").forEach(b=>{
 document.querySelectorAll("#trackPick .chip").forEach(c=>{
   c.onclick=()=>{ if(G.active)return; document.querySelectorAll("#trackPick .chip").forEach(x=>x.classList.remove("active"));
     c.classList.add("active"); VOL=+c.dataset.vol;
-    const map={"0.6":"VOL 10 INDEX · ballad","1":"VOL 50 INDEX · groove","1.7":"VOL 100 INDEX · drum & bass"};
-    ui.symtag.textContent=map[c.dataset.vol]; };
+    const map={"0.6":"VOL 10 INDEX · ballad","1.0":"VOL 50 INDEX · groove","1.7":"VOL 100 INDEX · drum & bass"};
+    ui.symtag.textContent=map[c.dataset.vol]||ui.symtag.textContent; };
 });
 
 /* ---------------- boot ---------------- */
