@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RICOCHET — the market is the ball</title>
+<style>
+  :root{
+    --cyan:#22e3ff; --mag:#ff3ea5; --amber:#ffc04d; --green:#3dffa8;
+    --bg0:#04060f; --bg1:#0a1024; --ink:#dfe9ff;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%;background:var(--bg0);color:var(--ink);
+    font-family:"Segoe UI",Inter,system-ui,sans-serif;overflow-x:hidden}
+  /* ---------- HERO (full bleed, no scroll) ---------- */
+  #hero{position:relative;width:100vw;height:100vh;min-height:800px;overflow:hidden;
+    background:
+      radial-gradient(1200px 700px at 70% -10%, rgba(34,227,255,.10), transparent 60%),
+      radial-gradient(900px 600px at 10% 110%, rgba(255,62,165,.12), transparent 60%),
+      linear-gradient(180deg,#05081a 0%, #04060f 55%, #02030a 100%);}
+  canvas#stage{position:absolute;inset:0;width:100%;height:100%;display:block}
+  /* top bar */
+  .topbar{position:absolute;top:0;left:0;right:0;height:62px;z-index:20;
+    display:flex;align-items:center;gap:22px;padding:0 26px;
+    background:linear-gradient(180deg,rgba(4,6,15,.92),rgba(4,6,15,0));
+    pointer-events:none}
+  .brand{font-weight:800;letter-spacing:3px;font-size:22px;
+    background:linear-gradient(90deg,var(--cyan),var(--mag));
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    text-shadow:0 0 18px rgba(34,227,255,.35)}
+  .brand small{display:block;font-size:9px;letter-spacing:2px;color:#6a7ba8;font-weight:600;-webkit-text-fill-color:#6a7ba8}
+  .feed{display:flex;align-items:center;gap:10px;font-size:13px;color:#9fb0d8}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 10px var(--green);animation:pulse 1.4s infinite}
+  @keyframes pulse{50%{opacity:.35}}
+  .px{font-variant-numeric:tabular-nums;font-weight:700;color:#fff}
+  .pill{padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:.5px}
+  .pill.up{background:rgba(61,255,168,.14);color:var(--green);border:1px solid rgba(61,255,168,.3)}
+  .pill.dn{background:rgba(255,62,165,.14);color:var(--mag);border:1px solid rgba(255,62,165,.3)}
+
+  /* live market readouts (right) */
+  .mkt{margin-left:auto;display:flex;gap:18px;align-items:center}
+  .mkt .g{text-align:right}
+  .mkt .g b{display:block;font-size:9px;letter-spacing:1.5px;color:#5e6f9c;font-weight:700}
+  .mkt .g span{font-size:13px;font-weight:700;font-variant-numeric:tabular-nums}
+
+  /* big chain readout */
+  #chainWrap{position:absolute;left:50%;top:78px;transform:translateX(-50%);z-index:18;
+    text-align:center;pointer-events:none}
+  #chainMult{font-size:72px;font-weight:900;line-height:1;letter-spacing:-2px;
+    color:#fff;text-shadow:0 0 30px rgba(34,227,255,.55), 0 0 80px rgba(255,62,165,.3);
+    font-variant-numeric:tabular-nums;transition:color .1s}
+  #chainLbl{font-size:11px;letter-spacing:5px;color:#7d8fbf;font-weight:700;margin-top:2px}
+  #peak{font-size:12px;letter-spacing:1px;color:var(--amber);margin-top:4px;font-weight:700}
+
+  /* bottom HUD */
+  .hud{position:absolute;left:0;right:0;bottom:0;z-index:20;height:104px;
+    display:flex;align-items:center;justify-content:space-between;gap:18px;padding:0 26px;
+    background:linear-gradient(0deg,rgba(3,5,13,.96),rgba(3,5,13,.55) 60%,transparent)}
+  .panel{display:flex;flex-direction:column;gap:5px}
+  .panel .lab{font-size:10px;letter-spacing:2px;color:#5e6f9c;font-weight:700}
+  .stakebox{display:flex;align-items:center;gap:8px}
+  .stakebox button{width:30px;height:30px;border-radius:8px;border:1px solid #1d2c52;
+    background:#0c1430;color:#9fb0d8;font-size:18px;font-weight:700;cursor:pointer}
+  .stakebox button:hover{border-color:var(--cyan);color:#fff}
+  .stakebox .val{min-width:78px;text-align:center;font-size:20px;font-weight:800;color:#fff;font-variant-numeric:tabular-nums}
+  .cta{padding:0 34px;height:56px;border:none;border-radius:14px;cursor:pointer;
+    font-size:17px;font-weight:800;letter-spacing:1px;color:#04060f;
+    background:linear-gradient(100deg,var(--cyan),var(--green));
+    box-shadow:0 0 28px rgba(34,227,255,.45);transition:transform .08s,filter .15s}
+  .cta:hover{filter:brightness(1.1)}
+  .cta:active{transform:scale(.97)}
+  .cta.live{background:linear-gradient(100deg,var(--mag),var(--amber));box-shadow:0 0 28px rgba(255,62,165,.5)}
+  .controls{font-size:11px;color:#7d8fbf;text-align:center;line-height:1.7}
+  .controls kbd{display:inline-block;padding:2px 8px;margin:0 1px;border-radius:6px;
+    background:#0c1430;border:1px solid #20305a;color:#cfe;font-weight:700;font-size:11px}
+  .winflash{position:absolute;left:50%;top:30%;transform:translate(-50%,-50%);z-index:30;
+    font-size:30px;font-weight:900;letter-spacing:1px;color:#fff;opacity:0;pointer-events:none;text-align:center;
+    text-shadow:0 0 26px var(--amber);white-space:nowrap}
+  .bankline{font-size:11px;color:#5e6f9c;letter-spacing:1px}
+  .bankline b{color:var(--green)}
+
+  /* explainer below the fold */
+  .below{max-width:1100px;margin:0 auto;padding:64px 28px 90px}
+  .below h2{font-size:13px;letter-spacing:4px;color:var(--cyan);font-weight:800;margin-bottom:18px}
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+  .card{background:linear-gradient(180deg,#0a1126,#070b18);border:1px solid #16223f;
+    border-radius:16px;padding:20px}
+  .card h3{font-size:15px;color:#fff;margin-bottom:8px}
+  .card p{font-size:13px;color:#9fb0d8;line-height:1.6}
+  .card .em{color:var(--amber);font-weight:700}
+  .foot{margin-top:40px;font-size:12px;color:#4a5a82;text-align:center;line-height:1.8}
+</style>
+</head>
+<body>
+<section id="hero">
+  <canvas id="stage"></canvas>
+
+  <div class="topbar">
+    <div class="brand">RICOCHET<small>THE MARKET IS THE BALL</small></div>
+    <div class="feed">
+      <span class="dot"></span> Volatility 75 Index
+      <span class="px" id="pxLabel">—</span>
+      <span class="pill up" id="pxPill">+0.00%</span>
+    </div>
+    <div class="mkt">
+      <div class="g"><b>POWER</b><span id="mPow" style="color:var(--cyan)">—</span></div>
+      <div class="g"><b>TILT</b><span id="mTilt" style="color:var(--amber)">—</span></div>
+      <div class="g"><b>ROTOR LIVELINESS</b><span id="mVol" style="color:var(--mag)">—</span></div>
+    </div>
+  </div>
+
+  <div id="chainWrap">
+    <div id="chainMult">x1.0</div>
+    <div id="chainLbl">COMBO CHAIN</div>
+    <div id="peak">PEAK x1.0</div>
+  </div>
+
+  <div class="winflash" id="winflash"></div>
+
+  <div class="hud">
+    <div class="panel">
+      <div class="lab">STAKE</div>
+      <div class="stakebox">
+        <button id="minus">–</button>
+        <div class="val" id="stakeVal">$5</div>
+        <button id="plus">+</button>
+      </div>
+      <div class="bankline">Balance <b id="bal">$1,000</b></div>
+    </div>
+
+    <div class="controls">
+      <div>Snap the paddles to deflect the price-ball back into the rotors</div>
+      <div style="margin-top:6px"><kbd>◄ A</kbd> left flip &nbsp; <kbd>D ►</kbd> right flip &nbsp; or <kbd>click</kbd> a side</div>
+      <div style="margin-top:6px;color:#586a98">One miss in the rhythm and the chain resets to x1.</div>
+    </div>
+
+    <div class="panel" style="align-items:flex-end">
+      <div class="lab">SETTLEMENT = STAKE × PEAK CHAIN</div>
+      <button class="cta" id="launch">LAUNCH BALL ▸</button>
+      <div class="bankline">Last round <b id="last">—</b></div>
+    </div>
+  </div>
+</section>
+
+<section class="below">
+  <h2>HOW RICOCHET WORKS</h2>
+  <div class="grid3">
+    <div class="card"><h3>The market throws the ball</h3><p>Ball speed and launch power track <span class="em">price velocity</span>. The whole table <span class="em">tilts</span> with trend — up-trends feed the rotors, down-trends drag toward the drain. <span class="em">Volatility</span> spins the rotors hotter, so wild markets offer the biggest chains.</p></div>
+    <div class="card"><h3>Keep the chain alive</h3><p>Every clean rotor hit links your <span class="em">combo-chain</span> and ramps the multiplier. Let the rhythm lapse without scoring and the chain <span class="em">resets to x1</span> — it never banks, it never busts. You are racing your own best run.</p></div>
+    <div class="card"><h3>Settle on your peak</h3><p>No cash-out button. When the ball drains, you're paid <span class="em">stake × the highest chain you held</span>. Reading volatility and trend literally makes you play better — the chart skill is the game skill.</p></div>
+  </div>
+  <div class="foot">
+    Skin-free core: your bet is the <i>timing of paddle-strikes that deflect a live-price-driven ball through scoring rotors to hold an unbroken combo-chain</i>, settled by the <i>peak chain multiplier reached when the ball drains</i>.<br>
+    Prototype: simulated Volatility-75-style feed. Distinct from one-shot launch (Slingshot), reversal-tap (Pulsepoint), level-claim (Tollgate), and bank-before-blow (Reactor).
+  </div>
+</section>
+
+<script>
+(function(){
+  "use strict";
+  const cv = document.getElementById('stage');
+  const ctx = cv.getContext('2d');
+  let W=1280, H=800, DPR=Math.min(2, window.devicePixelRatio||1);
+
+  function resize(){
+    const r = cv.getBoundingClientRect();
+    W = r.width||1280; H = r.height||800;
+    cv.width = W*DPR; cv.height = H*DPR;
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+  }
+  window.addEventListener('resize', resize); resize();
+
+  /* ---------------- PRICE FEED (simulated synthetic index) ---------------- */
+  let price = 1000, prevPrice = 1000;
+  const hist = [];            // {p}
+  const HIST_MAX = 260;
+  let drift = 0, vol = 0.9, velocity = 0, sessionDir = 0.0006;
+  let t = 0;
+  for(let i=0;i<HIST_MAX;i++){ hist.push(1000 + Math.sin(i*0.07)*6 + (Math.random()-0.5)*4); }
+
+  function stepPrice(){
+    t++;
+    // regime: slowly wandering drift + volatility (so tilt/power keep changing on screen)
+    sessionDir += (Math.random()-0.5)*0.0008;
+    sessionDir = Math.max(-0.004, Math.min(0.004, sessionDir*0.985));
+    const volTarget = 0.7 + 1.6*Math.abs(Math.sin(t*0.004)) + (Math.random()<0.012?2.4:0);
+    vol += (volTarget - vol)*0.05;
+    const shock = (Math.random()-0.5)*vol*3.0;
+    prevPrice = price;
+    price = price*(1+sessionDir) + shock;
+    velocity = price - prevPrice;
+    drift = drift*0.92 + sessionDir*8*100; // smoothed signed trend for tilt
+    hist.push(price);
+    if(hist.length>HIST_MAX) hist.shift();
+  }
+  // derived game forces
+  function forcePower(){ return Math.min(1, (Math.abs(velocity)/3.2)); }   // 0..1
+  function forceTilt(){ return Math.max(-1, Math.min(1, drift/3.2)); }     // -1..1 (+up)
+  function forceVol(){ return Math.min(1, (vol-0.6)/2.6); }                // 0..1 liveliness
+
+  /* ---------------- ARENA GEOMETRY ---------------- */
+  // play field rectangle inside hero
+  function field(){
+    return { x: W*0.21, y: 86, w: W*0.58, h: H-86-120 };
+  }
+  // rotors (price-anchored scoring bumpers), positions relative to field
+  const rotorDefs = [
+    {rx:0.50, ry:0.22, r:32, hue:'cyan'},
+    {rx:0.26, ry:0.36, r:28, hue:'mag'},
+    {rx:0.74, ry:0.36, r:28, hue:'mag'},
+    {rx:0.38, ry:0.56, r:26, hue:'amber'},
+    {rx:0.62, ry:0.56, r:26, hue:'amber'},
+    {rx:0.50, ry:0.45, r:24, hue:'green'},
+  ];
+  const HUES = {cyan:'#22e3ff', mag:'#ff3ea5', amber:'#ffc04d', green:'#3dffa8'};
+  const rotors = rotorDefs.map(d=>({...d, spin:Math.random()*6, lit:0, pulse:0}));
+
+  /* ---------------- BALL & PADDLES ---------------- */
+  let ball = null; // {x,y,vx,vy,trail:[]}
+  let playing=false;
+  let chain=0, mult=1, peak=1, chainTimer=0;
+  const CHAIN_WINDOW = 156; // ~2.6s @ 60fps, measured in frame-steps (dt is in frame units)
+  function multFor(c){ // bounded ladder
+    if(c<=0) return 1;
+    return Math.min(50, +(1 + c*0.18 + Math.pow(c,1.35)*0.02).toFixed(2));
+  }
+
+  // paddles
+  const padL = {side:-1, ang:0, target:0, flick:0};
+  const padR = {side:1,  ang:0, target:0, flick:0};
+  function paddleGeom(p){
+    const f=field();
+    const gapY = f.y+f.h-26;
+    const baseX = p.side<0 ? f.x + f.w*0.30 : f.x + f.w*0.70;
+    const len = f.w*0.20;
+    const rest = p.side<0 ? 0.36 : -0.36; // radians, V shape
+    const ang = rest - p.side*p.flick*0.95;
+    return {pivotX:baseX, pivotY:gapY, len, ang, tipX:baseX - p.side*Math.cos(ang)*len, tipY:gapY - Math.sin(Math.abs(ang))* ( p.flick? len*0.5:0) - 0 };
+  }
+
+  let particles=[];
+  function burst(x,y,col,n,spd){
+    for(let i=0;i<n;i++){
+      const a=Math.random()*Math.PI*2, s=spd*(0.4+Math.random());
+      particles.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:1,col,sz:1.5+Math.random()*2.5});
+    }
+  }
+  let shake=0, flashTimer=0, flashTxt='', flashCol='#fff';
+
+  /* ---------------- LAUNCH / SETTLE ---------------- */
+  let balance=1000, stake=5;
+  function setStake(v){ stake=Math.max(1, Math.min(balance, v)); document.getElementById('stakeVal').textContent='$'+stake; }
+  function launch(){
+    if(playing) return;
+    if(balance<stake){ return; }
+    balance-=stake; document.getElementById('bal').textContent='$'+balance.toLocaleString();
+    const f=field();
+    chain=0; mult=1; peak=1; chainTimer=0;
+    const pw=forcePower();
+    ball={ x:f.x+f.w*0.5, y:f.y+f.h*0.55,
+           vx:(Math.random()-0.5)*3 - forceTilt()*2,
+           vy:-(3.5+pw*6.5),
+           trail:[] };
+    playing=true;
+    const b=document.getElementById('launch'); b.textContent='● BALL LIVE'; b.classList.add('live');
+  }
+  function settle(){
+    playing=false;
+    const payout = +(stake*peak).toFixed(2);
+    balance += payout;
+    document.getElementById('bal').textContent='$'+balance.toLocaleString(undefined,{maximumFractionDigits:0});
+    document.getElementById('last').textContent = 'x'+peak.toFixed(1)+'  →  +$'+payout.toLocaleString(undefined,{maximumFractionDigits:0});
+    const b=document.getElementById('launch'); b.textContent='LAUNCH BALL ▸'; b.classList.remove('live');
+    flashTxt = peak>=3 ? ('PEAK x'+peak.toFixed(1)+'  +$'+payout.toFixed(0)) : 'DRAINED  x'+peak.toFixed(1);
+    flashCol = peak>=3 ? '#ffc04d' : '#ff3ea5';
+    flashTimer=1.4; shake=Math.min(18,4+peak*0.4);
+    const f=field(); burst(f.x+f.w/2, f.y+f.h, flashCol, 40, 6);
+  }
+
+  /* ---------------- INPUT ---------------- */
+  let demoMode=true; // auto-showcase until the player interacts
+  function flip(p){ p.flick=1; p.flickT=0; }
+  function humanInput(){ demoMode=false; }
+  window.addEventListener('keydown',e=>{
+    if(e.repeat) return;
+    const k=e.key.toLowerCase();
+    if(k==='a'||k==='arrowleft'){ humanInput(); flip(padL); if(!playing) launch(); }
+    if(k==='d'||k==='arrowright'){ humanInput(); flip(padR); if(!playing) launch(); }
+    if(k===' '){ e.preventDefault(); humanInput(); launch(); }
+  });
+  cv.addEventListener('pointerdown',e=>{
+    humanInput();
+    const r=cv.getBoundingClientRect();
+    const mx=e.clientX-r.left;
+    if(mx < W/2) flip(padL); else flip(padR);
+    if(!playing) launch();
+  });
+  document.getElementById('launch').addEventListener('click',()=>{humanInput();launch();});
+  document.getElementById('plus').addEventListener('click',()=>{humanInput();setStake(stake+5);});
+  document.getElementById('minus').addEventListener('click',()=>{humanInput();setStake(stake-5);});
+
+  /* ---------------- PHYSICS STEP ---------------- */
+  function reflect(vx,vy,nx,ny){ const d=vx*nx+vy*ny; return [vx-2*d*nx, vy-2*d*ny]; }
+
+  function paddleHit(p){
+    if(!ball) return;
+    const g=paddleGeom(p);
+    // segment from pivot to tip
+    const ax=g.pivotX, ay=g.pivotY;
+    const bx = ax - p.side*Math.cos(g.ang)*g.len;
+    const by = ay - Math.sin(Math.abs(g.ang))*g.len;
+    // distance point->segment
+    const dx=bx-ax, dy=by-ay; const L2=dx*dx+dy*dy;
+    let tt=((ball.x-ax)*dx+(ball.y-ay)*dy)/L2; tt=Math.max(0,Math.min(1,tt));
+    const cx=ax+dx*tt, cy=ay+dy*tt;
+    const dist=Math.hypot(ball.x-cx, ball.y-cy);
+    if(dist < 18){
+      const f=field();
+      const power = (5 + forcePower()*7) * (p.flick>0.3?1.3:0.85);
+      if(p.flick>0.25){
+        // flicked: aim the launch toward the rotor field (up + toward center bias)
+        const aimX = f.x + f.w*0.5 + (p.side<0? f.w*0.06 : -f.w*0.06);
+        const aimY = f.y + f.h*0.32;
+        let ax2=aimX-ball.x, ay2=aimY-ball.y; const aL=Math.hypot(ax2,ay2)||1;
+        ball.vx = (ax2/aL)*power; ball.vy = -Math.abs((ay2/aL)*power) - 1.5;
+      } else {
+        // passive bump: just push up off the paddle
+        let nx=(ball.x-cx)/(dist||1);
+        ball.vx = nx*power*0.6 + (p.side<0?1.4:-1.4);
+        ball.vy = -Math.abs(power*0.9);
+      }
+      ball.y = cy-20;
+      burst(cx,cy, p.flick>0.3?'#3dffa8':'#22e3ff', p.flick>0.3?16:6, 3.8);
+      shake=Math.max(shake, p.flick>0.3?6:3);
+      return true;
+    }
+    return false;
+  }
+
+  function physics(dt){
+    if(!ball) return;
+    const f=field();
+    const tilt=forceTilt(); const pw=forcePower(); const vl=forceVol();
+    // gravity + tilt: down-trend = stronger downward pull; up-trend lessens it
+    const grav = 0.20 - tilt*0.15;       // gentler float; tilt up reduces gravity further
+    const sideTilt = -tilt*0.05;         // up-trend pushes ball upward bias; horizontal sway from drift
+    ball.vy += grav*(1+pw*0.3)*dt*60/60;
+    ball.vx += sideTilt*dt*60/60 + Math.sin(t*0.05)*0.01;
+    // DEMO magnet: when no human has played yet, steer through rotors for a lively, chain-building hero
+    if(demoMode){
+      // target the rotor we've least-recently lit, biasing toward the cluster center
+      let best=null,bd=1e9;
+      for(const ro of rotors){ const rx=f.x+ro.rx*f.w, ry=f.y+ro.ry*f.h;
+        const d=Math.hypot(ball.x-rx,ball.y-ry)*(0.5+ro.lit); if(d<bd){bd=d;best={rx,ry};} }
+      if(best){ const dd=Math.max(20,Math.hypot(best.rx-ball.x,best.ry-ball.y));
+        ball.vx += (best.rx-ball.x)/dd*0.42; ball.vy += (best.ry-ball.y)/dd*0.42; }
+      // keep it off the floor: lift when drifting low
+      if(ball.y > f.y+f.h*0.72) ball.vy -= 0.55;
+    }
+    // speed clamp scales with power
+    const maxv = 5.5 + pw*7;
+    const sp=Math.hypot(ball.vx,ball.vy);
+    if(sp>maxv){ ball.vx*=maxv/sp; ball.vy*=maxv/sp; }
+
+    ball.x += ball.vx; ball.y += ball.vy;
+
+    // walls
+    if(ball.x < f.x+8){ ball.x=f.x+8; ball.vx=Math.abs(ball.vx)*0.92; burst(ball.x,ball.y,'#2a3a66',4,2);}
+    if(ball.x > f.x+f.w-8){ ball.x=f.x+f.w-8; ball.vx=-Math.abs(ball.vx)*0.92; burst(ball.x,ball.y,'#2a3a66',4,2);}
+    if(ball.y < f.y+8){ ball.y=f.y+8; ball.vy=Math.abs(ball.vy)*0.92; }
+
+    // rotors
+    for(const ro of rotors){
+      const rx=f.x+ro.rx*f.w, ry=f.y+ro.ry*f.h;
+      const d=Math.hypot(ball.x-rx, ball.y-ry);
+      if(d < ro.r+8){
+        const nx=(ball.x-rx)/(d||1), ny=(ball.y-ry)/(d||1);
+        const [rvx,rvy]=reflect(ball.vx,ball.vy,nx,ny);
+        const kick=1.15 + vl*0.7; // volatility = livelier bounce
+        ball.vx=rvx*kick; ball.vy=rvy*kick;
+        ball.x=rx+nx*(ro.r+9); ball.y=ry+ny*(ro.r+9);
+        // SCORE: extend chain
+        chain++; mult=multFor(chain); if(mult>peak) peak=mult;
+        chainTimer=CHAIN_WINDOW;
+        ro.lit=1; ro.pulse=1;
+        burst(rx,ry, HUES[ro.hue], 18+chain, 4+vl*3);
+        shake=Math.max(shake,4+Math.min(8,chain*0.3));
+      }
+    }
+
+    // chain timer / reset
+    if(chain>0){
+      chainTimer-=dt;
+      if(chainTimer<=0){ // broken rhythm -> reset (not bank, not bust)
+        if(chain>=2){ burst(ball.x,ball.y,'#ff3ea5',16,4); shake=Math.max(shake,5);}
+        chain=0; mult=1; chainTimer=0;
+      }
+    }
+
+    // paddles
+    paddleHit(padL); paddleHit(padR);
+
+    // drain
+    if(ball.y > f.y+f.h+30){ settle(); ball=null; return; }
+
+    // trail
+    ball.trail.push({x:ball.x,y:ball.y}); if(ball.trail.length>22) ball.trail.shift();
+  }
+
+  /* ---------------- SIM TICK (setInterval so it survives backgrounding) ---------------- */
+  let lastT=performance.now();
+  setInterval(()=>{
+    stepPrice();
+  }, 90);
+
+  setInterval(()=>{
+    // fixed-step game logic ~60fps, independent of rAF
+    const now=performance.now(); let dt=(now-lastT)/16.6667; lastT=now;
+    dt=Math.min(3,dt);
+    // paddle flick decay
+    [padL,padR].forEach(p=>{ if(p.flick>0){ p.flick-=0.12*dt; if(p.flick<0)p.flick=0; } });
+    if(playing) physics(dt);
+    // particles
+    for(let i=particles.length-1;i>=0;i--){const p=particles[i];p.x+=p.vx;p.y+=p.vy;p.vy+=0.06;p.vx*=0.98;p.life-=0.025*dt;if(p.life<=0)particles.splice(i,1);}
+    rotors.forEach(r=>{ r.spin+=0.04+forceVol()*0.18; r.lit*=0.90; r.pulse*=0.88; });
+    if(shake>0) shake*=0.85;
+    if(flashTimer>0) flashTimer-=0.016*dt;
+    updateHUD();
+  }, 16);
+
+  /* ---------------- HUD ---------------- */
+  function updateHUD(){
+    const pct=((price-1000)/1000*100);
+    document.getElementById('pxLabel').textContent = price.toFixed(2);
+    const pill=document.getElementById('pxPill');
+    const up = velocity>=0;
+    pill.textContent=(up?'+':'')+(velocity).toFixed(2);
+    pill.className='pill '+(up?'up':'dn');
+    document.getElementById('mPow').textContent = Math.round(forcePower()*100)+'%';
+    const tl=forceTilt();
+    document.getElementById('mTilt').textContent = (tl>=0?'▲ ':'▼ ')+Math.abs(tl*100).toFixed(0)+'%';
+    document.getElementById('mVol').textContent = Math.round(forceVol()*100)+'%';
+    const cm=document.getElementById('chainMult');
+    cm.textContent='x'+mult.toFixed(1);
+    cm.style.color = mult>=8 ? '#ffc04d' : mult>=3 ? '#3dffa8' : '#ffffff';
+    cm.style.transform = 'translateZ(0) scale('+(1+Math.min(.18,(mult-1)*0.012))+')';
+    document.getElementById('peak').textContent='PEAK x'+peak.toFixed(1)+(chain>0?'  •  '+chain+' HITS':'');
+    const wf=document.getElementById('winflash');
+    if(flashTimer>0){ wf.textContent=flashTxt; wf.style.color=flashCol; wf.style.opacity=Math.min(1,flashTimer*1.4); wf.style.transform='translate(-50%,-50%) scale('+(1.25-flashTimer*0.15)+')'; }
+    else wf.style.opacity=0;
+  }
+
+  /* ---------------- RENDER (rAF for smoothness) ---------------- */
+  function roundRect(x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();}
+
+  function drawChartBackwall(f){
+    // the live price chart IS the back wall of the table
+    ctx.save();
+    roundRect(f.x,f.y,f.w,f.h,18); ctx.clip();
+    // backwall gradient
+    const g=ctx.createLinearGradient(0,f.y,0,f.y+f.h);
+    g.addColorStop(0,'#0a1430'); g.addColorStop(1,'#060a1c');
+    ctx.fillStyle=g; ctx.fillRect(f.x,f.y,f.w,f.h);
+    // perspective grid floor
+    ctx.lineWidth=1;
+    for(let i=0;i<14;i++){
+      const yy=f.y+f.h - (i*i)*1.6 - 0;
+      if(yy<f.y) break;
+      ctx.strokeStyle='rgba(40,70,130,'+(0.06+0.10*(1-i/14))+')';
+      ctx.beginPath();ctx.moveTo(f.x,yy);ctx.lineTo(f.x+f.w,yy);ctx.stroke();
+    }
+    const vanX=f.x+f.w/2;
+    for(let i=-7;i<=7;i++){
+      ctx.strokeStyle='rgba(40,70,130,0.07)';
+      ctx.beginPath();ctx.moveTo(vanX+i*14,f.y+f.h*0.55);ctx.lineTo(vanX+i*f.w*0.10,f.y+f.h);ctx.stroke();
+    }
+    // price line
+    const min=Math.min(...hist), max=Math.max(...hist), rng=(max-min)||1;
+    const n=hist.length;
+    ctx.beginPath();
+    for(let i=0;i<n;i++){
+      const x=f.x + (i/(n-1))*f.w;
+      const y=f.y+f.h*0.18 + (1-(hist[i]-min)/rng)*f.h*0.64;
+      i?ctx.lineTo(x,y):ctx.moveTo(x,y);
+    }
+    // area fill
+    ctx.save();
+    const lg=ctx.createLinearGradient(0,f.y,0,f.y+f.h);
+    const up=velocity>=0;
+    lg.addColorStop(0, up?'rgba(34,227,255,.22)':'rgba(255,62,165,.22)');
+    lg.addColorStop(1,'rgba(10,16,40,0)');
+    ctx.lineTo(f.x+f.w,f.y+f.h); ctx.lineTo(f.x,f.y+f.h); ctx.closePath();
+    ctx.fillStyle=lg; ctx.fill();
+    ctx.restore();
+    // restroke line on top
+    ctx.beginPath();
+    for(let i=0;i<n;i++){
+      const x=f.x + (i/(n-1))*f.w;
+      const y=f.y+f.h*0.18 + (1-(hist[i]-min)/rng)*f.h*0.64;
+      i?ctx.lineTo(x,y):ctx.moveTo(x,y);
+    }
+    ctx.lineWidth=2.2; ctx.strokeStyle=velocity>=0?'#22e3ff':'#ff3ea5';
+    ctx.shadowColor=ctx.strokeStyle; ctx.shadowBlur=14; ctx.stroke(); ctx.shadowBlur=0;
+    // leading dot
+    const lx=f.x+f.w, ly=f.y+f.h*0.18 + (1-(hist[n-1]-min)/rng)*f.h*0.64;
+    ctx.fillStyle='#fff'; ctx.beginPath();ctx.arc(lx-2,ly,3.5,0,7);ctx.fill();
+    ctx.restore();
+
+    // glass frame
+    ctx.lineWidth=2; ctx.strokeStyle='rgba(80,140,220,.35)';
+    roundRect(f.x,f.y,f.w,f.h,18); ctx.stroke();
+    // tilt indicator glow along edge
+    const tl=forceTilt();
+    ctx.strokeStyle = tl>=0 ? 'rgba(61,255,168,'+(0.15+Math.abs(tl)*0.5)+')' : 'rgba(255,62,165,'+(0.15+Math.abs(tl)*0.5)+')';
+    ctx.lineWidth=3;
+    roundRect(f.x+2,f.y+2,f.w-4,f.h-4,16); ctx.stroke();
+  }
+
+  function drawRotor(ro,f){
+    const rx=f.x+ro.rx*f.w, ry=f.y+ro.ry*f.h, R=ro.r;
+    const col=HUES[ro.hue];
+    const live=forceVol();
+    // glow halo
+    const ga=0.25+ro.lit*0.6+live*0.2;
+    const rg=ctx.createRadialGradient(rx,ry,2,rx,ry,R*2.4);
+    rg.addColorStop(0,hexA(col, 0.5+ro.lit*0.4));
+    rg.addColorStop(0.4,hexA(col,0.18*ga));
+    rg.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=rg; ctx.beginPath();ctx.arc(rx,ry,R*2.4,0,7);ctx.fill();
+    // body
+    ctx.save(); ctx.translate(rx,ry); ctx.rotate(ro.spin);
+    ctx.lineWidth=2.4; ctx.strokeStyle=col; ctx.shadowColor=col; ctx.shadowBlur=12+ro.pulse*20;
+    const spokes=6;
+    for(let i=0;i<spokes;i++){
+      const a=(i/spokes)*Math.PI*2;
+      ctx.beginPath();ctx.moveTo(Math.cos(a)*R*0.3,Math.sin(a)*R*0.3);ctx.lineTo(Math.cos(a)*R,Math.sin(a)*R);ctx.stroke();
+    }
+    ctx.beginPath();ctx.arc(0,0,R*(1+ro.pulse*0.18),0,7);ctx.stroke();
+    ctx.shadowBlur=0;
+    ctx.fillStyle=hexA(col,0.16+ro.lit*0.5); ctx.beginPath();ctx.arc(0,0,R*0.55,0,7);ctx.fill();
+    ctx.restore();
+  }
+
+  function drawPaddle(p,f){
+    const g=paddleGeom(p);
+    const ax=g.pivotX, ay=g.pivotY;
+    const bx = ax - p.side*Math.cos(g.ang)*g.len;
+    const by = ay - Math.sin(Math.abs(g.ang))*g.len;
+    ctx.lineCap='round';
+    ctx.lineWidth=13;
+    ctx.strokeStyle = p.flick>0.3 ? '#3dffa8':'#3a5da0';
+    ctx.shadowColor = p.flick>0.3 ? '#3dffa8':'#22e3ff'; ctx.shadowBlur= p.flick>0.3?22:8;
+    ctx.beginPath();ctx.moveTo(ax,ay);ctx.lineTo(bx,by);ctx.stroke();
+    ctx.lineWidth=4; ctx.strokeStyle = p.flick>0.3?'#bfffe0':'#9fc6ff';
+    ctx.beginPath();ctx.moveTo(ax,ay);ctx.lineTo(bx,by);ctx.stroke();
+    ctx.shadowBlur=0;
+    // pivot
+    ctx.fillStyle='#0a1430'; ctx.strokeStyle='#4a6db0'; ctx.lineWidth=2;
+    ctx.beginPath();ctx.arc(ax,ay,7,0,7);ctx.fill();ctx.stroke();
+  }
+
+  function drawBall(){
+    if(!ball) return;
+    // trail
+    for(let i=0;i<ball.trail.length;i++){
+      const tp=ball.trail[i]; const a=i/ball.trail.length;
+      ctx.fillStyle='rgba(34,227,255,'+(a*0.5)+')';
+      ctx.beginPath();ctx.arc(tp.x,tp.y, 2+a*7,0,7);ctx.fill();
+    }
+    // ball glow
+    const rg=ctx.createRadialGradient(ball.x,ball.y,1,ball.x,ball.y,26);
+    rg.addColorStop(0,'#ffffff'); rg.addColorStop(0.3,'#bff6ff'); rg.addColorStop(1,'rgba(34,227,255,0)');
+    ctx.fillStyle=rg; ctx.beginPath();ctx.arc(ball.x,ball.y,26,0,7);ctx.fill();
+    ctx.fillStyle='#fff'; ctx.beginPath();ctx.arc(ball.x,ball.y,7,0,7);ctx.fill();
+  }
+
+  function drawDrainHint(f){
+    // glowing drain gap at bottom between paddles
+    const gy=f.y+f.h-4;
+    const grd=ctx.createLinearGradient(0,gy-30,0,gy+10);
+    grd.addColorStop(0,'rgba(255,62,165,0)'); grd.addColorStop(1,'rgba(255,62,165,.35)');
+    ctx.fillStyle=grd; ctx.fillRect(f.x+f.w*0.40,gy-30,f.w*0.20,40);
+  }
+
+  function drawIdleBalls(){
+    // ambient floating motes for visual density when idle
+  }
+
+  function hexA(hex,a){
+    const n=parseInt(hex.slice(1),16); const r=(n>>16)&255,g=(n>>8)&255,b=n&255;
+    return 'rgba('+r+','+g+','+b+','+a+')';
+  }
+
+  // ambient particles for density even before launch
+  const ambient=[];
+  for(let i=0;i<46;i++){ambient.push({x:Math.random(),y:Math.random(),s:0.2+Math.random()*0.7,r:0.6+Math.random()*1.8});}
+
+  function render(){
+    ctx.clearRect(0,0,W,H);
+    const f=field();
+    const sx=(Math.random()-0.5)*shake, sy=(Math.random()-0.5)*shake;
+    ctx.save(); ctx.translate(sx,sy);
+
+    // ambient depth motes across whole hero
+    for(const m of ambient){
+      const x=m.x*W, y=(m.y*H + t*m.s*0.6)% H;
+      ctx.fillStyle='rgba(120,160,230,'+(0.05+m.s*0.06)+')';
+      ctx.beginPath();ctx.arc(x,y,m.r,0,7);ctx.fill();
+    }
+
+    drawChartBackwall(f);
+    drawDrainHint(f);
+    for(const ro of rotors) drawRotor(ro,f);
+    drawPaddle(padL,f); drawPaddle(padR,f);
+    drawBall();
+
+    // particles (additive)
+    ctx.globalCompositeOperation='lighter';
+    for(const p of particles){
+      ctx.fillStyle=hexA(p.col, p.life);
+      ctx.beginPath();ctx.arc(p.x,p.y,p.sz*p.life,0,7);ctx.fill();
+    }
+    ctx.globalCompositeOperation='source-over';
+
+    // side rails / chrome panels (visual mass on the flanks)
+    drawSideRails();
+
+    ctx.restore();
+    requestAnimationFrame(render);
+  }
+
+  function drawSideRails(){
+    const f=field();
+    // left ledger panel
+    ctx.fillStyle='rgba(10,16,38,0.6)';
+    roundRect(W*0.02, f.y, W*0.165, f.h, 14); ctx.fill();
+    ctx.strokeStyle='rgba(60,110,190,.25)'; ctx.lineWidth=1.5; roundRect(W*0.02,f.y,W*0.165,f.h,14); ctx.stroke();
+    panelTitle('TABLE FORCES', W*0.02+16, f.y+26);
+    bar('POWER', forcePower(), '#22e3ff', W*0.02+16, f.y+52, W*0.165-32);
+    bar('VOLATILITY', forceVol(), '#ff3ea5', W*0.02+16, f.y+92, W*0.165-32);
+    const tl=forceTilt();
+    bar('TILT', (tl+1)/2, tl>=0?'#3dffa8':'#ffc04d', W*0.02+16, f.y+132, W*0.165-32, tl>=0?'UP':'DOWN');
+    // mini live sparkline in panel
+    sparkline(W*0.02+16, f.y+200, W*0.165-32, 70);
+    // recent chain log feel
+    ctx.fillStyle='rgba(120,160,230,.5)'; ctx.font='10px Inter,system-ui';
+    ctx.fillText('SETTLE = STAKE × PEAK', W*0.02+16, f.y+f.h-58);
+    ctx.fillStyle='#ffc04d'; ctx.font='800 22px Inter,system-ui';
+    ctx.fillText('PEAK x'+peak.toFixed(1), W*0.02+16, f.y+f.h-32);
+
+    // right "next rotor map"
+    const rx0=W*0.815;
+    ctx.fillStyle='rgba(10,16,38,0.6)';
+    roundRect(rx0, f.y, W*0.165, f.h, 14); ctx.fill();
+    ctx.strokeStyle='rgba(60,110,190,.25)'; roundRect(rx0,f.y,W*0.165,f.h,14); ctx.stroke();
+    panelTitle('ROTOR FIELD', rx0+16, f.y+26);
+    // mini map of rotors
+    const mw=W*0.165-32, mh=f.h*0.42, mx=rx0+16, my=f.y+44;
+    ctx.fillStyle='rgba(6,10,28,.8)'; roundRect(mx,my,mw,mh,10); ctx.fill();
+    for(const ro of rotors){
+      const px=mx+ro.rx*mw, py=my+ro.ry*mh;
+      ctx.fillStyle=hexA(HUES[ro.hue],0.4+ro.lit*0.6);
+      ctx.beginPath();ctx.arc(px,py,3+ro.lit*4,0,7);ctx.fill();
+    }
+    if(ball){ const bxp=mx+((ball.x-f.x)/f.w)*mw, byp=my+((ball.y-f.y)/f.h)*mh;
+      ctx.fillStyle='#fff'; ctx.beginPath();ctx.arc(bxp,byp,3,0,7);ctx.fill(); }
+    // chain ladder
+    ctx.fillStyle='rgba(120,160,230,.6)'; ctx.font='10px Inter'; ctx.fillText('CHAIN LADDER',rx0+16,my+mh+26);
+    const ladder=[1,3,6,12,25,50]; const ly0=my+mh+38;
+    ladder.forEach((v,i)=>{
+      const on = peak>=v || (mult>=v && playing);
+      ctx.fillStyle= on?'#3dffa8':'rgba(70,100,160,.35)';
+      ctx.font=(on?'800 ':'600 ')+'12px Inter';
+      ctx.fillText('x'+v, rx0+16+(i%3)*44, ly0+Math.floor(i/3)*22);
+    });
+  }
+  function panelTitle(txt,x,y){ctx.fillStyle='#7d8fbf';ctx.font='800 11px Inter,system-ui';ctx.fillText(txt,x,y);}
+  function bar(lab,v,col,x,y,w,tag){
+    ctx.fillStyle='#6a7ba8';ctx.font='9px Inter';ctx.fillText(lab,x,y-6);
+    if(tag){ctx.fillStyle=col;ctx.font='800 9px Inter';ctx.fillText(tag,x+w-26,y-6);}
+    ctx.fillStyle='rgba(255,255,255,.06)';roundRect(x,y,w,8,4);ctx.fill();
+    ctx.fillStyle=col;ctx.shadowColor=col;ctx.shadowBlur=8;roundRect(x,y,Math.max(4,w*v),8,4);ctx.fill();ctx.shadowBlur=0;
+  }
+  function sparkline(x,y,w,h){
+    ctx.fillStyle='#6a7ba8';ctx.font='9px Inter';ctx.fillText('LIVE FEED',x,y-6);
+    const n=hist.length, min=Math.min(...hist),max=Math.max(...hist),rng=(max-min)||1;
+    ctx.beginPath();
+    for(let i=0;i<n;i++){const px=x+(i/(n-1))*w, py=y+(1-(hist[i]-min)/rng)*h; i?ctx.lineTo(px,py):ctx.moveTo(px,py);}
+    ctx.strokeStyle=velocity>=0?'#22e3ff':'#ff3ea5';ctx.lineWidth=1.5;ctx.shadowColor=ctx.strokeStyle;ctx.shadowBlur=8;ctx.stroke();ctx.shadowBlur=0;
+  }
+
+  // init HUD + start render
+  setStake(5);
+  document.getElementById('bal').textContent='$1,000';
+  requestAnimationFrame(render);
+
+  // gentle auto-demo: launch quickly so the hero is ALIVE on load with a ball in flight
+  let idle=0;
+  setTimeout(launch, 350); // ball in flight almost immediately on load
+  setInterval(()=>{
+    if(!playing){ idle++; if(idle>4){ launch(); idle=0; } }
+    else {
+      idle=0;
+      // AI assist flips so the demo ball stays alive & racks chains (cosmetic, on-load only)
+      if(ball){
+        const f=field();
+        const gy=f.y+f.h-26;
+        // predict where ball reaches paddle line
+        if(ball.vy>0 && ball.y>f.y+f.h*0.55){
+          const tToPad=(gy-30-ball.y)/Math.max(0.5,ball.vy);
+          const predX=ball.x + ball.vx*tToPad;
+          if(predX < f.x+f.w*0.5) flip(padL); else flip(padR);
+        }
+      }
+    }
+  }, 160);
+
+})();
+</script>
+</body>
+</html>
