@@ -566,30 +566,38 @@
   for(let i=0;i<6;i++){ const p={x: YD.w*0.2 + i*150, lane:BELT_Y_FRAC, cls:classifyAt(), glyph:glyphSnap(), wobble:i, scale:1}; parcels.push(p); }
   updateHUD();
 
-  // attract auto-advance of parcels until player starts
-  setInterval(tick, 1000/30);   // sim @30fps, interval-based (background-safe)
-  requestAnimationFrame(render);
-
-  // in attract mode (not running) keep belt rolling, auto-demo sorts, recycle parcels
-  let demoTimer=0;
-  setInterval(()=>{
-    if(!running){
-      const spd=beltSpd();
-      for(let i=parcels.length-1;i>=0;i--){
-        const p=parcels[i];
-        if(p.sorting){ p.sortT+=0.06; if(p.sortT>=1) parcels.splice(i,1); continue; }
-        p.x-=spd;
-        // auto-demo: when a parcel reaches the sort line, route it correctly with a burst
-        if(p.x<70){ p.sorting=true; p.sortChoice=p.cls; p.sortT=0; p.ok=true;
-          spawnBurst(p.x, YD.h*BELT_Y_FRAC, p.cls, true); }
-      }
-      // keep the belt populated
-      demoTimer++;
-      if(demoTimer>22 && parcels.filter(p=>!p.sorting).length<6){
-        demoTimer=0; parcels.push({x:YD.w+30, lane:BELT_Y_FRAC, cls:classifyAt(), glyph:glyphSnap(), wobble:Math.random()*6.28, scale:0});
-      }
+  // attract auto-advance of parcels until player starts.
+  // Sim runs at a fixed 30 ticks/sec keyed off the wall clock, so a background tab
+  // (where setInterval is clamped to ~1Hz) still advances the right amount of sim
+  // time per real second instead of crawling. Catch-up is capped to avoid a burst
+  // after long suspension.
+  const STEP_MS=1000/30, MAX_CATCHUP=6;   // at most 6 sim steps per interval fire
+  let lastSim=performance.now(), demoTimer=0;
+  function demoStep(){
+    if(running) return;
+    const spd=beltSpd();
+    for(let i=parcels.length-1;i>=0;i--){
+      const p=parcels[i];
+      if(p.sorting){ p.sortT+=0.06; if(p.sortT>=1) parcels.splice(i,1); continue; }
+      p.x-=spd;
+      // auto-demo: when a parcel reaches the sort line, route it correctly with a burst
+      if(p.x<70){ p.sorting=true; p.sortChoice=p.cls; p.sortT=0; p.ok=true;
+        spawnBurst(p.x, YD.h*BELT_Y_FRAC, p.cls, true); }
     }
-  }, 1000/30);
+    // keep the belt populated
+    demoTimer++;
+    if(demoTimer>22 && parcels.filter(p=>!p.sorting).length<6){
+      demoTimer=0; parcels.push({x:YD.w+30, lane:BELT_Y_FRAC, cls:classifyAt(), glyph:glyphSnap(), wobble:Math.random()*6.28, scale:0});
+    }
+  }
+  setInterval(()=>{
+    const now=performance.now();
+    let steps=Math.floor((now-lastSim)/STEP_MS);
+    if(steps>MAX_CATCHUP) steps=MAX_CATCHUP;
+    lastSim += steps*STEP_MS;
+    for(let s=0;s<steps;s++){ tick(); demoStep(); }
+  }, STEP_MS);   // sim @30fps, wall-clock driven (background-throttle safe)
+  requestAnimationFrame(render);
 })();
 </script>
 </body>
