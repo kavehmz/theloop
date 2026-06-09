@@ -14,3 +14,4 @@ One line per design: name — core mechanic — STATUS
 - APOAPSIS — orbit a live-price gravity-star; burn fuel to hold a bet-on orbital band, banking per lap; crash-in or escape-out loses — KEEPER
 - STARFORGE — arm a constellation template; the price-comet must thread decaying star-nodes in order to draw the figure; rarity-priced — KEEPER
 - COREBORE — steer a descending drill through price-carved ore seams; extract while volatility builds hazards; winch out before cave-in — KEEPER
+- PRISMA — price-as-light refracts through a prism into a spectrum; claim demand-priced wavelength bands, paid by share of dispersed light — DUPLICATE
