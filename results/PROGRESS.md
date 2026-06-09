@@ -25,3 +25,4 @@ One line per design: name — core mechanic — STATUS
 - EMBERWATCH — triage one stoke budget across many live-driven decaying embers; paid by count alive x survival tier — BELOW_BAR
 - SPREADKEEPER — quote a two-sided bid/ask on the live chart; capture spread on round-trips while inventory bleeds on trends; bust at the risk limit — KEEPER
 - ECHO LADDER — reproduce from memory a growing chain of price-authored notes; paid by recall depth — BELOW_BAR
+- RAMPART — distribute an armor budget across price-level walls the market sieges; paid by surviving HP fraction — KEEPER
