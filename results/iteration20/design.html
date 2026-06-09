@@ -334,8 +334,8 @@ $('lockbtn').addEventListener('click',doCast);
 
 // ---------- payout ----------
 function purityFrom(dist){ return clamp01(1 - dist/(targetRadius*2.6)); }
-function multFrom(p){ if(p<0.55) return 0; return 1.0 + 3.6*Math.pow(p-0.55,1.55)/Math.pow(0.45,1.55)*2.4; }
-// the above gives ~1.0x near threshold up to ~ up to >12x near p=1; cap below
+function multFrom(p){ if(p<0.55) return 0; return 1.0 + 11.0*Math.pow((p-0.55)/0.45,1.55); }
+// 1.0x at threshold (p=0.55) rising convexly to 12x at flawless (p=1); cap below
 function multCapped(p){ let m=multFrom(p); return Math.min(m,12.0); }
 
 // ---------- cast ----------
