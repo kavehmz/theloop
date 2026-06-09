@@ -28,3 +28,4 @@ One line per design: name — core mechanic — STATUS
 - RAMPART — distribute an armor budget across price-level walls the market sieges; paid by surviving HP fraction — KEEPER
 - RICOCHET — price-driven pinball; flip to keep a combo-chain alive; paid by peak chain multiplier at drain — BELOW_BAR
 - TICKER FORGE — draft live market-minted cards into a hand; paid by hand synergy value — BELOW_BAR
+- DETONATE — seed charges in price-space; the live price path ignites neighbor-chaining cascades; paid by the largest connected cascade — KEEPER
