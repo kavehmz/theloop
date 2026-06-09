@@ -30,3 +30,4 @@ One line per design: name — core mechanic — STATUS
 - TICKER FORGE — draft live market-minted cards into a hand; paid by hand synergy value — BELOW_BAR
 - DETONATE — seed charges in price-space; the live price path ignites neighbor-chaining cascades; paid by the largest connected cascade — KEEPER
 - SILKLINE — predict the full finishing order of N momentum-driven market runners; paid by rank-distance to the realized order — KEEPER
+- EMBERWELL — place a band and accrue heat by the time price dwells inside (leaking when outside); banked at the bell — KEEPER
