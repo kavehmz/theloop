@@ -561,7 +561,21 @@ function checkThread(cometX,cometY){
   if(nextIdx>=stars.length)return;
   const s=stars[nextIdx];
   const sx=s.nx*W, sy=s.ny*H;
-  const d=Math.hypot(cometX-sx,cometY-sy);
+  // The price path is mapped across the full field width (see draw()).
+  // Thread a star when the price path passes through its capture ring at that
+  // star's time-column — sample the path point nearest the star's screen-x.
+  const n=hist.length;
+  let pathY=cometY, pathX=sx;
+  if(n>1){
+    const span=Math.min(n, Math.floor(W));
+    const startI=n-span;
+    let i=Math.round((sx/W)*(span-1));
+    i=Math.max(0,Math.min(span-1,i));
+    pathX=(i/(span-1))*W;
+    pathY=hist[startI+i].y*H;
+  }
+  // distance from the price path (at the star's time-column) to the star
+  const d=Math.hypot(pathX-sx,pathY-sy);
   const captureR=22+(1-s.life/s.maxlife)*6;
   if(d<captureR){
     s.lit=true; s.flash=1; nextIdx++;
