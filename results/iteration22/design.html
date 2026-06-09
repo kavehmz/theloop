@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SPREADKEEPER — Quote both sides. Get paid by the chop.</title>
+<style>
+  :root{
+    --bg:#06080f; --panel:#0c1120; --panel2:#0f1628;
+    --bid:#22d3ee; --ask:#f04bd0; --gold:#ffd34d;
+    --green:#37e6a0; --amber:#ffb547; --red:#ff5470;
+    --txt:#e8eefc; --dim:#7a86a8; --grid:rgba(120,140,200,.07);
+    --font:"SF Pro Display",-apple-system,"Segoe UI",Inter,system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:radial-gradient(1200px 700px at 70% -10%, #11203f 0%, #06080f 55%, #04050a 100%);
+    color:var(--txt); font-family:var(--font); overflow-x:hidden;
+    -webkit-font-smoothing:antialiased;
+  }
+  /* ===== HERO (first viewport, 1280x800 target) ===== */
+  .hero{ height:100vh; min-height:740px; display:flex; flex-direction:column; padding:14px 18px 12px; gap:10px; position:relative; }
+  .topbar{ display:flex; align-items:center; gap:18px; }
+  .brand{ display:flex; align-items:baseline; gap:10px; }
+  .logo{ font-weight:800; font-size:24px; letter-spacing:.5px;
+    background:linear-gradient(90deg,var(--bid),#fff 50%,var(--ask));
+    -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .tag{ color:var(--dim); font-size:12px; letter-spacing:.4px; }
+  .sym{ margin-left:auto; display:flex; align-items:center; gap:14px; }
+  .sym .name{ font-weight:700; font-size:13px; letter-spacing:.6px; color:#cfe0ff; }
+  .px{ font-variant-numeric:tabular-nums; font-weight:800; font-size:22px; }
+  .px.up{ color:var(--green) } .px.dn{ color:var(--red) }
+  .regime{ font-size:11px; padding:4px 10px; border-radius:20px; border:1px solid rgba(255,255,255,.12);
+    letter-spacing:.6px; font-weight:700; }
+  .regime.chop{ color:var(--green); background:rgba(55,230,160,.08); border-color:rgba(55,230,160,.35) }
+  .regime.trend{ color:var(--red); background:rgba(255,84,112,.08); border-color:rgba(255,84,112,.4) }
+  .regime.calm{ color:var(--dim); background:rgba(120,140,200,.06) }
+
+  /* ticker */
+  .ticker{ overflow:hidden; height:26px; border-radius:8px; border:1px solid rgba(255,255,255,.06);
+    background:linear-gradient(90deg,rgba(255,211,77,.05),transparent); position:relative; }
+  .ticker .track{ position:absolute; white-space:nowrap; top:0; left:0; height:100%; display:flex; align-items:center; gap:26px;
+    padding-left:12px; font-size:12px; font-variant-numeric:tabular-nums; will-change:transform; }
+  .ticker .it{ color:var(--dim) } .ticker .it b{ color:var(--gold) }
+  .ticker .it.win b{ color:var(--green) }
+
+  .stage{ flex:1; display:flex; gap:12px; min-height:0; }
+  .chartwrap{ flex:1; position:relative; border-radius:14px; overflow:hidden;
+    background:linear-gradient(180deg,#0a1020,#070a14); border:1px solid rgba(120,150,230,.12);
+    box-shadow:inset 0 0 60px rgba(0,0,0,.6); }
+  canvas#chart{ display:block; width:100%; height:100% }
+  .chartoverlay{ position:absolute; inset:0; pointer-events:none; }
+  .hud{ position:absolute; top:12px; left:14px; display:flex; gap:18px; font-size:11px; color:var(--dim); }
+  .hud b{ color:#cfe0ff; font-variant-numeric:tabular-nums; }
+  .badge{ position:absolute; padding:2px 8px; border-radius:6px; font-size:11px; font-weight:700;
+    font-variant-numeric:tabular-nums; transform:translate(-50%,-50%); pointer-events:none; }
+  .badge.bidlab{ color:#03242a; background:var(--bid); left:64px }
+  .badge.asklab{ color:#2a0322; background:var(--ask); left:64px }
+
+  /* right rail: order book + inventory */
+  .rail{ width:228px; display:flex; flex-direction:column; gap:10px; min-height:0; }
+  .card{ background:linear-gradient(180deg,var(--panel),var(--panel2)); border:1px solid rgba(120,150,230,.12);
+    border-radius:12px; padding:10px 12px; }
+  .card h4{ font-size:10px; letter-spacing:1.4px; color:var(--dim); font-weight:700; margin-bottom:8px; text-transform:uppercase }
+  .book{ flex:1; display:flex; flex-direction:column; min-height:0; }
+  .ladder{ flex:1; display:flex; flex-direction:column; justify-content:center; gap:2px; overflow:hidden }
+  .rung{ display:flex; align-items:center; gap:6px; font-size:10px; font-variant-numeric:tabular-nums; height:13px; }
+  .rung .bar{ height:8px; border-radius:2px; transition:width .12s linear; }
+  .rung .pr{ width:48px; text-align:right; color:var(--dim) }
+  .rung.ask .bar{ background:linear-gradient(90deg,rgba(240,75,208,.25),var(--ask)) }
+  .rung.bid .bar{ background:linear-gradient(90deg,rgba(34,211,238,.25),var(--bid)) }
+  .rung.mid{ color:#fff; font-weight:800; justify-content:center; border-top:1px dashed rgba(255,255,255,.14);
+    border-bottom:1px dashed rgba(255,255,255,.14); padding:2px 0; height:auto }
+  .rung.live .pr{ color:#fff }
+
+  .invwrap .ivrow{ display:flex; justify-content:space-between; font-size:11px; margin-bottom:6px }
+  .invwrap .ivrow b{ font-variant-numeric:tabular-nums }
+  .invbar{ height:16px; border-radius:8px; background:#070b16; border:1px solid rgba(255,255,255,.08); position:relative; overflow:hidden }
+  .invbar .fill{ position:absolute; top:0; bottom:0; left:50%; width:0;
+    border-radius:6px; transition:width .15s, background .3s; }
+  .invbar .mid{ position:absolute; left:50%; top:0; bottom:0; width:1px; background:rgba(255,255,255,.25) }
+  .invnote{ font-size:9.5px; color:var(--dim); margin-top:5px; line-height:1.35 }
+
+  /* PnL panel */
+  .pnlcard .big{ font-size:30px; font-weight:800; font-variant-numeric:tabular-nums; letter-spacing:.5px }
+  .pnlcard .sub{ font-size:10.5px; color:var(--dim); margin-top:2px }
+  .pnlcard .row{ display:flex; justify-content:space-between; font-size:11px; margin-top:7px; color:var(--dim) }
+  .pnlcard .row b{ color:#cfe0ff; font-variant-numeric:tabular-nums }
+
+  /* ===== CONTROL DOCK ===== */
+  .dock{ display:flex; gap:12px; align-items:stretch; }
+  .ctrl{ background:linear-gradient(180deg,var(--panel),var(--panel2)); border:1px solid rgba(120,150,230,.14);
+    border-radius:12px; padding:10px 14px; display:flex; flex-direction:column; gap:7px; justify-content:center; }
+  .ctrl .lab{ font-size:10px; letter-spacing:1px; color:var(--dim); text-transform:uppercase; font-weight:700 }
+  .ctrl .val{ font-size:15px; font-weight:800; font-variant-numeric:tabular-nums }
+  input[type=range]{ -webkit-appearance:none; appearance:none; width:150px; height:5px; border-radius:4px;
+    background:linear-gradient(90deg,#23304f,#384a78); outline:none }
+  input[type=range]::-webkit-slider-thumb{ -webkit-appearance:none; width:16px; height:16px; border-radius:50%;
+    background:radial-gradient(circle at 35% 35%,#fff,#9fb8ff); border:2px solid #1b2746; cursor:pointer;
+    box-shadow:0 0 10px rgba(120,180,255,.6) }
+  .skewrange::-webkit-slider-thumb{ background:radial-gradient(circle at 35% 35%,#fff,#ffd9a0); box-shadow:0 0 10px rgba(255,180,80,.6)}
+  .btns{ display:flex; gap:10px; margin-left:auto; align-items:center }
+  button{ font-family:var(--font); cursor:pointer; border:none; border-radius:11px; font-weight:800; letter-spacing:.4px;
+    padding:0 18px; height:100%; min-height:56px; font-size:13px; transition:transform .08s, filter .15s; }
+  button:active{ transform:translateY(1px) scale(.99) }
+  .b-flat{ background:linear-gradient(180deg,#2a3450,#1a2138); color:#cfe0ff; border:1px solid rgba(255,255,255,.12) }
+  .b-flat:hover{ filter:brightness(1.25) }
+  .b-recenter{ background:linear-gradient(180deg,#143b46,#0c2730); color:var(--bid); border:1px solid rgba(34,211,238,.4) }
+  .b-recenter:hover{ filter:brightness(1.25) }
+  .b-go{ background:linear-gradient(180deg,#ffe27a,#f5b021); color:#3a2600; box-shadow:0 6px 22px rgba(245,176,33,.35); padding:0 26px }
+  .b-go:hover{ filter:brightness(1.07) }
+  .b-go.live{ background:linear-gradient(180deg,#ff7a98,#e23b63); color:#fff; box-shadow:0 6px 22px rgba(226,59,99,.4) }
+
+  .toast{ position:absolute; left:50%; top:34%; transform:translate(-50%,-50%) scale(.9); opacity:0;
+    font-size:42px; font-weight:900; letter-spacing:1px; pointer-events:none; text-align:center;
+    transition:opacity .25s, transform .25s; z-index:9; text-shadow:0 4px 30px rgba(0,0,0,.6) }
+  .toast.show{ opacity:1; transform:translate(-50%,-50%) scale(1) }
+  .toast small{ display:block; font-size:14px; font-weight:600; letter-spacing:2px; margin-top:6px; color:var(--dim) }
+
+  /* explainer below the fold */
+  .below{ max-width:1180px; margin:0 auto; padding:38px 22px 70px; }
+  .below h2{ font-size:22px; margin-bottom:6px; background:linear-gradient(90deg,var(--bid),var(--ask));
+    -webkit-background-clip:text; background-clip:text; color:transparent; display:inline-block }
+  .below p.lede{ color:var(--dim); margin-bottom:26px; max-width:760px; line-height:1.5 }
+  .grid3{ display:grid; grid-template-columns:repeat(3,1fr); gap:16px }
+  .gc{ background:linear-gradient(180deg,var(--panel),var(--panel2)); border:1px solid rgba(120,150,230,.12);
+    border-radius:14px; padding:18px 18px 16px }
+  .gc .n{ font-size:11px; color:var(--gold); font-weight:800; letter-spacing:1.5px }
+  .gc h3{ font-size:15px; margin:6px 0 8px }
+  .gc p{ font-size:13px; color:#aeb9d6; line-height:1.5 }
+  .core{ margin-top:26px; padding:18px 20px; border-radius:14px; border:1px dashed rgba(255,211,77,.4);
+    background:rgba(255,211,77,.04); font-size:13.5px; line-height:1.55; color:#dfe7fb }
+  .core b{ color:var(--gold) }
+  .foot{ text-align:center; color:#3f4a68; font-size:11px; margin-top:30px }
+  @media (max-height:720px){ .hero{min-height:700px} }
+</style>
+</head>
+<body>
+<div class="hero">
+  <!-- top bar -->
+  <div class="topbar">
+    <div class="brand">
+      <span class="logo">SPREADKEEPER</span>
+      <span class="tag">quote both sides · get paid by the chop · killed by the trend</span>
+    </div>
+    <div class="sym">
+      <span class="name">VOL 75 INDEX</span>
+      <span class="px up" id="pxBig">—</span>
+      <span class="regime calm" id="regime">CALM</span>
+    </div>
+  </div>
+
+  <!-- captured-spread ticker -->
+  <div class="ticker"><div class="track" id="ticker"></div></div>
+
+  <!-- main stage -->
+  <div class="stage">
+    <div class="chartwrap">
+      <canvas id="chart"></canvas>
+      <div class="chartoverlay">
+        <div class="hud">
+          <span>SPREAD <b id="hSpread">—</b></span>
+          <span>SIZE <b id="hSize">—</b></span>
+          <span>FILLS <b id="hFills">0</b></span>
+          <span>ROUND-TRIPS <b id="hRt">0</b></span>
+          <span>AVG FILL <b id="hAvg">—</b></span>
+        </div>
+        <div class="badge asklab" id="askLab" style="top:30%">ASK</div>
+        <div class="badge bidlab" id="bidLab" style="top:70%">BID</div>
+      </div>
+      <div class="toast" id="toast"></div>
+    </div>
+
+    <div class="rail">
+      <div class="card book">
+        <h4>Order Book · Depth</h4>
+        <div class="ladder" id="ladder"></div>
+      </div>
+
+      <div class="card invwrap">
+        <h4>Inventory · Risk Limit</h4>
+        <div class="ivrow"><span id="invSideLab" style="color:var(--dim)">Position</span><b id="invQty">FLAT</b></div>
+        <div class="invbar"><div class="mid"></div><div class="fill" id="invFill"></div></div>
+        <div class="invnote">One-sided fills load signed inventory. It bleeds as price trends against you. Hit the redline = <b style="color:var(--red)">MARGIN CALL</b>.</div>
+      </div>
+
+      <div class="card pnlcard">
+        <h4>Net Spread PnL</h4>
+        <div class="big" id="pnlBig" style="color:var(--green)">+0.00</div>
+        <div class="sub" id="pnlSub">settle value at close</div>
+        <div class="row"><span>Captured</span><b id="capVal" style="color:var(--green)">+0.00</b></div>
+        <div class="row"><span>Inventory mark</span><b id="markVal">0.00</b></div>
+        <div class="row"><span>Window</span><b id="winLeft">60.0s</b></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- control dock -->
+  <div class="dock">
+    <div class="ctrl">
+      <span class="lab">Spread width</span>
+      <div class="val" id="vSpread">0.40</div>
+      <input id="sSpread" type="range" min="0.12" max="1.40" step="0.02" value="0.40">
+    </div>
+    <div class="ctrl">
+      <span class="lab">Skew (bias)</span>
+      <div class="val" id="vSkew">0.00</div>
+      <input id="sSkew" class="skewrange" type="range" min="-0.60" max="0.60" step="0.02" value="0">
+    </div>
+    <div class="ctrl">
+      <span class="lab">Size / fill</span>
+      <div class="val" id="vSize">2</div>
+      <input id="sSize" type="range" min="1" max="6" step="1" value="2">
+    </div>
+    <div class="ctrl" style="min-width:120px">
+      <span class="lab">Stake</span>
+      <div class="val" id="vStake">$10</div>
+      <input id="sStake" type="range" min="5" max="100" step="5" value="10">
+    </div>
+    <div class="btns">
+      <button class="b-recenter" id="btnRecenter">RE-CENTER</button>
+      <button class="b-flat" id="btnFlatten">FLATTEN<br><span style="font-size:9px;opacity:.7">dump inventory</span></button>
+      <button class="b-go" id="btnGo">START ROUND</button>
+    </div>
+  </div>
+</div>
+
+<!-- below the fold -->
+<div class="below">
+  <h2>How SpreadKeeper works</h2>
+  <p class="lede">You're the market maker. You don't bet on direction — you post a two-sided quote around the live price
+  and earn the spread every time the market oscillates across it. The same chart that pays you can kill you: a strong
+  trend fills only one side, loads toxic inventory, and bleeds you toward the risk limit.</p>
+  <div class="grid3">
+    <div class="gc"><div class="n">01 · POST</div><h3>Quote a bid &amp; an ask</h3>
+      <p>Set spread <b>width</b>, directional <b>skew</b>, and <b>size per fill</b>. Tight quotes capture more per round-trip but accumulate inventory faster. The shaded band on the chart is your live quote.</p></div>
+    <div class="gc"><div class="n">02 · CAPTURE</div><h3>Round-trips pay</h3>
+      <p>Price dips to your bid → you buy. Price rises to your ask → you sell. A buy answered by a sell is one <b>round-trip</b>: you bank the full spread. Chop is your jackpot — coins burst at every fill.</p></div>
+    <div class="gc"><div class="n">03 · SURVIVE</div><h3>Manage inventory</h3>
+      <p>A one-directional move fills only one side and piles up <b>signed inventory</b> that marks against you. Re-center to follow price, widen to slow fills, or <b>flatten</b> to dump it — before the bar hits the redline.</p></div>
+  </div>
+  <div class="core">
+    <b>SKIN-FREE CORE.</b> The player's bet is <b>setting a two-sided quote (spread width + skew) the oscillating live price must repeatedly cross</b>,
+    settled by <b>cumulative round-trip spread captured minus the mark-to-market bleed of signed inventory</b> — paid out if net PnL clears the bar
+    before inventory breaches the risk limit. A single price touch is a <b>liability</b> (it loads inventory), not a reward — the inverse of every touch-to-win game. You root for chop and fear the trend, in either direction.
+  </div>
+  <div class="foot">SPREADKEEPER · concept prototype · simulated VOL 75 synthetic feed · not financial advice</div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  /* ============== PRICE ENGINE (regime-switching synthetic) ============== */
+  const cv = document.getElementById('chart');
+  const ctx = cv.getContext('2d');
+  let W=0,H=0,DPR=Math.min(window.devicePixelRatio||1,2);
+  function resize(){
+    const r=cv.getBoundingClientRect();
+    W=r.width; H=r.height;
+    cv.width=W*DPR; cv.height=H*DPR; ctx.setTransform(DPR,0,0,DPR,0,0);
+  }
+  window.addEventListener('resize',resize);
+
+  const N=260;                 // points on screen
+  let price=1000, prices=[], regime='calm', regimeT=0, drift=0, vol=0.6;
+  for(let i=0;i<N;i++){ prices.push(price); }
+
+  function stepRegime(){
+    regimeT--;
+    if(regimeT<=0){
+      const r=Math.random();
+      if(r<0.46){ regime='chop'; vol=1.05; drift=0; regimeT=70+Math.random()*90; }
+      else if(r<0.78){ regime='calm'; vol=0.42; drift=(Math.random()-.5)*0.05; regimeT=60+Math.random()*70; }
+      else { regime='trend'; vol=0.7; drift=(Math.random()<.5?-1:1)*(0.55+Math.random()*0.5); regimeT=55+Math.random()*70; }
+    }
+  }
+  function tickPrice(){
+    stepRegime();
+    // mean reversion in chop, momentum in trend
+    let mr = (1000 - 0)*0; // placeholder
+    let noise=(Math.random()-0.5)*2*vol;
+    if(regime==='chop'){
+      // oscillate around a slowly moving center
+      const center = prices[prices.length-1];
+      noise = Math.sin(perf*0.10)*vol*1.4 + (Math.random()-0.5)*vol*1.1;
+      drift*=0.9;
+    }
+    price += drift + noise;
+    if(price<300) price=300;
+    prices.push(price); if(prices.length>N) prices.shift();
+    perf++;
+  }
+  let perf=0;
+
+  /* ============== GAME STATE ============== */
+  const S={
+    running:false, t:0, windowLen:60, // seconds
+    spread:0.40, skew:0, size:2, stake:10,
+    bid:0, ask:0, mid:0,
+    inv:0, avgPx:0, // signed inventory & avg fill price (vwap)
+    captured:0, fills:0, rt:0, mark:0,
+    riskLimit:14, // |inv| limit
+    lastSide:0,   // last fill side: +1 bought(long add), -1 sold
+    pendingQ:[],  // FIFO lots for round-trip pairing
+    busted:false,
+  };
+
+  /* ============== UI ELEMENTS ============== */
+  const el=id=>document.getElementById(id);
+  const pxBig=el('pxBig'), regimeEl=el('regime');
+  const sSpread=el('sSpread'), sSkew=el('sSkew'), sSize=el('sSize'), sStake=el('sStake');
+  const vSpread=el('vSpread'), vSkew=el('vSkew'), vSize=el('vSize'), vStake=el('vStake');
+  const hSpread=el('hSpread'),hSize=el('hSize'),hFills=el('hFills'),hRt=el('hRt'),hAvg=el('hAvg');
+  const invFill=el('invFill'), invQty=el('invQty'), invSideLab=el('invSideLab');
+  const pnlBig=el('pnlBig'), pnlSub=el('pnlSub'), capVal=el('capVal'), markVal=el('markVal'), winLeft=el('winLeft');
+  const tickerTrack=el('ticker'), ladder=el('ladder');
+  const btnGo=el('btnGo'), btnFlat=el('btnFlatten'), btnRe=el('btnRecenter');
+  const toast=el('toast');
+  const askLab=el('askLab'), bidLab=el('bidLab');
+
+  function syncControls(){
+    S.spread=parseFloat(sSpread.value); S.skew=parseFloat(sSkew.value);
+    S.size=parseInt(sSize.value); S.stake=parseInt(sStake.value);
+    vSpread.textContent=S.spread.toFixed(2);
+    vSkew.textContent=(S.skew>=0?'+':'')+S.skew.toFixed(2);
+    vSize.textContent=S.size; vStake.textContent='$'+S.stake;
+    hSpread.textContent=S.spread.toFixed(2); hSize.textContent=S.size;
+  }
+  [sSpread,sSkew,sSize,sStake].forEach(s=>s.addEventListener('input',()=>{S.demo=false; syncControls(); placeQuote();}));
+
+  // quote in PRICE units: half-spread scaled to absolute price level
+  function quoteUnit(){ return Math.max(1.2, prices[prices.length-1]*0.0016); } // base tick scale
+  function placeQuote(){
+    const p=prices[prices.length-1];
+    const u=quoteUnit();
+    S.mid = p + S.skew*u*4;
+    const half=(S.spread*u*4)/2;
+    S.bid=S.mid-half; S.ask=S.mid+half;
+  }
+
+  /* ============== FILL LOGIC ============== */
+  // crossing detection between previous and current price
+  let prevP=price;
+  function processFills(){
+    if(!S.running||S.busted) return;
+    const p=prices[prices.length-1];
+    const lo=Math.min(prevP,p), hi=Math.max(prevP,p);
+    // BID fill: price dipped to/through bid -> BUY size
+    if(S.bid>=lo && S.bid<=hi){ doFill(+1, S.bid); }
+    // ASK fill: price rose to/through ask -> SELL size
+    if(S.ask>=lo && S.ask<=hi){ doFill(-1, S.ask); }
+    prevP=p;
+  }
+  function doFill(side, fillPx){
+    // side +1 = buy (inv increases), -1 = sell (inv decreases)
+    const sz=S.size;
+    // round-trip pairing: if we have inventory on the opposite side, this closes lots and captures spread
+    let captureLots=0, capturedNow=0;
+    if(side>0){ // buying -> closes short lots
+      while(sz>captureLots && S.pendingQ.length && S.pendingQ[0].side<0){
+        const lot=S.pendingQ[0];
+        const gain=lot.px - fillPx; // sold high, buy back low
+        capturedNow+=bankCapture(gain); lot.qty--; captureLots++;
+        if(lot.qty<=0)S.pendingQ.shift();
+      }
+    } else { // selling -> closes long lots
+      while(sz>captureLots && S.pendingQ.length && S.pendingQ[0].side>0){
+        const lot=S.pendingQ[0];
+        const gain=fillPx - lot.px; // bought low, sell high
+        capturedNow+=bankCapture(gain); lot.qty--; captureLots++;
+        if(lot.qty<=0)S.pendingQ.shift();
+      }
+    }
+    const newLots = sz - captureLots;
+    if(newLots>0){ S.pendingQ.push({side, px:fillPx, qty:newLots}); }
+    // recompute signed inventory & vwap
+    recomputeInventory();
+    S.fills+=sz;
+    spawnParticles(fillPx, side, captureLots>0);
+    hFills.textContent=S.fills;
+    pushTicker(side, fillPx, captureLots, capturedNow);
+    flashRung();
+  }
+  function bankCapture(gainPerLot){
+    // gain is in price units; convert to $ via a capture scale
+    const dollars = Math.max(0.05, gainPerLot) * CAP_SCALE;
+    S.captured += dollars; S.rt++;
+    hRt.textContent=S.rt;
+    return dollars;
+  }
+  const CAP_SCALE=0.55;
+  function recomputeInventory(){
+    let signed=0, cost=0, qty=0;
+    for(const l of S.pendingQ){ signed += l.side*l.qty; }
+    // vwap of net side
+    let netSide = Math.sign(signed);
+    let totQ=0, totPx=0;
+    for(const l of S.pendingQ){ if(l.side===netSide){ totQ+=l.qty; totPx+=l.px*l.qty; } }
+    S.inv=signed; S.avgPx = totQ? totPx/totQ : 0;
+  }
+  function markToMarket(){
+    const p=prices[prices.length-1];
+    if(S.inv===0){ S.mark=0; return; }
+    // long inv: gain if price>avg; short: gain if price<avg
+    S.mark = (p - S.avgPx) * S.inv * CAP_SCALE;
+  }
+
+  /* ============== PARTICLES ============== */
+  const parts=[];
+  function priceToY(p){
+    const {min,max}=range();
+    return 18 + (1-(p-min)/(max-min))*(H-36);
+  }
+  function spawnParticles(fillPx, side, isCapture){
+    const x=W-58, y=priceToY(fillPx);
+    const n=isCapture?14:7;
+    for(let i=0;i<n;i++){
+      parts.push({
+        x, y,
+        vx:(Math.random()-0.2)*-2.2, vy:(Math.random()-0.5)*3.4,
+        life:1, sz:isCapture?2.4+Math.random()*2:1.6+Math.random()*1.6,
+        col: isCapture? 'rgba(255,211,77,' : (side>0?'rgba(34,211,238,':'rgba(240,75,208,'),
+        gold:isCapture
+      });
+    }
+  }
+  function flashRung(){ ladderFlash=6; }
+  let ladderFlash=0;
+
+  /* ============== TICKER ============== */
+  const tickItems=[];
+  function pushTicker(side, px, cap, capturedNow){
+    const txt = cap>0
+      ? `<span class="it win">CAPTURE <b>+$${(capturedNow||0).toFixed(2)}</b> · round-trip ×${cap}</span>`
+      : `<span class="it">${side>0?'BUY':'SELL'} @ <b>${px.toFixed(1)}</b> · inv ${S.inv>0?'+':''}${S.inv}</span>`;
+    tickItems.unshift(txt);
+    if(tickItems.length>16) tickItems.pop();
+    tickerTrack.innerHTML = tickItems.join('') + tickItems.join('');
+  }
+  let tx=0;
+  function moveTicker(){
+    tx-=0.6; if(tx<-tickerTrack.scrollWidth/2) tx=0;
+    tickerTrack.style.transform=`translateX(${tx}px)`;
+  }
+  // seed ticker so it's alive on load
+  for(let i=0;i<10;i++) tickItems.push(`<span class="it">SPREADKEEPER · provide liquidity · capture the spread &nbsp;</span>`);
+  tickerTrack.innerHTML=tickItems.join('')+tickItems.join('');
+
+  /* ============== ORDER BOOK LADDER ============== */
+  function buildLadder(){
+    ladder.innerHTML='';
+    rungEls=[];
+    for(let i=0;i<11;i++){
+      const d=document.createElement('div');
+      if(i===5){ d.className='rung mid'; d.innerHTML='<span id="ladMid">—</span>'; }
+      else {
+        const ask = i<5;
+        d.className='rung '+(ask?'ask':'bid');
+        d.innerHTML=`<div class="bar" style="width:10%"></div><span class="pr">—</span>`;
+      }
+      ladder.appendChild(d); rungEls.push(d);
+    }
+  }
+  let rungEls=[];
+  function updateLadder(){
+    const p=prices[prices.length-1], u=quoteUnit();
+    const mid=rungEls[5]; mid.querySelector('#ladMid').textContent=p.toFixed(1);
+    for(let i=0;i<11;i++){
+      if(i===5) continue;
+      const r=rungEls[i];
+      const lvl = (5-i); // +5..-5
+      const lp = p + lvl*u;
+      const bar=r.querySelector('.bar'), pr=r.querySelector('.pr');
+      pr.textContent=lp.toFixed(1);
+      // depth pseudo-volume, brighter near current placed quote
+      let depth = 22 + Math.abs(Math.sin(perf*0.05 + i))*48;
+      // light up rung if our quote sits near it
+      const nearBid = Math.abs(lp-S.bid) < u*0.6 && S.running;
+      const nearAsk = Math.abs(lp-S.ask) < u*0.6 && S.running;
+      if(nearBid||nearAsk){ depth=96; r.classList.add('live'); } else r.classList.remove('live');
+      bar.style.width=depth+'%';
+      if(ladderFlash>0 && (nearBid||nearAsk)) bar.style.filter='brightness(1.8)'; else bar.style.filter='';
+    }
+    if(ladderFlash>0)ladderFlash--;
+  }
+
+  /* ============== CHART RANGE ============== */
+  function range(){
+    let min=Infinity,max=-Infinity;
+    for(const p of prices){ if(p<min)min=p; if(p>max)max=p; }
+    // include quotes
+    if(S.running){ min=Math.min(min,S.bid); max=Math.max(max,S.ask); }
+    const pad=(max-min)*0.12+2; return {min:min-pad,max:max+pad};
+  }
+
+  /* ============== RENDER ============== */
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+    const {min,max}=range();
+    const x0=0, x1=W;
+    const stepX=(x1-x0)/(N-1);
+    const y=p=>18+(1-(p-min)/(max-min))*(H-36);
+
+    // grid
+    ctx.strokeStyle='rgba(120,140,200,.07)'; ctx.lineWidth=1;
+    ctx.beginPath();
+    for(let g=0; g<=6; g++){ const yy=18+g*(H-36)/6; ctx.moveTo(0,yy); ctx.lineTo(W,yy); }
+    for(let g=0; g<=8; g++){ const xx=g*W/8; ctx.moveTo(xx,0); ctx.lineTo(xx,H); }
+    ctx.stroke();
+
+    // volume bars (background depth)
+    ctx.save();
+    for(let i=0;i<N;i+=2){
+      const vh=(Math.abs(prices[i]-(prices[i-1]||prices[i]))*6+3);
+      const xx=x0+i*stepX;
+      ctx.fillStyle='rgba(90,120,210,0.05)';
+      ctx.fillRect(xx, H-vh, stepX*1.4, vh);
+    }
+    ctx.restore();
+
+    // quote band (between bid & ask)
+    if(S.running){
+      const yb=y(S.bid), ya=y(S.ask);
+      const g=ctx.createLinearGradient(0,ya,0,yb);
+      g.addColorStop(0,'rgba(240,75,208,0.10)');
+      g.addColorStop(0.5,'rgba(160,120,230,0.05)');
+      g.addColorStop(1,'rgba(34,211,238,0.10)');
+      ctx.fillStyle=g; ctx.fillRect(0,ya,W,yb-ya);
+      // ask line
+      ctx.strokeStyle='rgba(240,75,208,.9)'; ctx.lineWidth=1.5; ctx.setLineDash([7,5]);
+      ctx.beginPath(); ctx.moveTo(0,ya); ctx.lineTo(W,ya); ctx.stroke();
+      // bid line
+      ctx.strokeStyle='rgba(34,211,238,.9)';
+      ctx.beginPath(); ctx.moveTo(0,yb); ctx.lineTo(W,yb); ctx.stroke();
+      ctx.setLineDash([]);
+      askLab.style.top=ya+'px'; bidLab.style.top=yb+'px';
+      askLab.style.display='block'; bidLab.style.display='block';
+      // avg-fill line (inventory cost)
+      if(S.inv!==0){
+        const yavg=y(S.avgPx);
+        ctx.strokeStyle = S.inv>0?'rgba(55,230,160,.55)':'rgba(255,84,112,.55)';
+        ctx.lineWidth=1; ctx.setLineDash([2,4]);
+        ctx.beginPath(); ctx.moveTo(0,yavg); ctx.lineTo(W,yavg); ctx.stroke();
+        ctx.setLineDash([]);
+      }
+    } else { askLab.style.display='none'; bidLab.style.display='none'; }
+
+    // price area fill
+    ctx.beginPath(); ctx.moveTo(x0, y(prices[0]));
+    for(let i=1;i<N;i++) ctx.lineTo(x0+i*stepX, y(prices[i]));
+    ctx.lineTo(x1,H); ctx.lineTo(x0,H); ctx.closePath();
+    const ag=ctx.createLinearGradient(0,0,0,H);
+    const up = prices[N-1]>=prices[N-12];
+    ag.addColorStop(0, up?'rgba(55,230,160,.20)':'rgba(255,84,112,.20)');
+    ag.addColorStop(1,'rgba(8,12,22,0)');
+    ctx.fillStyle=ag; ctx.fill();
+
+    // price line
+    ctx.beginPath(); ctx.moveTo(x0,y(prices[0]));
+    for(let i=1;i<N;i++) ctx.lineTo(x0+i*stepX, y(prices[i]));
+    ctx.lineWidth=2.2; ctx.strokeStyle = up? '#5bffba':'#ff7a98';
+    ctx.shadowColor= up?'rgba(55,230,160,.6)':'rgba(255,84,112,.6)'; ctx.shadowBlur=12;
+    ctx.stroke(); ctx.shadowBlur=0;
+
+    // live price dot
+    const px=x0+(N-1)*stepX, py=y(prices[N-1]);
+    ctx.beginPath(); ctx.arc(px,py,4.5,0,7); ctx.fillStyle='#fff'; ctx.fill();
+    ctx.beginPath(); ctx.arc(px,py,9,0,7); ctx.strokeStyle= up?'rgba(91,255,186,.5)':'rgba(255,122,152,.5)'; ctx.lineWidth=2; ctx.stroke();
+
+    // particles
+    for(let i=parts.length-1;i>=0;i--){
+      const pt=parts[i];
+      pt.x+=pt.vx; pt.y+=pt.vy; pt.vy+=0.06; pt.life-=0.022;
+      if(pt.life<=0){ parts.splice(i,1); continue; }
+      ctx.globalAlpha=Math.max(0,pt.life);
+      ctx.fillStyle=pt.col+(pt.life)+')';
+      ctx.beginPath(); ctx.arc(pt.x,pt.y,pt.sz,0,7); ctx.fill();
+      if(pt.gold){ ctx.fillStyle='rgba(255,255,255,'+(pt.life*0.7)+')'; ctx.beginPath(); ctx.arc(pt.x,pt.y,pt.sz*0.4,0,7); ctx.fill(); }
+    }
+    ctx.globalAlpha=1;
+  }
+
+  /* ============== HUD / PNL UPDATE ============== */
+  function updateHUD(){
+    const p=prices[prices.length-1];
+    pxBig.textContent=p.toFixed(2);
+    pxBig.className='px '+(prices[N-1]>=prices[N-12]?'up':'dn');
+    regimeEl.className='regime '+(regime==='trend'?'trend':regime==='chop'?'chop':'calm');
+    regimeEl.textContent=regime.toUpperCase();
+    hAvg.textContent = S.inv? S.avgPx.toFixed(1):'—';
+
+    markToMarket();
+    const net = S.captured + S.mark;
+    pnlBig.textContent=(net>=0?'+':'')+net.toFixed(2);
+    pnlBig.style.color = net>=0?'var(--green)':'var(--red)';
+    capVal.textContent='+'+S.captured.toFixed(2);
+    markVal.textContent=(S.mark>=0?'+':'')+S.mark.toFixed(2);
+    markVal.style.color = S.mark>=0?'var(--green)':'var(--red)';
+
+    // inventory bar
+    const frac=Math.min(1,Math.abs(S.inv)/S.riskLimit);
+    invFill.style.width=(frac*50)+'%';
+    if(S.inv>0){ invFill.style.left='50%'; }
+    else { invFill.style.left=(50-frac*50)+'%'; }
+    const col = frac<0.55? 'var(--green)' : frac<0.82? 'var(--amber)':'var(--red)';
+    invFill.style.background=col;
+    invFill.style.boxShadow= frac>0.82? '0 0 14px rgba(255,84,112,.7)':'none';
+    if(S.inv===0){ invQty.textContent='FLAT'; invQty.style.color='var(--dim)'; }
+    else { invQty.textContent=(S.inv>0?'LONG +':'SHORT ')+S.inv; invQty.style.color = S.inv>0?'var(--green)':'var(--red)'; }
+  }
+
+  /* ============== ACTIONS ============== */
+  function showToast(big, sub, color){
+    toast.innerHTML=big+(sub?`<small>${sub}</small>`:'');
+    toast.style.color=color||'#fff';
+    toast.classList.add('show');
+    clearTimeout(showToast._t);
+    showToast._t=setTimeout(()=>toast.classList.remove('show'),1500);
+  }
+  btnRe.addEventListener('click',()=>{ S.demo=false; placeQuote(); if(S.running) showToast('RE-CENTERED','quote follows price','#8fc8ff'); });
+  btnFlat.addEventListener('click',()=>{
+    S.demo=false;
+    if(!S.running||S.inv===0) return;
+    // dump at market with a haircut
+    const p=prices[prices.length-1];
+    const realized=(p-S.avgPx)*S.inv*CAP_SCALE;
+    const haircut = Math.abs(S.inv)*0.4;
+    S.captured += realized - haircut;
+    S.pendingQ.length=0; S.inv=0; S.avgPx=0;
+    showToast('FLATTENED', (realized>=0?'+':'')+realized.toFixed(1)+'  · haircut −'+haircut.toFixed(1), realized>=0?'var(--green)':'var(--amber)');
+  });
+
+  function startRound(){
+    if(S.running){ // close early
+      settle(false); return;
+    }
+    // reset
+    S.running=true; S.busted=false; S.t=S.windowLen;
+    S.captured=0; S.fills=0; S.rt=0; S.mark=0; S.inv=0; S.avgPx=0; S.pendingQ.length=0;
+    hFills.textContent='0'; hRt.textContent='0';
+    placeQuote(); prevP=prices[prices.length-1];
+    btnGo.textContent='CLOSE EARLY'; btnGo.classList.add('live');
+    showToast('ROUND LIVE', 'provide liquidity · capture the chop', 'var(--gold)');
+  }
+  function settle(busted){
+    S.running=false;
+    markToMarket();
+    const net=S.captured + S.mark;
+    if(busted){
+      showToast('MARGIN CALL', 'inventory hit the risk limit · stake lost', 'var(--red)');
+    } else {
+      const k=0.5, ref=8;
+      const mult = Math.max(0, 1 + k*(net/ref));
+      const payout = (net>0)? (S.stake*mult) : 0;
+      if(net>0) showToast('+$'+payout.toFixed(2), 'net spread PnL +'+net.toFixed(1)+' · '+S.rt+' round-trips', 'var(--green)');
+      else showToast('ROUND OVER', 'net '+net.toFixed(1)+' · no payout', 'var(--amber)');
+    }
+    btnGo.textContent='START ROUND'; btnGo.classList.remove('live');
+    // demo autopilot: keep the hero perpetually alive until the user takes over
+    if(S.demo){
+      setTimeout(()=>{
+        if(!S.demo||S.running) return;
+        // wander the demo quote params a little for variety
+        const ns = 0.22 + Math.random()*0.7;
+        sSpread.value=ns.toFixed(2);
+        sSkew.value=((Math.random()-0.5)*0.4).toFixed(2);
+        syncControls();
+        startRound();
+      }, 1300);
+    }
+  }
+  btnGo.addEventListener('click',()=>{ S.demo=false; startRound(); });
+
+  /* ============== TIMERS (setInterval so it survives tab-backgrounding) ============== */
+  // price + game logic at fixed 60ms
+  setInterval(()=>{
+    tickPrice();
+    if(S.running){
+      // DEMO AUTOPILOT: a light "good player" so the hero stays alive & mostly survives,
+      // showing sustained capture + the occasional dramatic near-bust. Off the instant a human acts.
+      if(S.demo){
+        const frac=Math.abs(S.inv)/S.riskLimit;
+        if(frac>0.62){ // de-risk: dump inventory before the redline
+          const p=prices[prices.length-1];
+          const realized=(p-S.avgPx)*S.inv*CAP_SCALE - Math.abs(S.inv)*0.4;
+          S.captured+=realized; S.pendingQ.length=0; S.inv=0; S.avgPx=0;
+        } else if(regime==='trend' && Math.random()<0.06){
+          placeQuote(); // chase the trend with the quote
+        } else if(regime==='chop' && Math.random()<0.03){
+          placeQuote();
+        }
+      }
+      processFills();
+      // mark inventory continuously
+      markToMarket();
+      // bust check
+      if(Math.abs(S.inv)>=S.riskLimit){ S.busted=true; spawnBurstBust(); settle(true); }
+      // window countdown
+      S.t-=0.06;
+      winLeft.textContent=Math.max(0,S.t).toFixed(1)+'s';
+      if(S.t<=0){ settle(false); }
+    } else {
+      placeQuote(); // keep band glued to price pre-round so hero shows it
+    }
+    updateLadder();
+  },60);
+
+  function spawnBurstBust(){
+    for(let i=0;i<40;i++){
+      parts.push({x:W-58,y:priceToY(prices[prices.length-1]),
+        vx:(Math.random()-0.5)*6,vy:(Math.random()-0.5)*6,life:1,sz:2+Math.random()*3,
+        col:'rgba(255,84,112,',gold:false});
+    }
+  }
+
+  // render loop (rAF for smoothness; sim is on setInterval)
+  function loop(){ draw(); updateHUD(); moveTicker(); requestAnimationFrame(loop); }
+
+  /* ============== BOOT ============== */
+  function boot(){
+    resize(); buildLadder(); syncControls(); placeQuote();
+    // pre-fill history with chop so the very first frame is dense & in-motion
+    regime='chop'; vol=1.0; regimeT=80;
+    for(let i=0;i<N;i++) tickPrice();
+    // demo autopilot ON: start a round synchronously so the hero is fully composed
+    // (quote band, fills, inventory) from frame 1 — no empty gap before action.
+    S.demo=true;
+    startRound();
+    // seed a couple of fills + a small inventory so the static first frame already shows the loop
+    placeQuote();
+    doFill(+1, S.bid); doFill(-1, S.ask); // one round-trip captured
+    doFill(+1, S.bid);                    // leaves a touch of long inventory
+    requestAnimationFrame(loop);
+  }
+  boot();
+})();
+</script>
+</body>
+</html>
