@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SLIPSTREAM — Deriv</title>
+<style>
+  :root{
+    --bg0:#04070d; --bg1:#070d18; --teal:#1bd6c8; --cyan:#37e7ff;
+    --rail:#ff4fd8; --gold:#ffcf4d; --good:#3dffb0; --bad:#ff4d6d;
+    --ink:#eaf6ff; --dim:#7fa0bd; --panel:rgba(10,18,30,.72);
+  }
+  *{box-sizing:border-box; margin:0; padding:0}
+  html,body{height:100%}
+  body{
+    font-family:'Inter','Segoe UI',system-ui,-apple-system,sans-serif;
+    background:
+      radial-gradient(1200px 700px at 78% 18%, #0b1830 0%, rgba(11,24,48,0) 60%),
+      radial-gradient(900px 600px at 12% 88%, #0c1a26 0%, rgba(12,26,38,0) 55%),
+      linear-gradient(180deg,var(--bg1),var(--bg0));
+    color:var(--ink); overflow-x:hidden;
+    -webkit-font-smoothing:antialiased;
+  }
+  /* ===== HERO : exactly one viewport ===== */
+  .stage{
+    position:relative; width:100%; height:100vh; min-height:100vh;
+    overflow:hidden;
+  }
+  canvas#game{position:absolute; inset:0; width:100%; height:100%; display:block}
+
+  /* top bar */
+  .topbar{
+    position:absolute; top:0; left:0; right:0; z-index:6;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:16px 22px;
+    background:linear-gradient(180deg, rgba(4,7,13,.78), rgba(4,7,13,0));
+    pointer-events:none;
+  }
+  .brand{display:flex; align-items:center; gap:12px}
+  .logo{
+    width:34px; height:34px; border-radius:9px;
+    background:conic-gradient(from 210deg,var(--cyan),var(--rail),var(--gold),var(--cyan));
+    box-shadow:0 0 22px rgba(55,231,255,.55), inset 0 0 10px rgba(0,0,0,.35);
+    position:relative;
+  }
+  .logo::after{content:"";position:absolute;inset:6px;border-radius:6px;
+    background:#04070d;box-shadow:inset 0 0 10px rgba(55,231,255,.4)}
+  .wordmark{font-weight:800; letter-spacing:.42em; font-size:15px}
+  .wordmark b{color:var(--cyan)}
+  .tag{font-size:10.5px; letter-spacing:.34em; color:var(--dim); margin-top:2px}
+  .feed{
+    display:flex; gap:18px; align-items:center; font-variant-numeric:tabular-nums;
+  }
+  .feed .chip{
+    display:flex; flex-direction:column; align-items:flex-end; line-height:1.15;
+  }
+  .feed .lab{font-size:9.5px; letter-spacing:.22em; color:var(--dim)}
+  .feed .val{font-size:15px; font-weight:700}
+  .volpill{
+    display:flex; align-items:center; gap:7px; padding:7px 13px; border-radius:999px;
+    background:var(--panel); border:1px solid rgba(55,231,255,.22);
+    font-size:11px; letter-spacing:.16em; color:var(--cyan);
+    backdrop-filter:blur(8px);
+  }
+  .volpill .dot{width:8px;height:8px;border-radius:50%;background:var(--cyan);
+    box-shadow:0 0 10px var(--cyan); animation:pulse 1.4s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+
+  /* big multiplier */
+  .multiwrap{
+    position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+    z-index:5; text-align:center; pointer-events:none; user-select:none;
+    transition:transform .08s ease-out;
+  }
+  .multi{
+    font-weight:800; font-variant-numeric:tabular-nums; line-height:.9;
+    font-size:108px; letter-spacing:-.02em;
+    color:#eafff8;
+    text-shadow:0 0 40px rgba(61,255,176,.55), 0 0 90px rgba(61,255,176,.25);
+  }
+  .multi .x{font-size:.42em; color:var(--good); margin-left:.04em; vertical-align:.30em}
+  .multistate{
+    font-size:12px; letter-spacing:.42em; color:var(--dim); margin-top:6px;
+  }
+  .multiwrap.idle .multi{color:#5d7a93}
+  .multiwrap.cashed .multi{color:var(--gold);
+    text-shadow:0 0 50px rgba(255,207,77,.7),0 0 110px rgba(255,207,77,.35)}
+  .multiwrap.crash .multi{color:var(--bad);
+    text-shadow:0 0 50px rgba(255,77,109,.7)}
+
+  /* HUD left: collected crystals & distance */
+  .hud{
+    position:absolute; left:22px; top:50%; transform:translateY(-50%);
+    z-index:5; display:flex; flex-direction:column; gap:14px; pointer-events:none;
+  }
+  .stat{
+    background:var(--panel); border:1px solid rgba(255,255,255,.07);
+    border-radius:13px; padding:11px 14px; min-width:128px; backdrop-filter:blur(8px);
+  }
+  .stat .k{font-size:9.5px; letter-spacing:.2em; color:var(--dim)}
+  .stat .v{font-size:21px; font-weight:800; font-variant-numeric:tabular-nums; margin-top:3px}
+  .stat .v small{font-size:12px; color:var(--dim); font-weight:600}
+  .stat.spark .v{color:var(--rail)}
+
+  /* bottom control deck */
+  .deck{
+    position:absolute; left:0; right:0; bottom:0; z-index:6;
+    padding:16px 22px 20px;
+    background:linear-gradient(0deg, rgba(4,7,13,.92), rgba(4,7,13,.5) 60%, rgba(4,7,13,0));
+    display:flex; align-items:flex-end; justify-content:space-between; gap:18px;
+  }
+  .panel{
+    background:var(--panel); border:1px solid rgba(255,255,255,.08);
+    border-radius:16px; padding:13px 16px; backdrop-filter:blur(10px);
+  }
+  .stakebox .row{display:flex; align-items:center; gap:10px}
+  .stakebox .lab{font-size:10px; letter-spacing:.22em; color:var(--dim); margin-bottom:8px}
+  .stepper{
+    display:flex; align-items:center; background:#0a1422; border:1px solid rgba(255,255,255,.1);
+    border-radius:11px; overflow:hidden;
+  }
+  .stepper button{
+    width:36px; height:42px; background:transparent; border:none; color:var(--ink);
+    font-size:20px; cursor:pointer; transition:background .15s}
+  .stepper button:hover{background:rgba(55,231,255,.14)}
+  .stepper .amt{width:78px; text-align:center; font-size:19px; font-weight:800;
+    font-variant-numeric:tabular-nums}
+  .stepper .amt small{font-size:11px;color:var(--dim);font-weight:600}
+  .trim{display:flex; gap:7px; margin-top:9px}
+  .trim button{
+    flex:1; padding:8px 0; border-radius:9px; background:#0a1422; cursor:pointer;
+    border:1px solid rgba(255,255,255,.1); color:var(--dim); font-size:10px;
+    letter-spacing:.14em; font-weight:700; transition:.15s}
+  .trim button.on{color:#04070d; background:linear-gradient(180deg,var(--cyan),#19b6cf);
+    border-color:transparent; box-shadow:0 0 18px rgba(55,231,255,.45)}
+  .trim button:hover:not(.on){border-color:rgba(55,231,255,.5); color:var(--ink)}
+
+  .actionwrap{flex:1; display:flex; flex-direction:column; align-items:center; gap:9px}
+  .hint{font-size:11px; letter-spacing:.16em; color:var(--dim); text-align:center; height:14px}
+  .hint b{color:var(--cyan)}
+  .bigbtn{
+    width:100%; max-width:460px; height:64px; border:none; border-radius:16px;
+    font-size:18px; font-weight:800; letter-spacing:.2em; cursor:pointer;
+    color:#04140e; position:relative; overflow:hidden; transition:transform .08s, filter .15s;
+    background:linear-gradient(180deg,#5dffc0,#16c98a);
+    box-shadow:0 10px 34px rgba(22,201,138,.42), inset 0 1px 0 rgba(255,255,255,.4);
+  }
+  .bigbtn:active{transform:translateY(2px)}
+  .bigbtn.cash{background:linear-gradient(180deg,#ffe07a,#ffb321);
+    box-shadow:0 10px 34px rgba(255,179,33,.5), inset 0 1px 0 rgba(255,255,255,.5); color:#2a1800}
+  .bigbtn.dis{filter:grayscale(.6) brightness(.6); cursor:not-allowed}
+  .bigbtn .sub{display:block; font-size:11px; letter-spacing:.18em; opacity:.78; margin-top:2px; font-weight:700}
+
+  .balbox{text-align:right}
+  .balbox .lab{font-size:10px; letter-spacing:.22em; color:var(--dim)}
+  .balbox .v{font-size:24px; font-weight:800; font-variant-numeric:tabular-nums; margin-top:5px}
+  .balbox .v span{color:var(--gold)}
+  .lastwin{font-size:11px; margin-top:6px; height:14px; letter-spacing:.05em}
+  .lastwin.win{color:var(--good)} .lastwin.lose{color:var(--bad)}
+
+  /* toast over crash/cashout */
+  .toast{
+    position:absolute; top:50%; left:50%; transform:translate(-50%,calc(-50% + 96px));
+    z-index:7; font-size:14px; letter-spacing:.28em; font-weight:800;
+    padding:9px 22px; border-radius:999px; opacity:0; pointer-events:none;
+    transition:opacity .25s;
+  }
+  .toast.show{opacity:1}
+  .toast.win{color:var(--gold); background:rgba(255,207,77,.12); border:1px solid rgba(255,207,77,.4)}
+  .toast.lose{color:var(--bad); background:rgba(255,77,109,.12); border:1px solid rgba(255,77,109,.4)}
+
+  /* legend strip below the fold */
+  .below{max-width:1180px; margin:0 auto; padding:64px 26px 90px}
+  .below h2{font-size:13px; letter-spacing:.4em; color:var(--cyan); margin-bottom:26px}
+  .cards{display:grid; grid-template-columns:repeat(4,1fr); gap:16px}
+  .card{background:rgba(10,18,30,.6); border:1px solid rgba(255,255,255,.07);
+    border-radius:16px; padding:20px}
+  .card .n{font-size:11px; letter-spacing:.2em; color:var(--dim)}
+  .card h3{font-size:16px; margin:10px 0 8px; color:var(--ink)}
+  .card p{font-size:13px; line-height:1.6; color:#9fb6cd}
+  .card .ic{font-size:22px}
+  @media (max-width:880px){.cards{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+
+<section class="stage">
+  <canvas id="game"></canvas>
+
+  <div class="topbar">
+    <div class="brand">
+      <div class="logo"></div>
+      <div>
+        <div class="wordmark">SLIP<b>STREAM</b></div>
+        <div class="tag">VOLATILITY&nbsp; CANYON&nbsp; · &nbsp;DERIV</div>
+      </div>
+    </div>
+    <div class="feed">
+      <div class="volpill"><span class="dot"></span><span id="regime">VOL&nbsp;RISING</span></div>
+      <div class="chip"><span class="lab">VOL 100 INDEX</span><span class="val" id="price">1042.18</span></div>
+      <div class="chip"><span class="lab">BAND WIDTH</span><span class="val" id="bw" style="color:var(--cyan)">—</span></div>
+    </div>
+  </div>
+
+  <div class="hud">
+    <div class="stat"><div class="k">DISTANCE</div><div class="v" id="dist">0<small> m</small></div></div>
+    <div class="stat spark"><div class="k">◆ SPARKS</div><div class="v" id="sparks">0<small> &nbsp;+0%</small></div></div>
+    <div class="stat"><div class="k">SLIPSTREAM</div><div class="v" id="slip" style="color:var(--gold)">×1.0</div></div>
+  </div>
+
+  <div class="multiwrap idle" id="multiwrap">
+    <div class="multi" id="multi">1.00<span class="x">×</span></div>
+    <div class="multistate" id="mstate">PRESS LAUNCH</div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <div class="deck">
+    <div class="panel stakebox">
+      <div class="lab">STAKE</div>
+      <div class="row">
+        <div class="stepper">
+          <button id="minus">−</button>
+          <div class="amt"><span id="stake">10</span><small> ©</small></div>
+          <button id="plus">+</button>
+        </div>
+      </div>
+      <div class="trim" id="trim">
+        <button data-t="HIGH">HIGH</button>
+        <button data-t="MID" class="on">MID</button>
+        <button data-t="LOW">LOW</button>
+      </div>
+    </div>
+
+    <div class="actionwrap">
+      <div class="hint" id="hint">Hold <b>SPACE</b> / mouse to climb · dive to the rail for sparks</div>
+      <button class="bigbtn" id="action">LAUNCH<span class="sub" id="actsub">stake 10 © · trim MID</span></button>
+    </div>
+
+    <div class="panel balbox">
+      <div class="lab">BALANCE</div>
+      <div class="v"><span>©</span> <span id="bal">1000</span></div>
+      <div class="lastwin" id="lastwin"></div>
+    </div>
+  </div>
+</section>
+
+<!-- below the fold -->
+<section class="below">
+  <h2>HOW SLIPSTREAM WORKS</h2>
+  <div class="cards">
+    <div class="card"><div class="ic">🪂</div><div class="n">01 · PILOT</div><h3>Fly the canyon</h3>
+      <p>One control: hold to climb, release to fall. The ceiling and floor are the live market's upper & lower volatility bands. Touch a wall and you crash.</p></div>
+    <div class="card"><div class="ic">〰️</div><div class="n">02 · BREATHE</div><h3>Volatility shapes the gap</h3>
+      <p>High volatility yawns the canyon wide open. A volatility crush squeezes the walls onto the price line — sit too long and you get pinched out.</p></div>
+    <div class="card"><div class="ic">◆</div><div class="n">03 · KISS THE RAIL</div><h3>Reward lives in danger</h3>
+      <p>Sparks spawn on the live price line and your multiplier accelerates the closer you fly to it. The most lucrative line is the most lethal.</p></div>
+    <div class="card"><div class="ic">⏏</div><div class="n">04 · CASH OUT</div><h3>Bank it before it bites</h3>
+      <p>Your multiplier climbs every tick you survive. Tap CASH OUT to bank stake × multiplier — or crash and lose it all. One more round?</p></div>
+  </div>
+</section>
+
+<script>
+(()=>{
+'use strict';
+const cv = document.getElementById('game');
+const ctx = cv.getContext('2d');
+let W=0,H=0,DPR=1;
+function resize(){
+  DPR = Math.min(window.devicePixelRatio||1, 2);
+  W = cv.clientWidth; H = cv.clientHeight;
+  cv.width = W*DPR; cv.height = H*DPR;
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+}
+window.addEventListener('resize', resize);
+
+/* ---------- DOM ---------- */
+const $ = id=>document.getElementById(id);
+const elPrice=$('price'), elBW=$('bw'), elRegime=$('regime');
+const elMulti=$('multi'), elMstate=$('mstate'), multiwrap=$('multiwrap');
+const elDist=$('dist'), elSparks=$('sparks'), elSlip=$('slip');
+const elBal=$('bal'), elLastwin=$('lastwin'), elStake=$('stake');
+const elAction=$('action'), elActsub=$('actsub'), elHint=$('hint'), elToast=$('toast');
+
+/* ---------- market model ----------
+   We synthesize a tick feed and compute a rolling mid + volatility band.
+   X axis = time scrolling left; the right edge is "now".
+   We store a history of {mid, half} where half = half-canyon-height (band).      */
+const COLS = 220;                  // history samples across the canyon
+let hist = [];                     // {mid, half}  in screen-space y (0..1 of playfield)
+let price = 1042.18;
+let drift = 0;
+let vol = 0.55;                    // realized vol 0..1 -> band width
+let volTarget = 0.55;
+let regimeTimer = 0;
+let tick = 0;
+
+const PF = ()=>({ top: 86, bot: H-118 });   // playfield bounds (under topbar/deck)
+
+function seedHistory(){
+  hist = [];
+  for(let i=0;i<COLS;i++){ stepMarket(); pushSample(); }
+}
+function stepMarket(){
+  // regime shifts: occasionally retarget volatility (vol expand / crush)
+  regimeTimer--;
+  if(regimeTimer<=0){
+    regimeTimer = 120 + Math.random()*220;
+    volTarget = 0.18 + Math.random()*0.82;
+  }
+  vol += (volTarget-vol)*0.018;
+  // price random walk with mild mean reversion + drift
+  drift += (Math.random()-0.5)*0.06; drift*=0.92;
+  const shock = (Math.random()-0.5)*2;
+  price += drift + shock*(1.1+vol*3.2);
+  price += (1042 - price)*0.003;          // gentle anchor
+}
+function pushSample(){
+  const pf = PF();
+  const span = pf.bot-pf.top;
+  // map price to vertical position (normalized around anchor, clamped)
+  const midN = 0.5 + (price-1042)/120;    // normalized 0..1-ish
+  const midClamped = Math.max(0.16, Math.min(0.84, midN));
+  // half-canyon as function of vol (with floor so it's always flyable-ish)
+  const half = (0.045 + vol*0.205);       // normalized half-height
+  hist.push({mid:midClamped, half});
+  if(hist.length>COLS) hist.shift();
+}
+
+/* ---------- game state ---------- */
+const ST = {IDLE:0,FLY:1,CRASH:2,CASH:3};
+let state = ST.IDLE;
+let stake = 10, balance = 1000;
+let trim = 'MID';
+let multi = 1, dist = 0, sparks = 0, slip = 1;
+let glY = 0.5, glV = 0;                 // glider normalized y + velocity
+let thrust = false;
+let crystals = [];                      // {col index float, taken}
+let particles = [];
+let shake = 0, flash = 0, glow=0;
+let glTrail = [];
+let crystalSpawnAcc = 0;
+let endMulti = 0;
+
+/* ---------- helpers ---------- */
+function colAtX(fx){ // fx 0..1 across playfield -> hist index
+  return fx*(COLS-1);
+}
+function sampleAt(idx){
+  idx = Math.max(0, Math.min(COLS-1, idx));
+  const i0 = Math.floor(idx), i1=Math.min(COLS-1,i0+1), t=idx-i0;
+  const a=hist[i0], b=hist[i1];
+  return { mid:a.mid+(b.mid-a.mid)*t, half:a.half+(b.half-a.half)*t };
+}
+// glider lives at the right edge (now). gliderX normalized:
+const GX = 0.80;
+
+function fmt(n){ return n.toLocaleString('en-US'); }
+
+/* ---------- controls ---------- */
+function setThrust(v){ thrust=v; }
+window.addEventListener('keydown',e=>{ if(e.code==='Space'){e.preventDefault(); setThrust(true);} });
+window.addEventListener('keyup',e=>{ if(e.code==='Space'){e.preventDefault(); setThrust(false);} });
+cv.addEventListener('mousedown',()=>setThrust(true));
+window.addEventListener('mouseup',()=>setThrust(false));
+cv.addEventListener('touchstart',e=>{e.preventDefault();setThrust(true);},{passive:false});
+window.addEventListener('touchend',()=>setThrust(false));
+
+/* stake & trim & action */
+$('plus').onclick=()=>{ stake=Math.min(500, stake + step(stake)); refreshDeck(); };
+$('minus').onclick=()=>{ stake=Math.max(1, stake - step(stake,true)); refreshDeck(); };
+function step(s,down){ if(s<10)return 1; if(s<50)return down?(s<=10?1:5):(s<10?1:5)*1; if(s<100)return 10; return 25; }
+$('trim').querySelectorAll('button').forEach(b=>{
+  b.onclick=()=>{ if(state===ST.FLY)return; trim=b.dataset.t;
+    $('trim').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b)); refreshDeck(); };
+});
+elAction.onclick=()=>{
+  if(state===ST.FLY){ doCashOut(); }
+  else { launch(); }
+};
+function refreshDeck(){
+  elStake.textContent=stake;
+  elActsub.textContent = state===ST.FLY ? 'tap to bank your multiplier' : `stake ${stake} © · trim ${trim}`;
+}
+
+/* ---------- round flow ---------- */
+function launch(){
+  if(state===ST.FLY) return;
+  if(balance < stake){ flashLast('lose','Insufficient balance'); return; }
+  balance -= stake; elBal.textContent=fmt(balance);
+  state=ST.FLY; multi=1; dist=0; sparks=0; slip=1; glV=0;
+  crystals=[]; particles=[]; glTrail=[]; crystalSpawnAcc=0;
+  glY = trim==='HIGH'?0.30: trim==='LOW'?0.70:0.50;
+  multiwrap.className='multiwrap';
+  elMstate.textContent='LIVE';
+  elAction.classList.add('cash'); elAction.firstChild.nodeValue='CASH OUT';
+  elActsub.textContent='tap to bank your multiplier';
+  elHint.innerHTML='Hold <b>SPACE</b>/mouse to climb · <b>dive to the rail</b> for ◆';
+  hideToast();
+}
+function doCashOut(){
+  if(state!==ST.FLY) return;
+  endMulti=multiShown;
+  const win = Math.round(stake*multiShown*100)/100;
+  balance += win; elBal.textContent=fmt(Math.round(balance));
+  state=ST.CASH;
+  multiwrap.className='multiwrap cashed';
+  elMstate.textContent='BANKED';
+  showToast('win', `+ ${fmt(Math.round(win))} ©  ·  ×${multiShown.toFixed(2)}`);
+  flashLast('win', `Cashed out ×${multiShown.toFixed(2)}  →  +${fmt(Math.round(win))} ©`);
+  burstCashout();
+  glow=1; flash=0.5;
+  resetBtnSoon();
+}
+function crash(){
+  if(state!==ST.FLY) return;
+  state=ST.CRASH;
+  multiwrap.className='multiwrap crash';
+  elMstate.textContent='WALL STRIKE';
+  showToast('lose', `CRASHED  ·  −${fmt(stake)} ©`);
+  flashLast('lose', `Crashed at ×${multiShown.toFixed(2)}  ·  lost ${fmt(stake)} ©`);
+  burstCrash();
+  shake=18; flash=0.85;
+  resetBtnSoon();
+}
+let resetT=null;
+function resetBtnSoon(){
+  clearTimeout(resetT);
+  resetT=setTimeout(()=>{
+    state=ST.IDLE;
+    multiwrap.className='multiwrap idle';
+    elMulti.innerHTML='1.00<span class="x">×</span>';
+    elMstate.textContent='PRESS LAUNCH';
+    elAction.classList.remove('cash'); elAction.firstChild.nodeValue='LAUNCH';
+    elHint.innerHTML='Hold <b>SPACE</b> / mouse to climb · dive to the rail for sparks';
+    refreshDeck();
+  }, 1700);
+}
+function flashLast(cls,msg){ elLastwin.className='lastwin '+cls; elLastwin.textContent=msg;
+  setTimeout(()=>{ if(state===ST.IDLE){} },10); }
+function showToast(cls,msg){ elToast.className='toast show '+cls; elToast.textContent=msg; }
+function hideToast(){ elToast.className='toast'; }
+
+/* ---------- particles ---------- */
+function burstCrash(){
+  const p = gliderScreen();
+  for(let i=0;i<46;i++){
+    const a=Math.random()*Math.PI*2, s=2+Math.random()*7;
+    particles.push({x:p.x,y:p.y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,
+      life:1,col:Math.random()<.5?'#ff4d6d':'#ffcf4d',sz:2+Math.random()*3.5,g:0.12});
+  }
+}
+function burstCashout(){
+  const p=gliderScreen();
+  for(let i=0;i<40;i++){
+    const a=-Math.PI/2 + (Math.random()-0.5)*1.3, s=3+Math.random()*8;
+    particles.push({x:p.x,y:p.y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,
+      life:1,col:Math.random()<.5?'#ffcf4d':'#5dffc0',sz:2+Math.random()*3,g:0.06});
+  }
+}
+function sparkBurst(x,y){
+  for(let i=0;i<16;i++){
+    const a=Math.random()*Math.PI*2, s=1+Math.random()*4;
+    particles.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:1,col:'#ff4fd8',sz:1.5+Math.random()*2.5,g:0.02});
+  }
+}
+
+/* ---------- geometry to screen ---------- */
+function pfY(n){ const pf=PF(); return pf.top + n*(pf.bot-pf.top); }
+function gliderScreen(){ return { x: W*GX, y: pfY(glY) }; }
+
+/* ---------- main update ---------- */
+let last=performance.now();
+function loop(now){
+  const dt=Math.min(40, now-last); last=now;
+  // advance market a few sub-steps for smoothness
+  const steps = 1;
+  for(let s=0;s<steps;s++){ stepMarket(); pushSample(); }
+  tick++;
+
+  // HUD feed
+  elPrice.textContent = price.toFixed(2);
+  const bwNow = sampleAt(COLS-1).half;
+  elBW.textContent = (bwNow*100).toFixed(0)+' bp';
+  if(volTarget>vol+0.04){ elRegime.textContent='VOL RISING'; }
+  else if(volTarget<vol-0.04){ elRegime.textContent='VOL CRUSH'; }
+  else { elRegime.textContent= vol>0.5?'HIGH VOL':'LOW VOL'; }
+
+  if(state===ST.FLY) updateFly(dt);
+
+  // crystals scroll with the market (move left each frame)
+  for(const c of crystals){ c.col -= 1; }
+  crystals = crystals.filter(c=>c.col> -3 && !c.dead);
+
+  // spawn crystals pinned to the rail ahead (right side), throttled
+  if(state===ST.FLY){
+    crystalSpawnAcc += dt;
+    if(crystalSpawnAcc> 520){
+      crystalSpawnAcc=0;
+      if(Math.random()<0.86){
+        crystals.push({col: COLS-1 + 6, taken:false, ph:Math.random()*6.28});
+      }
+    }
+  }
+
+  // particles
+  for(const p of particles){ p.vx*=0.985; p.vy+=p.g; p.x+=p.vx; p.y+=p.vy; p.life-=0.018; }
+  particles = particles.filter(p=>p.life>0);
+
+  if(shake>0) shake*=0.86;
+  if(flash>0) flash-=0.03;
+  if(glow>0) glow-=0.02;
+
+  render();
+  requestAnimationFrame(loop);
+}
+
+function updateFly(dt){
+  const f=dt/16.7;
+  // physics: thrust up, gravity down
+  const G = 0.00075, T = 0.00150;
+  glV += (thrust? -T : G)*dt;
+  glV *= 0.965;
+  glY += glV*f;
+  // glider sample at its x
+  const samp = sampleAt(colAtX(GX));
+  const ceil = samp.mid - samp.half;
+  const floor = samp.mid + samp.half;
+
+  // collision with walls
+  const margin = 0.012;
+  if(glY <= ceil+margin || glY >= floor-margin){
+    glY = Math.max(ceil+margin, Math.min(floor-margin, glY));
+    crash(); return;
+  }
+  // volatility crush: if canyon extremely tight at glider, force pinch
+  if(samp.half < 0.052){
+    crash(); return;
+  }
+
+  // slipstream: closeness to rail (mid)
+  const d = Math.abs(glY - samp.mid);            // 0 at rail
+  const closeness = Math.max(0, 1 - d/ (samp.half));  // 1 at rail, 0 at wall
+  slip = 1 + closeness*closeness*1.6;            // up to ×2.6
+  // base growth + slipstream, scaled by trim
+  const trimMul = trim==='MID'?1.2:1.0;
+  const grow = (0.0016 + 0.0042*closeness*closeness) * trimMul * f;
+  multi += multi*grow;                            // compounding-ish climb
+  dist += 0.85*f;
+
+  // crystal collection
+  const gp = gliderScreen();
+  for(const c of crystals){
+    if(c.taken) continue;
+    const cx = (c.col/(COLS-1))*W;
+    const cs = sampleAt(c.col);
+    const cy = pfY(cs.mid);
+    if(Math.abs(cx-gp.x)<22 && Math.abs(cy-gp.y)<22){
+      c.taken=true; c.dead=true; sparks++;
+      sparkBurst(cx,cy);
+      glow=Math.min(1,glow+0.5);
+    }
+  }
+  const sparkPct = sparks*6;              // each spark = +6% on final payout
+  multiShown = multi*(1+sparkPct/100);    // effective multiplier shown & paid
+
+  // HUD
+  elDist.innerHTML = Math.round(dist)+'<small> m</small>';
+  elSparks.innerHTML = sparks+'<small> &nbsp;+'+sparkPct+'%</small>';
+  elSlip.textContent = '×'+slip.toFixed(1);
+  multiwrap.style.transform = `translate(-50%,-50%) scale(${1+Math.min(0.10,(multiShown-1)*0.02)})`;
+}
+let multiShown=1;
+
+/* ---------- render ---------- */
+function render(){
+  ctx.save();
+  // shake
+  if(shake>0.3){ ctx.translate((Math.random()-.5)*shake,(Math.random()-.5)*shake); }
+  ctx.clearRect(-30,-30,W+60,H+60);
+
+  drawBackdrop();
+  drawCanyon();
+  drawCrystals();
+  if(state===ST.FLY||state===ST.CASH) drawGlider();
+  drawParticles();
+
+  // multiplier text (canvas-free; DOM handles big number). update DOM number:
+  const shown = (state===ST.FLY)? multiShown : (state===ST.CASH? endMulti : 1);
+  if(state===ST.FLY||state===ST.CASH){
+    elMulti.innerHTML = shown.toFixed(2)+'<span class="x">×</span>';
+  }
+
+  // flash overlay
+  if(flash>0){
+    ctx.fillStyle = `rgba(${state===ST.CASH?'255,207,77':'255,40,70'},${flash*0.28})`;
+    ctx.fillRect(-30,-30,W+60,H+60);
+  }
+  ctx.restore();
+}
+
+function drawBackdrop(){
+  // parallax dust / grid lines drifting left
+  const off = (tick*0.6)% 90;
+  ctx.lineWidth=1;
+  ctx.strokeStyle='rgba(55,120,160,0.06)';
+  for(let x=-off; x<W; x+=90){
+    ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke();
+  }
+  // faint floating motes
+  ctx.fillStyle='rgba(120,200,255,0.05)';
+  for(let i=0;i<26;i++){
+    const x=( (i*173 + tick*0.4)% (W+40))-20;
+    const y=(i*97 % H);
+    ctx.fillRect(x,y,2,2);
+  }
+}
+
+function drawCanyon(){
+  const pf=PF();
+  // build top wall & bottom wall paths from history
+  // ceiling polygon (fill from y=0 down to ceiling line)
+  ctx.save();
+
+  // --- CEILING fill ---
+  let gradTop = ctx.createLinearGradient(0,pf.top-20,0,pf.top+ (pf.bot-pf.top)*0.55);
+  gradTop.addColorStop(0,'rgba(8,38,52,0.95)');
+  gradTop.addColorStop(1,'rgba(15,90,110,0.06)');
+  ctx.beginPath();
+  ctx.moveTo(0,0); ctx.lineTo(W,0);
+  for(let i=COLS-1;i>=0;i--){
+    const x=(i/(COLS-1))*W;
+    const s=hist[i];
+    ctx.lineTo(x, pfY(s.mid - s.half));
+  }
+  ctx.lineTo(0,0); ctx.closePath();
+  ctx.fillStyle=gradTop; ctx.fill();
+
+  // --- FLOOR fill ---
+  let gradBot = ctx.createLinearGradient(0,pf.bot+20,0,pf.top+(pf.bot-pf.top)*0.45);
+  gradBot.addColorStop(0,'rgba(7,42,58,0.95)');
+  gradBot.addColorStop(1,'rgba(15,95,120,0.06)');
+  ctx.beginPath();
+  ctx.moveTo(0,H); ctx.lineTo(W,H);
+  for(let i=COLS-1;i>=0;i--){
+    const x=(i/(COLS-1))*W;
+    const s=hist[i];
+    ctx.lineTo(x, pfY(s.mid + s.half));
+  }
+  ctx.lineTo(0,H); ctx.closePath();
+  ctx.fillStyle=gradBot; ctx.fill();
+
+  // --- glowing wall LIPS ---
+  function wallLine(getY,color,wide){
+    ctx.beginPath();
+    for(let i=0;i<COLS;i++){
+      const x=(i/(COLS-1))*W, y=pfY(getY(hist[i]));
+      i?ctx.lineTo(x,y):ctx.moveTo(x,y);
+    }
+    ctx.lineWidth=wide; ctx.strokeStyle=color;
+    ctx.shadowBlur=18; ctx.shadowColor=color;
+    ctx.stroke(); ctx.shadowBlur=0;
+  }
+  wallLine(s=>s.mid-s.half,'rgba(55,231,255,0.9)',2.4);
+  wallLine(s=>s.mid+s.half,'rgba(27,214,200,0.9)',2.4);
+
+  // --- MID RAIL (live price) : hot filament ---
+  ctx.beginPath();
+  for(let i=0;i<COLS;i++){
+    const x=(i/(COLS-1))*W, y=pfY(hist[i].mid);
+    i?ctx.lineTo(x,y):ctx.moveTo(x,y);
+  }
+  ctx.lineWidth=2.2;
+  ctx.strokeStyle='rgba(255,79,216,0.95)';
+  ctx.shadowBlur=20; ctx.shadowColor='rgba(255,79,216,0.9)';
+  ctx.stroke();
+  // rail core
+  ctx.lineWidth=0.9; ctx.strokeStyle='rgba(255,210,245,0.95)'; ctx.shadowBlur=0; ctx.stroke();
+
+  // "NOW" edge marker at glider x
+  const nx=W*GX;
+  ctx.setLineDash([4,6]); ctx.lineWidth=1; ctx.strokeStyle='rgba(255,255,255,0.10)';
+  ctx.beginPath(); ctx.moveTo(nx,pf.top); ctx.lineTo(nx,pf.bot); ctx.stroke();
+  ctx.setLineDash([]);
+
+  ctx.restore();
+}
+
+function drawCrystals(){
+  for(const c of crystals){
+    if(c.taken) continue;
+    const x=(c.col/(COLS-1))*W;
+    const s=sampleAt(c.col);
+    const y=pfY(s.mid);
+    const pulse = 0.6+0.4*Math.sin(tick*0.18 + c.ph);
+    ctx.save();
+    ctx.translate(x,y); ctx.rotate(Math.PI/4);
+    const sz=7+pulse*2;
+    ctx.shadowBlur=18; ctx.shadowColor='#ff4fd8';
+    ctx.fillStyle='rgba(255,120,230,'+(0.55+pulse*0.4)+')';
+    ctx.fillRect(-sz/2,-sz/2,sz,sz);
+    ctx.fillStyle='#fff'; ctx.shadowBlur=0;
+    ctx.fillRect(-sz/5,-sz/5,sz*0.4,sz*0.4);
+    ctx.restore();
+  }
+}
+
+function drawGlider(){
+  const p=gliderScreen();
+  // trail
+  glTrail.push({x:p.x,y:p.y});
+  if(glTrail.length>22) glTrail.shift();
+  for(let i=0;i<glTrail.length;i++){
+    const t=i/glTrail.length; const tp=glTrail[i];
+    ctx.beginPath();
+    ctx.fillStyle=`rgba(${thrust?'93,255,192':'55,231,255'},${t*0.28})`;
+    ctx.arc(tp.x-2, tp.y, 2+t*5, 0, 6.28); ctx.fill();
+  }
+  // slipstream shimmer if near rail
+  if(state===ST.FLY && slip>1.6){
+    ctx.beginPath();
+    ctx.strokeStyle=`rgba(255,207,77,${(slip-1.6)*0.5})`;
+    ctx.lineWidth=2; ctx.moveTo(p.x-40,p.y); ctx.lineTo(p.x-6,p.y); ctx.stroke();
+  }
+  // body : neon delta
+  ctx.save();
+  ctx.translate(p.x,p.y);
+  const tilt = Math.max(-0.5,Math.min(0.5, glV*180));
+  ctx.rotate(tilt);
+  ctx.shadowBlur=22; ctx.shadowColor= state===ST.CASH?'#ffcf4d':'#37e7ff';
+  ctx.beginPath();
+  ctx.moveTo(13,0); ctx.lineTo(-10,-8); ctx.lineTo(-5,0); ctx.lineTo(-10,8);
+  ctx.closePath();
+  const g=ctx.createLinearGradient(-10,0,13,0);
+  g.addColorStop(0, state===ST.CASH?'#ffcf4d':'#19b6cf');
+  g.addColorStop(1, state===ST.CASH?'#fff1c0':'#bff9ff');
+  ctx.fillStyle=g; ctx.fill();
+  // cockpit dot
+  ctx.shadowBlur=0; ctx.fillStyle='#04141a'; ctx.beginPath(); ctx.arc(2,0,2,0,6.28); ctx.fill();
+  // thrust flame
+  if(thrust && state===ST.FLY){
+    ctx.beginPath();
+    ctx.moveTo(-5,0); ctx.lineTo(-16-Math.random()*6,0-2); ctx.lineTo(-16-Math.random()*6,2);
+    ctx.closePath(); ctx.fillStyle='rgba(93,255,192,0.85)'; ctx.fill();
+  }
+  ctx.restore();
+}
+
+function drawParticles(){
+  for(const p of particles){
+    ctx.globalAlpha=Math.max(0,p.life);
+    ctx.fillStyle=p.col; ctx.shadowBlur=8; ctx.shadowColor=p.col;
+    ctx.beginPath(); ctx.arc(p.x,p.y,p.sz,0,6.28); ctx.fill();
+  }
+  ctx.globalAlpha=1; ctx.shadowBlur=0;
+}
+
+/* ---------- boot ---------- */
+function boot(){
+  resize();
+  seedHistory();
+  refreshDeck();
+  requestAnimationFrame(loop);
+  // gentle idle attract: show a frozen number
+}
+boot();
+})();
+</script>
+</body>
+</html>
