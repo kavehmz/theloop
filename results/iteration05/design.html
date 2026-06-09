@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DEADLOCK</title>
+<style>
+  :root{
+    --bg0:#05060c; --bg1:#0a0e1b; --bg2:#10172b;
+    --bull:#36f0a8; --bull-dim:#0e7a52;
+    --bear:#ff4d8d; --bear-dim:#8a1f47;
+    --cyan:#5fe6ff; --gold:#ffd24a;
+    --ink:#cfe0ff; --ink-dim:#6f7fa6;
+    --glass:rgba(20,28,52,0.55);
+    --glassb:rgba(120,150,220,0.16);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:radial-gradient(1200px 760px at 50% 8%, #131c38 0%, var(--bg1) 42%, var(--bg0) 100%);
+    color:var(--ink);
+    font-family:"Inter","Segoe UI",system-ui,-apple-system,sans-serif;
+    overflow-x:hidden;
+    -webkit-font-smoothing:antialiased;
+  }
+  /* ===== HERO (1280x800 viewport) ===== */
+  #hero{
+    position:relative;
+    width:100%; height:100vh; min-height:800px;
+    display:grid;
+    grid-template-rows:54px 1fr 96px;
+    overflow:hidden;
+  }
+  /* top bar */
+  #topbar{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:0 22px; z-index:30;
+  }
+  .brand{display:flex;align-items:center;gap:12px}
+  .logo-mark{
+    width:30px;height:30px;border-radius:8px;position:relative;
+    background:linear-gradient(135deg,var(--bull),#1bd0ff 45%,var(--bear));
+    box-shadow:0 0 18px rgba(95,230,255,.5);
+  }
+  .logo-mark::after{
+    content:"";position:absolute;inset:7px;border-radius:4px;background:var(--bg0);
+  }
+  .logo-mark::before{
+    content:"";position:absolute;left:50%;top:6px;bottom:6px;width:2px;margin-left:-1px;
+    background:var(--cyan);z-index:2;box-shadow:0 0 8px var(--cyan);
+  }
+  .brand h1{font-size:19px;letter-spacing:.42em;font-weight:800;
+    background:linear-gradient(90deg,#fff,#9fd0ff);-webkit-background-clip:text;background-clip:text;color:transparent;
+    padding-left:.1em;}
+  .brand .tag{font-size:10px;letter-spacing:.28em;color:var(--ink-dim);margin-top:2px}
+  .top-stats{display:flex;gap:10px;align-items:center}
+  .chip{
+    background:var(--glass);border:1px solid var(--glassb);border-radius:10px;
+    padding:7px 13px;backdrop-filter:blur(8px);display:flex;flex-direction:column;line-height:1.1;
+  }
+  .chip .k{font-size:8.5px;letter-spacing:.18em;color:var(--ink-dim)}
+  .chip .v{font-size:14px;font-weight:700;color:#fff;font-variant-numeric:tabular-nums}
+  .chip .v.green{color:var(--bull)}
+  .balance .v{color:var(--gold)}
+
+  /* arena */
+  #arena{position:relative}
+  #stage{position:absolute;inset:0;width:100%;height:100%;display:block}
+
+  /* side HUD posts */
+  .post-hud{
+    position:absolute;top:50%;transform:translateY(-50%);
+    width:138px;text-align:center;z-index:20;pointer-events:none;
+  }
+  .post-hud.bull{right:18px}
+  .post-hud.bear{left:18px}
+  .post-hud .side-name{font-size:12px;letter-spacing:.3em;font-weight:800}
+  .post-hud.bull .side-name{color:var(--bull)}
+  .post-hud.bear .side-name{color:var(--bear)}
+  .post-hud .pull-num{font-size:30px;font-weight:800;font-variant-numeric:tabular-nums;color:#fff;margin-top:2px;
+    text-shadow:0 0 16px rgba(120,180,255,.4)}
+  .post-hud .pull-lab{font-size:8.5px;letter-spacing:.22em;color:var(--ink-dim);margin-top:-2px}
+  .pullbar{height:5px;border-radius:3px;margin-top:8px;background:rgba(255,255,255,.07);overflow:hidden}
+  .pullbar i{display:block;height:100%;width:10%;border-radius:3px;transition:width .12s linear}
+  .post-hud.bull .pullbar i{background:linear-gradient(90deg,var(--bull-dim),var(--bull));box-shadow:0 0 10px var(--bull)}
+  .post-hud.bear .pullbar i{background:linear-gradient(90deg,var(--bear-dim),var(--bear));box-shadow:0 0 10px var(--bear)}
+
+  /* center floating round status */
+  #roundpill{
+    position:absolute;left:50%;top:14px;transform:translateX(-50%);z-index:22;
+    display:flex;gap:18px;align-items:center;
+    background:var(--glass);border:1px solid var(--glassb);border-radius:14px;
+    padding:8px 20px;backdrop-filter:blur(10px);
+  }
+  #roundpill .seg{text-align:center;line-height:1.05}
+  #roundpill .seg .k{font-size:8px;letter-spacing:.2em;color:var(--ink-dim)}
+  #roundpill .seg .v{font-size:18px;font-weight:800;font-variant-numeric:tabular-nums;color:#fff}
+  #timerwrap{position:relative;width:42px;height:42px}
+  #timerwrap svg{transform:rotate(-90deg)}
+  #timerwrap .tnum{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    font-size:14px;font-weight:800;font-variant-numeric:tabular-nums}
+
+  /* tension gauge top-center under pill */
+  #tensionwrap{
+    position:absolute;left:50%;top:66px;transform:translateX(-50%);z-index:21;
+    width:340px;text-align:center;
+  }
+  #tensionwrap .lab{font-size:8.5px;letter-spacing:.26em;color:var(--ink-dim);margin-bottom:4px}
+  #tensionbar{height:6px;border-radius:4px;background:rgba(255,255,255,.06);overflow:hidden;position:relative}
+  #tensionbar i{position:absolute;left:0;top:0;bottom:0;width:20%;
+    background:linear-gradient(90deg,#2bd6ff,#ffd24a 60%,#ff4d8d);border-radius:4px;transition:width .14s linear;
+    box-shadow:0 0 14px rgba(255,210,74,.5)}
+
+  /* floating toast (win/loss) */
+  #toast{
+    position:absolute;left:50%;top:40%;transform:translate(-50%,-50%) scale(.7);z-index:40;
+    text-align:center;opacity:0;pointer-events:none;transition:opacity .25s,transform .25s;
+  }
+  #toast .big{font-size:64px;font-weight:900;letter-spacing:.04em;line-height:1}
+  #toast .sub{font-size:16px;font-weight:700;letter-spacing:.1em;margin-top:6px}
+  #toast.show{opacity:1;transform:translate(-50%,-50%) scale(1)}
+
+  /* bottom control deck */
+  #deck{
+    z-index:30;
+    display:grid;grid-template-columns:300px 1fr 360px;gap:16px;align-items:center;
+    padding:0 22px 16px;
+  }
+  .panel{
+    background:var(--glass);border:1px solid var(--glassb);border-radius:16px;
+    padding:12px 16px;backdrop-filter:blur(12px);height:80px;display:flex;flex-direction:column;justify-content:center;
+  }
+  .panel .ttl{font-size:9px;letter-spacing:.24em;color:var(--ink-dim);margin-bottom:7px}
+
+  /* stake + side */
+  .stakerow{display:flex;align-items:center;gap:8px}
+  .stepper{display:flex;align-items:center;gap:6px;background:rgba(0,0,0,.25);border-radius:10px;padding:4px}
+  .stepper button{width:26px;height:26px;border:none;border-radius:7px;background:rgba(120,150,220,.14);
+    color:#fff;font-size:17px;cursor:pointer;font-weight:700;line-height:1}
+  .stepper button:hover{background:rgba(120,150,220,.3)}
+  .stepper .amt{min-width:64px;text-align:center;font-size:17px;font-weight:800;color:var(--gold);font-variant-numeric:tabular-nums}
+  .sidebtns{display:flex;gap:8px;margin-left:auto}
+  .sidebtn{flex:1;border:1.5px solid transparent;border-radius:10px;background:rgba(0,0,0,.25);
+    color:var(--ink);font-size:11px;font-weight:800;letter-spacing:.12em;padding:8px 6px;cursor:pointer;min-width:58px;transition:all .15s}
+  .sidebtn.bull.sel{border-color:var(--bull);color:var(--bull);background:rgba(54,240,168,.12);box-shadow:0 0 16px rgba(54,240,168,.25)}
+  .sidebtn.bear.sel{border-color:var(--bear);color:var(--bear);background:rgba(255,77,141,.12);box-shadow:0 0 16px rgba(255,77,141,.25)}
+
+  /* center: flag slider + multiplier readout */
+  #flagpanel{height:80px}
+  .flag-head{display:flex;justify-content:space-between;align-items:center}
+  .flag-head .mult{font-size:26px;font-weight:900;color:var(--gold);font-variant-numeric:tabular-nums;
+    text-shadow:0 0 18px rgba(255,210,74,.45)}
+  .flag-head .hint{font-size:10px;color:var(--ink-dim);letter-spacing:.04em}
+  .slidewrap{position:relative;margin-top:11px;height:24px}
+  #flagSlider{-webkit-appearance:none;appearance:none;width:100%;height:6px;border-radius:4px;
+    background:linear-gradient(90deg,rgba(95,230,255,.35),rgba(255,210,74,.5) 60%,rgba(255,77,141,.6));outline:none;margin-top:8px}
+  #flagSlider::-webkit-slider-thumb{-webkit-appearance:none;width:20px;height:20px;border-radius:50%;
+    background:radial-gradient(circle at 35% 30%,#fff,var(--gold));cursor:pointer;border:2px solid #fff;
+    box-shadow:0 0 16px rgba(255,210,74,.8)}
+  #flagSlider::-moz-range-thumb{width:20px;height:20px;border-radius:50%;background:var(--gold);cursor:pointer;border:2px solid #fff}
+  .slide-scale{display:flex;justify-content:space-between;font-size:8.5px;letter-spacing:.14em;color:var(--ink-dim);margin-top:2px}
+
+  /* right: action buttons */
+  #actionpanel{height:80px;display:flex;gap:12px;align-items:center;padding:12px 16px}
+  .bigbtn{flex:1;height:56px;border:none;border-radius:13px;font-weight:900;letter-spacing:.1em;
+    cursor:pointer;font-size:15px;position:relative;overflow:hidden;transition:transform .08s,filter .15s;color:#04101a}
+  .bigbtn:active{transform:translateY(2px)}
+  .bigbtn:disabled{filter:grayscale(.7) brightness(.5);cursor:not-allowed}
+  #btnPlace{background:linear-gradient(135deg,#7df0ff,#36f0a8);box-shadow:0 8px 26px rgba(54,240,168,.4)}
+  #btnPush{background:linear-gradient(135deg,#ffe27a,#ff9d3c);box-shadow:0 8px 26px rgba(255,157,60,.4);color:#2a1500}
+  #btnLock{background:linear-gradient(135deg,#c9d6ff,#8aa0ff);box-shadow:0 8px 26px rgba(138,160,255,.4);color:#0a1030}
+  .bigbtn .sm{display:block;font-size:9px;letter-spacing:.16em;font-weight:700;opacity:.8;margin-top:1px}
+
+  /* ===== below the fold ===== */
+  #explainer{max-width:1100px;margin:0 auto;padding:48px 28px 90px}
+  #explainer h2{font-size:13px;letter-spacing:.3em;color:var(--cyan);margin-bottom:8px}
+  #explainer .lead{font-size:26px;font-weight:800;line-height:1.25;margin-bottom:30px;max-width:760px}
+  #explainer .lead b{background:linear-gradient(90deg,var(--bull),var(--gold) 50%,var(--bear));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .steps{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}
+  .step{background:var(--glass);border:1px solid var(--glassb);border-radius:16px;padding:20px}
+  .step .n{font-size:11px;font-weight:800;color:var(--cyan);letter-spacing:.2em}
+  .step h3{font-size:15px;margin:8px 0 6px}
+  .step p{font-size:12.5px;color:var(--ink-dim);line-height:1.55}
+  .footnote{margin-top:34px;font-size:11px;color:var(--ink-dim);letter-spacing:.06em;line-height:1.7}
+  .scrollcue{position:absolute;left:50%;bottom:6px;transform:translateX(-50%);font-size:9px;letter-spacing:.3em;color:var(--ink-dim);opacity:.6;z-index:25;animation:bob 2s ease-in-out infinite}
+  @keyframes bob{0%,100%{transform:translateX(-50%) translateY(0)}50%{transform:translateX(-50%) translateY(4px)}}
+</style>
+</head>
+<body>
+<section id="hero">
+  <!-- TOP BAR -->
+  <div id="topbar">
+    <div class="brand">
+      <div class="logo-mark"></div>
+      <div>
+        <h1>DEADLOCK</h1>
+        <div class="tag">SETTLING-POINT TENSION · VOL 100 INDEX</div>
+      </div>
+    </div>
+    <div class="top-stats">
+      <div class="chip"><span class="k">LAST TICK</span><span class="v green" id="tickVal">—</span></div>
+      <div class="chip"><span class="k">STREAK</span><span class="v" id="streakVal">0</span></div>
+      <div class="chip balance"><span class="k">BALANCE</span><span class="v" id="balVal">1,000.00</span></div>
+    </div>
+  </div>
+
+  <!-- ARENA -->
+  <div id="arena">
+    <canvas id="stage"></canvas>
+
+    <div id="roundpill">
+      <div class="seg"><div class="k">PHASE</div><div class="v" id="phaseVal">PLACE</div></div>
+      <div id="timerwrap">
+        <svg width="42" height="42" viewBox="0 0 42 42">
+          <circle cx="21" cy="21" r="17" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="4"/>
+          <circle id="timerArc" cx="21" cy="21" r="17" fill="none" stroke="#5fe6ff" stroke-width="4"
+                  stroke-linecap="round" stroke-dasharray="106.8" stroke-dashoffset="0"/>
+        </svg>
+        <div class="tnum" id="timerNum">20</div>
+      </div>
+      <div class="seg"><div class="k">KNOT → FLAG</div><div class="v" id="progVal">—</div></div>
+    </div>
+
+    <div id="tensionwrap">
+      <div class="lab">ROPE TENSION</div>
+      <div id="tensionbar"><i id="tensionFill"></i></div>
+    </div>
+
+    <div class="post-hud bear">
+      <div class="side-name">BEAR</div>
+      <div class="pull-num" id="bearNum">0.0</div>
+      <div class="pull-lab">PULL FORCE ◀</div>
+      <div class="pullbar"><i id="bearBar"></i></div>
+    </div>
+    <div class="post-hud bull">
+      <div class="side-name">BULL</div>
+      <div class="pull-num" id="bullNum">0.0</div>
+      <div class="pull-lab">▶ PULL FORCE</div>
+      <div class="pullbar"><i id="bullBar"></i></div>
+    </div>
+
+    <div id="toast"><div class="big" id="toastBig"></div><div class="sub" id="toastSub"></div></div>
+    <div class="scrollcue">HOW IT WORKS ▾</div>
+  </div>
+
+  <!-- CONTROL DECK -->
+  <div id="deck">
+    <div class="panel">
+      <div class="ttl">STAKE &amp; SIDE</div>
+      <div class="stakerow">
+        <div class="stepper">
+          <button id="stakeDown">–</button>
+          <span class="amt" id="stakeAmt">10</span>
+          <button id="stakeUp">+</button>
+        </div>
+        <div class="sidebtns">
+          <button class="sidebtn bear" id="sideBear">BEAR ◀</button>
+          <button class="sidebtn bull sel" id="sideBull">▶ BULL</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel" id="flagpanel">
+      <div class="flag-head">
+        <div><div class="ttl" style="margin-bottom:0">FLAG TARGET · PAYOUT</div></div>
+        <div class="mult" id="multVal">1.30×</div>
+      </div>
+      <div class="slidewrap">
+        <input type="range" id="flagSlider" min="6" max="100" value="20">
+      </div>
+      <div class="slide-scale"><span>CENTER · SAFE</span><span>MID</span><span>POST · MAX</span></div>
+    </div>
+
+    <div class="panel" id="actionpanel">
+      <button class="bigbtn" id="btnPlace">PLACE FLAG<span class="sm">START ROUND</span></button>
+      <button class="bigbtn" id="btnPush" disabled>PUSH<span class="sm">+MULTIPLIER</span></button>
+      <button class="bigbtn" id="btnLock" disabled>LOCK<span class="sm">BANK SLACK</span></button>
+    </div>
+  </div>
+</section>
+
+<!-- BELOW THE FOLD -->
+<section id="explainer">
+  <h2>THE GAME</h2>
+  <div class="lead">You don't bet which side wins. You stake <b>how far the knot travels toward your side</b> — and decide, mid-pull, whether to push for more or lock the slack you've earned.</div>
+  <div class="steps">
+    <div class="step"><div class="n">01 · PLACE</div><h3>Stake a flag</h3><p>Pick BULL or BEAR and drag your flag along the rope. Near center is easy and pays little; out by the post is hard and pays up to 12×.</p></div>
+    <div class="step"><div class="n">02 · PULL</div><h3>Live momentum drags the knot</h3><p>The knot is the settling point of real bull vs bear price momentum. A trend walks it toward a side; a reversal hauls it back through center.</p></div>
+    <div class="step"><div class="n">03 · PUSH</div><h3>Greed lever</h3><p>Knot reaching your flag early? Shove the flag further out for a bigger multiplier — if your nerve and the market hold.</p></div>
+    <div class="step"><div class="n">04 · LOCK</div><h3>Bank the slack</h3><p>Cash out any time for a partial scaled to how far the knot has already come. Beat the reversal, or hold for the full hit.</p></div>
+  </div>
+  <div class="footnote">DEADLOCK is a design prototype. The rope is driven by a simulated momentum feed standing in for Deriv synthetic-index tick momentum &amp; order-flow imbalance. Knot position = running settling point of two decaying momentum accumulators; rope tension = total contested force. No real funds.</div>
+</section>
+
+<script>
+(function(){
+  "use strict";
+  const cv = document.getElementById('stage');
+  const ctx = cv.getContext('2d');
+  let W=0,H=0,DPR=Math.min(window.devicePixelRatio||1,2);
+  function resize(){
+    const r = cv.getBoundingClientRect();
+    W=r.width; H=r.height;
+    cv.width=W*DPR; cv.height=H*DPR;
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+  }
+  window.addEventListener('resize',resize);
+
+  // ===== Market / momentum model =====
+  let price=1000, trend=0, vol=0.9;
+  let bull=0, bear=0;          // decaying momentum accumulators (force)
+  const DECAY=0.945;           // per-tick decay
+  let knot=0;                  // settling point in [-1,1]
+  let knotV=0;
+  let jitter=0;
+  const priceHist=[];          // for background ribbon
+  let regimeT=0;
+
+  function marketTick(){
+    // occasional regime shifts so the rope gets dramatic trends + reversals
+    regimeT--;
+    if(regimeT<=0){
+      regimeT = 30 + Math.random()*70;
+      trend = (Math.random()-0.5)*2.1;      // new drift bias
+      vol = 0.5 + Math.random()*1.9;
+    }
+    const r = (trend*0.5 + (Math.random()-0.5)*vol) * 0.6; // tick return
+    price += r;
+    priceHist.push(price);
+    if(priceHist.length>240) priceHist.shift();
+    // feed accumulators
+    bull = bull*DECAY + Math.max(r,0);
+    bear = bear*DECAY + Math.max(-r,0);
+    // settling point target = net force, normalized through tanh
+    const net = (bull - bear);
+    const target = Math.tanh(net*0.9);
+    knotV += (target - knot)*0.10;
+    knotV *= 0.86;
+    knot += knotV;
+    if(knot>1)knot=1; if(knot<-1)knot=-1;
+    jitter = Math.min(1,(bull+bear)*0.55); // tension drives jitter
+    return r;
+  }
+
+  // ===== Game state =====
+  const G = {
+    phase:'idle',            // idle | live | resolved
+    side:1,                  // +1 bull, -1 bear
+    stake:10,
+    flag:0.20,               // displacement 0..1
+    balance:1000,
+    streak:0,
+    timer:0, timerMax:20,    // seconds
+    progress:0,
+    lastTick:0,
+    flash:0, flashColor:'#36f0a8',
+    shock:[],                // shockwave rings
+    particles:[],
+  };
+  function multFor(d){ return 1 + 11*d*d; }
+
+  // ===== DOM =====
+  const $=(id)=>document.getElementById(id);
+  const el={
+    tick:$('tickVal'),streak:$('streakVal'),bal:$('balVal'),
+    phase:$('phaseVal'),timerNum:$('timerNum'),timerArc:$('timerArc'),prog:$('progVal'),
+    tension:$('tensionFill'),bullNum:$('bullNum'),bearNum:$('bearNum'),bullBar:$('bullBar'),bearBar:$('bearBar'),
+    stakeAmt:$('stakeAmt'),mult:$('multVal'),slider:$('flagSlider'),
+    sideBull:$('sideBull'),sideBear:$('sideBear'),
+    btnPlace:$('btnPlace'),btnPush:$('btnPush'),btnLock:$('btnLock'),
+    toast:$('toast'),toastBig:$('toastBig'),toastSub:$('toastSub'),
+  };
+  const TARC=2*Math.PI*17;
+
+  function fmt(n){return n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});}
+
+  function syncControls(){
+    el.stakeAmt.textContent=G.stake;
+    el.mult.textContent=multFor(G.flag).toFixed(2)+'×';
+    el.sideBull.classList.toggle('sel',G.side>0);
+    el.sideBear.classList.toggle('sel',G.side<0);
+    const live=G.phase==='live';
+    el.btnPlace.disabled=live;
+    el.btnPush.disabled=!live;
+    el.btnLock.disabled=!live;
+    el.slider.disabled=live;
+    el.btnPlace.textContent = G.phase==='live'?'IN PLAY':'PLACE FLAG';
+  }
+
+  // stake controls
+  const STAKES=[5,10,25,50,100,250];
+  $('stakeUp').onclick=()=>{let i=STAKES.indexOf(G.stake);G.stake=STAKES[Math.min(STAKES.length-1,(i<0?1:i)+1)];syncControls();};
+  $('stakeDown').onclick=()=>{let i=STAKES.indexOf(G.stake);G.stake=STAKES[Math.max(0,(i<0?1:i)-1)];syncControls();};
+  el.sideBull.onclick=()=>{if(G.phase!=='live'){G.side=1;syncControls();}};
+  el.sideBear.onclick=()=>{if(G.phase!=='live'){G.side=-1;syncControls();}};
+  el.slider.oninput=()=>{ if(G.phase!=='live'){ G.flag=el.slider.value/100; } syncControls(); };
+
+  function spawnParticles(x,y,color,n,spread){
+    for(let i=0;i<n;i++){
+      const a=Math.random()*Math.PI*2, sp=spread*(0.3+Math.random());
+      G.particles.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-1,life:1,color,r:1.5+Math.random()*2.5});
+    }
+  }
+  function shockwave(x,y,color){G.shock.push({x,y,r:6,life:1,color});}
+
+  function showToast(big,sub,color){
+    el.toastBig.textContent=big; el.toastBig.style.color=color;
+    el.toastBig.style.textShadow='0 0 40px '+color;
+    el.toastSub.textContent=sub; el.toastSub.style.color=color;
+    el.toast.classList.add('show');
+    clearTimeout(showToast._t);
+    showToast._t=setTimeout(()=>el.toast.classList.remove('show'),1700);
+  }
+
+  // place / push / lock
+  el.btnPlace.onclick=()=>{
+    if(G.phase==='live')return;
+    if(G.balance < G.stake){showToast('NO FUNDS','lower your stake','#ff4d8d');return;}
+    G.balance-=G.stake;
+    G.phase='live'; G.timer=G.timerMax; G.progress=0;
+    el.phase.textContent='LIVE';
+    syncControls();
+  };
+  el.btnPush.onclick=()=>{
+    if(G.phase!=='live')return;
+    const nf=Math.min(1, G.flag+0.12);
+    if(nf<=G.flag)return;
+    G.flag=nf; el.slider.value=Math.round(nf*100);
+    syncControls();
+    const fx=flagScreenX();
+    shockwave(fx, ropeY(), G.flashColor);
+    spawnParticles(fx,ropeY(),'#ffd24a',14,4);
+  };
+  el.btnLock.onclick=()=>{
+    if(G.phase!=='live')return;
+    settle('lock');
+  };
+
+  function settle(kind){
+    const m=multFor(G.flag);
+    let payout=0, win=false;
+    if(kind==='reach'){ payout=G.stake*m; win=true; }
+    else if(kind==='lock'){ payout=G.stake*m*Math.max(0,Math.min(1,G.progress)); }
+    else { payout=0; } // expire
+    G.balance+=payout;
+    const fx=flagScreenX();
+    if(kind==='reach'){
+      G.streak++; G.flash=1; G.flashColor=G.side>0?'#36f0a8':'#ff4d8d';
+      shockwave(fx,ropeY(),G.flashColor); shockwave(fx,ropeY(),G.flashColor);
+      spawnParticles(fx,ropeY(),G.flashColor,70,9);
+      showToast('+'+fmt(payout),'KNOT REACHED · '+m.toFixed(2)+'×',G.flashColor);
+    } else if(kind==='lock'){
+      G.streak++; G.flash=.6; G.flashColor='#8aa0ff';
+      shockwave(fx,ropeY(),'#8aa0ff');
+      spawnParticles(fx,ropeY(),'#8aa0ff',34,6);
+      showToast('+'+fmt(payout),'LOCKED · '+(G.progress*100|0)+'% TRAVEL',' #b9c6ff');
+    } else {
+      G.streak=0; G.flash=.5; G.flashColor='#5a6480';
+      showToast('SLACK','rope went limp · '+fmt(G.stake)+' lost','#ff6f9b');
+    }
+    G.phase='resolved';
+    el.phase.textContent='RESET';
+    syncControls();
+    setTimeout(()=>{ if(G.phase==='resolved'){ G.phase='idle'; el.phase.textContent='PLACE'; syncControls(); } },1500);
+  }
+
+  // ===== geometry =====
+  function ropeY(){ return H*0.5; }
+  function ropeMargin(){ return 150; }
+  function knotScreenX(){ const half=(W/2-ropeMargin()); return W/2 + knot*half; }
+  function flagScreenX(){ const half=(W/2-ropeMargin()); return W/2 + G.side*G.flag*half; }
+
+  // ===== render =====
+  let acc=0, last=performance.now();
+  function frame(now){
+    const dt=Math.min(0.05,(now-last)/1000); last=now;
+    acc+=dt;
+    // tick ~ every 55ms
+    while(acc>0.055){ acc-=0.055; const r=marketTick(); G.lastTick=r;
+      el.tick.textContent=(r>=0?'+':'')+r.toFixed(3);
+      el.tick.classList.toggle('green',r>=0);
+      el.tick.style.color = r>=0?'#36f0a8':'#ff4d8d';
+    }
+
+    // timer
+    if(G.phase==='live'){
+      G.timer-=dt;
+      // progress = how far knot has traveled toward flag, on player's side
+      const onSide = (G.side>0? Math.max(0,knot): Math.max(0,-knot));
+      G.progress = Math.max(0, Math.min(1, onSide / G.flag));
+      if(onSide >= G.flag){ settle('reach'); }
+      else if(G.timer<=0){ settle('expire'); }
+    }
+
+    draw(now);
+    updateHUD();
+    requestAnimationFrame(frame);
+  }
+
+  function updateHUD(){
+    const tot = bull+bear+1e-6;
+    el.bullNum.textContent=(bull*10).toFixed(1);
+    el.bearNum.textContent=(bear*10).toFixed(1);
+    el.bullBar.style.width=Math.max(6,Math.min(100,(bull/Math.max(tot,0.6))*100))+'%';
+    el.bearBar.style.width=Math.max(6,Math.min(100,(bear/Math.max(tot,0.6))*100))+'%';
+    el.tension.style.width=Math.max(6,Math.min(100,(bull+bear)*70))+'%';
+    el.bal.textContent=fmt(G.balance);
+    el.streak.textContent=G.streak;
+    el.streak.style.color = G.streak>0?'#36f0a8':'#cfe0ff';
+    if(G.phase==='live'){
+      el.timerNum.textContent=Math.ceil(G.timer);
+      el.timerArc.style.strokeDashoffset = (1 - G.timer/G.timerMax)*TARC;
+      el.timerArc.style.stroke = G.timer<6?'#ff4d8d':'#5fe6ff';
+      el.prog.textContent=(G.progress*100|0)+'%';
+    } else {
+      el.timerNum.textContent=G.timerMax;
+      el.timerArc.style.strokeDashoffset=0;
+      el.prog.textContent='—';
+    }
+  }
+
+  function draw(now){
+    ctx.clearRect(0,0,W,H);
+    const cy=ropeY(), half=(W/2-ropeMargin());
+    const t=now/1000;
+
+    // ---- background price ribbon ----
+    if(priceHist.length>2){
+      let mn=Infinity,mx=-Infinity;
+      for(const p of priceHist){if(p<mn)mn=p;if(p>mx)mx=p;}
+      const rng=Math.max(0.5,mx-mn);
+      ctx.beginPath();
+      for(let i=0;i<priceHist.length;i++){
+        const x=(i/(priceHist.length-1))*W;
+        const y=cy + 150 - ((priceHist[i]-mn)/rng)*300;
+        i?ctx.lineTo(x,y):ctx.moveTo(x,y);
+      }
+      ctx.strokeStyle='rgba(95,230,255,0.10)';
+      ctx.lineWidth=2; ctx.stroke();
+      ctx.lineTo(W,H); ctx.lineTo(0,H); ctx.closePath();
+      const g=ctx.createLinearGradient(0,cy-150,0,H);
+      g.addColorStop(0,'rgba(95,230,255,0.06)');g.addColorStop(1,'rgba(95,230,255,0)');
+      ctx.fillStyle=g; ctx.fill();
+    }
+
+    // ---- center deadline marker ----
+    ctx.strokeStyle='rgba(150,170,220,0.12)';
+    ctx.setLineDash([4,8]); ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(W/2,cy-180);ctx.lineTo(W/2,cy+180);ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle='rgba(150,170,220,0.4)';ctx.font='9px Inter,sans-serif';ctx.textAlign='center';
+    ctx.fillText('DEADLOCK LINE',W/2,cy-188);
+
+    // ---- anchor posts ----
+    const postBullX=W/2+half+34, postBearX=W/2-half-34;
+    drawPost(postBullX,cy,'#36f0a8',bull,t);
+    drawPost(postBearX,cy,'#ff4d8d',bear,t);
+
+    // ---- rope (segmented, sagging by inverse tension) ----
+    const kx=knotScreenX();
+    const tension=Math.min(1,(bull+bear)*0.7);
+    const sag=(1-tension)*26;            // taut rope sags less
+    drawRopeHalf(postBearX,cy,kx,cy,sag,tension,t,'#ff4d8d');
+    drawRopeHalf(kx,cy,postBullX,cy,sag,tension,t,'#36f0a8');
+
+    // ---- flag (target) ----
+    if(G.phase!=='idle'||true){
+      const fx=flagScreenX();
+      const fcol=G.side>0?'#36f0a8':'#ff4d8d';
+      drawFlag(fx,cy,fcol,now);
+    }
+
+    // ---- knot ----
+    const jx = (Math.random()-0.5)*jitter*10*(G.phase==='live'?1:0.5);
+    drawKnot(kx+jx,cy,t);
+
+    // ---- shockwaves ----
+    for(let i=G.shock.length-1;i>=0;i--){
+      const s=G.shock[i]; s.r+=7; s.life-=0.03;
+      if(s.life<=0){G.shock.splice(i,1);continue;}
+      ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,Math.PI*2);
+      ctx.globalAlpha=s.life; ctx.strokeStyle=s.color; ctx.lineWidth=3; ctx.stroke(); ctx.globalAlpha=1;
+    }
+    // ---- particles ----
+    for(let i=G.particles.length-1;i>=0;i--){
+      const p=G.particles[i]; p.x+=p.vx;p.y+=p.vy;p.vy+=0.18;p.vx*=0.98;p.life-=0.018;
+      if(p.life<=0){G.particles.splice(i,1);continue;}
+      ctx.globalAlpha=Math.max(0,p.life); ctx.fillStyle=p.color;
+      ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;
+    }
+    // ---- flash overlay ----
+    if(G.flash>0){
+      ctx.globalAlpha=G.flash*0.18; ctx.fillStyle=G.flashColor;
+      ctx.fillRect(0,0,W,H); ctx.globalAlpha=1; G.flash-=0.02;
+    }
+  }
+
+  function drawPost(x,cy,color,force,t){
+    const h=150, glow=Math.min(1,force*0.8);
+    const grd=ctx.createLinearGradient(x,cy-h/2,x,cy+h/2);
+    grd.addColorStop(0,'rgba(120,140,200,0.25)');
+    grd.addColorStop(1,'rgba(120,140,200,0.06)');
+    ctx.fillStyle=grd;
+    ctx.fillRect(x-7,cy-h/2,14,h);
+    // glowing cap
+    ctx.shadowColor=color; ctx.shadowBlur=18+glow*30;
+    ctx.fillStyle=color; ctx.globalAlpha=0.5+glow*0.5;
+    ctx.beginPath();ctx.arc(x,cy,9+glow*5,0,Math.PI*2);ctx.fill();
+    ctx.shadowBlur=0; ctx.globalAlpha=1;
+  }
+
+  function drawRopeHalf(x1,y1,x2,y2,sag,tension,t,color){
+    const segs=26;
+    ctx.lineWidth=3+tension*2;
+    const mx=(x1+x2)/2, my=(y1+y2)/2+sag;
+    // glow under-stroke
+    ctx.strokeStyle=color; ctx.globalAlpha=0.10+tension*0.18;
+    ctx.shadowColor=color; ctx.shadowBlur=10+tension*16;
+    ctx.beginPath();
+    for(let i=0;i<=segs;i++){
+      const u=i/segs;
+      const bx=(1-u)*(1-u)*x1+2*(1-u)*u*mx+u*u*x2;
+      const vibr=Math.sin(t*16+i*0.7)*tension*3;   // tension vibration
+      const by=(1-u)*(1-u)*y1+2*(1-u)*u*my+u*u*y2 + vibr;
+      i?ctx.lineTo(bx,by):ctx.moveTo(bx,by);
+    }
+    ctx.stroke(); ctx.shadowBlur=0; ctx.globalAlpha=1;
+    // bright core + link nodes
+    ctx.strokeStyle='rgba(220,235,255,0.85)'; ctx.lineWidth=1.6;
+    ctx.beginPath();
+    for(let i=0;i<=segs;i++){
+      const u=i/segs;
+      const bx=(1-u)*(1-u)*x1+2*(1-u)*u*mx+u*u*x2;
+      const vibr=Math.sin(t*16+i*0.7)*tension*3;
+      const by=(1-u)*(1-u)*y1+2*(1-u)*u*my+u*u*y2 + vibr;
+      i?ctx.lineTo(bx,by):ctx.moveTo(bx,by);
+      if(i%3===0){ctx.save();}
+    }
+    ctx.stroke();
+  }
+
+  function drawFlag(x,cy,color,now){
+    const sway=Math.sin(now/300)*4;
+    // proximity glow when knot near
+    const kx=knotScreenX();
+    const near=Math.max(0,1-Math.abs(kx-x)/120);
+    ctx.save();
+    // pole
+    ctx.strokeStyle=color; ctx.lineWidth=2; ctx.shadowColor=color; ctx.shadowBlur=8+near*22;
+    ctx.beginPath();ctx.moveTo(x,cy);ctx.lineTo(x,cy-66);ctx.stroke();
+    // pennant
+    ctx.beginPath();
+    const dir=(x>=W/2)?1:-1;
+    ctx.moveTo(x,cy-66);
+    ctx.lineTo(x+dir*30+sway,cy-58);
+    ctx.lineTo(x,cy-50);
+    ctx.closePath();
+    ctx.fillStyle=color; ctx.globalAlpha=0.85+near*0.15; ctx.fill();
+    // base ring on rope
+    ctx.globalAlpha=0.7; ctx.beginPath();ctx.arc(x,cy,5,0,Math.PI*2);ctx.fillStyle=color;ctx.fill();
+    ctx.shadowBlur=0;
+    // target tick
+    ctx.globalAlpha=1; ctx.fillStyle=color; ctx.font='bold 10px Inter,sans-serif';ctx.textAlign='center';
+    ctx.fillText(multFor(G.flag).toFixed(1)+'×',x,cy-74);
+    ctx.restore();
+  }
+
+  function drawKnot(x,cy,t){
+    const tot=Math.min(1,(bull+bear)*0.7);
+    // color by dominance
+    const dom=knot; // -1 bear .. 1 bull
+    let col;
+    if(dom>0.04) col=lerpCol([95,230,255],[54,240,168],Math.min(1,dom));
+    else if(dom<-0.04) col=lerpCol([95,230,255],[255,77,141],Math.min(1,-dom));
+    else col='rgb(95,230,255)';
+    const pulse=1+Math.sin(t*5)*0.08+tot*0.25;
+    // aura
+    const ag=ctx.createRadialGradient(x,cy,2,x,cy,34*pulse);
+    ag.addColorStop(0,col.replace('rgb','rgba').replace(')',',0.9)'));
+    ag.addColorStop(0.5,col.replace('rgb','rgba').replace(')',',0.25)'));
+    ag.addColorStop(1,col.replace('rgb','rgba').replace(')',',0)'));
+    ctx.fillStyle=ag; ctx.beginPath();ctx.arc(x,cy,34*pulse,0,Math.PI*2);ctx.fill();
+    // core
+    ctx.shadowColor=col; ctx.shadowBlur=24;
+    ctx.fillStyle='#fff'; ctx.beginPath();ctx.arc(x,cy,7,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle=col; ctx.beginPath();ctx.arc(x,cy,4.5,0,Math.PI*2);ctx.fill();
+    ctx.shadowBlur=0;
+    // wispy tension trails to each post when contested
+    if(tot>0.15){
+      ctx.globalAlpha=tot*0.4; ctx.lineWidth=1;
+      ctx.strokeStyle=col;
+    }
+    ctx.globalAlpha=1;
+  }
+
+  function lerpCol(a,b,m){
+    const r=Math.round(a[0]+(b[0]-a[0])*m),g=Math.round(a[1]+(b[1]-a[1])*m),bl=Math.round(a[2]+(b[2]-a[2])*m);
+    return 'rgb('+r+','+g+','+bl+')';
+  }
+
+  // boot
+  resize();
+  G.flag=el.slider.value/100;
+  syncControls();
+  // warm up the market so the rope is alive on first paint
+  for(let i=0;i<120;i++) marketTick();
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
