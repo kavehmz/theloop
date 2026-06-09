@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ECHO LADDER — Deriv</title>
+<style>
+  :root{
+    --bg0:#05070d; --bg1:#0a0f1c; --bg2:#0e1526;
+    --cyan:#3df0ff; --teal:#19d3c5; --green:#3dffb0; --gold:#ffd166;
+    --red:#ff4d6d; --violet:#9b8cff; --txt:#cfe2f5; --dim:#5e7796;
+    --grid:rgba(80,140,200,.09);
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{height:100%; background:var(--bg0); color:var(--txt);
+    font-family:'Inter','Segoe UI',system-ui,-apple-system,sans-serif; overflow-x:hidden;}
+  body{ -webkit-font-smoothing:antialiased; }
+
+  /* ===== HERO ===== */
+  #hero{
+    position:relative; width:100%; height:100vh; min-height:800px;
+    background:
+      radial-gradient(1200px 700px at 22% -8%, rgba(61,240,255,.10), transparent 60%),
+      radial-gradient(900px 600px at 92% 110%, rgba(155,140,255,.12), transparent 60%),
+      linear-gradient(160deg, var(--bg1), var(--bg0) 70%);
+    overflow:hidden;
+  }
+  #fxlayer{position:absolute; inset:0; pointer-events:none; z-index:8;}
+  canvas{display:block;}
+
+  /* top bar */
+  #topbar{position:absolute; top:0; left:0; right:0; height:58px; z-index:9;
+    display:flex; align-items:center; gap:18px; padding:0 26px;
+    background:linear-gradient(180deg, rgba(8,12,22,.92), rgba(8,12,22,0));
+  }
+  .brand{display:flex; align-items:center; gap:11px; font-weight:800; letter-spacing:.5px;}
+  .brand .logo{width:26px; height:26px; border-radius:7px;
+    background:conic-gradient(from 210deg, var(--cyan), var(--violet), var(--green), var(--cyan));
+    box-shadow:0 0 18px rgba(61,240,255,.6); position:relative;}
+  .brand .logo::after{content:""; position:absolute; inset:5px; border-radius:4px; background:var(--bg0);}
+  .brand b{font-size:17px;}
+  .brand b i{font-style:normal; color:var(--cyan);}
+  .brand span{font-size:11px; color:var(--dim); font-weight:600; letter-spacing:2px;}
+  .feed{margin-left:auto; display:flex; align-items:center; gap:9px; font-size:12px; color:var(--dim);}
+  .feed .dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 10px var(--green);
+    animation:blink 1.6s infinite;}
+  @keyframes blink{0%,100%{opacity:1}50%{opacity:.35}}
+  .feed .sym{color:var(--txt); font-weight:700; letter-spacing:.5px;}
+  .feed .px{color:var(--cyan); font-variant-numeric:tabular-nums; font-weight:700; min-width:92px; text-align:right;}
+
+  /* main grid */
+  #stage{position:absolute; top:58px; left:0; right:0; bottom:0; z-index:5;
+    display:grid; grid-template-columns:300px 250px 1fr; gap:0;}
+
+  /* ---- LEFT: HUD ---- */
+  #hud{padding:20px 22px; display:flex; flex-direction:column; gap:14px; position:relative;}
+  .panel{background:linear-gradient(180deg, rgba(20,30,52,.66), rgba(12,18,34,.5));
+    border:1px solid rgba(80,140,200,.16); border-radius:14px; padding:14px 15px; backdrop-filter:blur(7px);
+    box-shadow:0 10px 30px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.04);}
+  .phase-tag{font-size:11px; letter-spacing:3px; font-weight:800; color:var(--dim); text-transform:uppercase;}
+  .phase-big{font-size:23px; font-weight:800; margin-top:3px; letter-spacing:.5px;}
+  .phase-sub{font-size:11.5px; color:var(--dim); margin-top:5px; line-height:1.5;}
+  .depthrow{display:flex; align-items:flex-end; gap:14px; margin-top:6px;}
+  .depthbox{flex:1;}
+  .depthbox .k{font-size:10.5px; letter-spacing:2px; color:var(--dim); text-transform:uppercase;}
+  .depthbox .v{font-size:30px; font-weight:800; line-height:1; margin-top:4px; font-variant-numeric:tabular-nums;}
+  #depthV{color:var(--cyan); text-shadow:0 0 22px rgba(61,240,255,.55);}
+  #multV{color:var(--gold); text-shadow:0 0 22px rgba(255,209,102,.5);}
+
+  .clockwrap{margin-top:4px;}
+  .clockwrap .lab{display:flex; justify-content:space-between; font-size:10.5px; color:var(--dim);
+    letter-spacing:1.5px; text-transform:uppercase; margin-bottom:6px;}
+  .clockbar{height:9px; border-radius:6px; background:rgba(120,160,210,.12); overflow:hidden; position:relative;}
+  #clockFill{position:absolute; inset:0; width:100%; transform-origin:left;
+    background:linear-gradient(90deg, var(--green), var(--cyan)); border-radius:6px;
+    box-shadow:0 0 14px rgba(61,240,255,.6);}
+
+  .phrasebox .lab{font-size:10.5px; letter-spacing:2px; color:var(--dim); text-transform:uppercase; margin-bottom:9px;}
+  #phraseDots{display:flex; gap:7px; flex-wrap:wrap;}
+  .pd{width:22px; height:22px; border-radius:7px; background:rgba(120,160,210,.12);
+    border:1px solid rgba(120,160,210,.2); display:flex; align-items:center; justify-content:center;
+    font-size:10px; font-weight:800; color:var(--dim); transition:all .18s;}
+  .pd.done{background:rgba(61,255,176,.16); border-color:var(--green); color:var(--green);
+    box-shadow:0 0 12px rgba(61,255,176,.4);}
+  .pd.cur{background:rgba(61,240,255,.2); border-color:var(--cyan); color:var(--cyan);
+    box-shadow:0 0 14px rgba(61,240,255,.55); transform:scale(1.12);}
+  .pd.fail{background:rgba(255,77,109,.2); border-color:var(--red); color:var(--red);}
+
+  .btn{border:none; border-radius:11px; padding:12px; font-size:13.5px; font-weight:800; letter-spacing:1px;
+    cursor:pointer; transition:transform .12s, box-shadow .2s, opacity .2s; text-transform:uppercase;}
+  .btn:active{transform:scale(.97);}
+  .btn.bank{background:linear-gradient(135deg, var(--gold), #ff9e3d); color:#241600;
+    box-shadow:0 8px 22px rgba(255,160,60,.35);}
+  .btn.bank:disabled{opacity:.32; cursor:default; box-shadow:none;}
+  .btn.again{background:linear-gradient(135deg, var(--cyan), var(--teal)); color:#021018;
+    box-shadow:0 8px 22px rgba(61,240,255,.3);}
+  .stakerow{display:flex; align-items:center; gap:8px; margin-top:2px;}
+  .stakerow .k{font-size:10.5px; letter-spacing:2px; color:var(--dim); text-transform:uppercase;}
+  .stakerow .v{margin-left:auto; font-weight:800; color:var(--txt); font-variant-numeric:tabular-nums;}
+  .chip{font-size:11px; padding:5px 9px; border-radius:8px; cursor:pointer; font-weight:700;
+    background:rgba(120,160,210,.1); border:1px solid rgba(120,160,210,.2); color:var(--dim);}
+  .chip.on{background:rgba(61,240,255,.18); border-color:var(--cyan); color:var(--cyan);}
+  .returnline{font-size:12px; color:var(--dim); margin-top:2px; text-align:center;}
+  .returnline b{color:var(--green); font-size:15px; font-variant-numeric:tabular-nums;}
+
+  /* ---- CENTER: LADDER ---- */
+  #ladderWrap{position:relative;}
+  #ladderCanvas{position:absolute; inset:0; z-index:1;}
+  .ladder-label{position:absolute; top:14px; left:0; right:0; text-align:center; z-index:3;
+    font-size:10.5px; letter-spacing:3px; color:var(--dim); text-transform:uppercase; font-weight:700;}
+
+  /* ---- RIGHT: CHART ---- */
+  #chartWrap{position:relative; border-left:1px solid rgba(80,140,200,.1);}
+  #chartCanvas{position:absolute; inset:0;}
+  .chart-tag{position:absolute; top:14px; left:18px; z-index:3; font-size:10.5px; letter-spacing:3px;
+    color:var(--dim); text-transform:uppercase; font-weight:700;}
+  #pivotFlag{position:absolute; z-index:4; font-size:10px; font-weight:800; letter-spacing:1px;
+    color:#021018; background:var(--cyan); padding:2px 7px; border-radius:6px; pointer-events:none;
+    opacity:0; transform:translate(-50%,-50%); box-shadow:0 0 16px rgba(61,240,255,.7); transition:opacity .25s;}
+
+  /* toast */
+  #toast{position:absolute; top:50%; left:50%; transform:translate(-50%,-50%) scale(.8); z-index:11;
+    font-size:54px; font-weight:900; letter-spacing:1px; opacity:0; pointer-events:none;
+    text-shadow:0 0 40px currentColor; transition:opacity .25s, transform .35s; white-space:nowrap;}
+
+  /* ===== below the fold ===== */
+  #below{position:relative; z-index:2; padding:46px 7vw 70px; background:
+    linear-gradient(180deg, var(--bg0), var(--bg2));}
+  #below h2{font-size:26px; font-weight:800; margin-bottom:6px;}
+  #below .sub{color:var(--dim); margin-bottom:30px; max-width:760px; line-height:1.6;}
+  .cards{display:grid; grid-template-columns:repeat(4,1fr); gap:16px;}
+  .card{background:linear-gradient(180deg, rgba(20,30,52,.5), rgba(12,18,34,.4));
+    border:1px solid rgba(80,140,200,.14); border-radius:14px; padding:20px;}
+  .card .n{font-size:12px; font-weight:800; color:var(--cyan); letter-spacing:2px;}
+  .card h3{font-size:16px; margin:9px 0 7px;}
+  .card p{font-size:13px; color:var(--dim); line-height:1.6;}
+  @media(max-width:1100px){.cards{grid-template-columns:repeat(2,1fr);}}
+</style>
+</head>
+<body>
+<section id="hero">
+  <div id="topbar">
+    <div class="brand">
+      <div class="logo"></div>
+      <b>ECHO&nbsp;<i>LADDER</i></b>
+      <span>DERIV&nbsp;SYNTHETICS</span>
+    </div>
+    <div class="feed">
+      <span class="dot"></span> LIVE
+      <span class="sym">VOL&nbsp;75&nbsp;INDEX</span>
+      <span class="px" id="feedPx">—</span>
+    </div>
+  </div>
+
+  <div id="stage">
+    <!-- HUD -->
+    <div id="hud">
+      <div class="panel">
+        <div class="phase-tag" id="phaseTag">MARKET COMPOSING</div>
+        <div class="phase-big" id="phaseBig">Listen…</div>
+        <div class="phase-sub" id="phaseSub">The market is minting a note from its last swing.</div>
+        <div class="clockwrap" style="margin-top:12px;">
+          <div class="lab"><span id="clockLab">RECALL WINDOW</span><span id="clockTxt"></span></div>
+          <div class="clockbar"><div id="clockFill"></div></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="depthrow">
+          <div class="depthbox"><div class="k">Echo Depth</div><div class="v" id="depthV">0</div></div>
+          <div class="depthbox"><div class="k">Multiplier</div><div class="v" id="multV">1.00×</div></div>
+        </div>
+        <div class="returnline">live return &nbsp;<b id="retV">0.00</b></div>
+      </div>
+
+      <div class="panel phrasebox">
+        <div class="lab">Phrase&nbsp;·&nbsp;<span id="phraseLen">0</span> notes</div>
+        <div id="phraseDots"></div>
+      </div>
+
+      <div class="panel">
+        <div class="stakerow"><span class="k">Stake</span>
+          <span class="chip on" data-s="10">10</span>
+          <span class="chip" data-s="25">25</span>
+          <span class="chip" data-s="50">50</span>
+          <span class="v" id="stakeV">10.00</span>
+        </div>
+        <button class="btn bank" id="bankBtn" style="margin-top:13px;" disabled>Lock&nbsp;in&nbsp;0.00</button>
+        <button class="btn again" id="againBtn" style="margin-top:9px; display:none;">New&nbsp;Round</button>
+      </div>
+    </div>
+
+    <!-- LADDER -->
+    <div id="ladderWrap">
+      <div class="ladder-label">ECHO LADDER · TAP RUNGS IN ORDER</div>
+      <canvas id="ladderCanvas"></canvas>
+    </div>
+
+    <!-- CHART -->
+    <div id="chartWrap">
+      <div class="chart-tag">LIVE FEED · PIVOTS MINT THE PHRASE</div>
+      <canvas id="chartCanvas"></canvas>
+      <div id="pivotFlag">PIVOT</div>
+    </div>
+  </div>
+
+  <canvas id="fxlayer"></canvas>
+  <div id="toast"></div>
+</section>
+
+<section id="below">
+  <h2>The market writes the melody. You play it back.</h2>
+  <p class="sub">Every price reversal in the live feed strikes a rung and appends a note to the
+  phrase. Watch it played, then reproduce it from memory — in order. Each round the market adds
+  one more note and the payout per rung escalates. Bet on how deep you can climb before your
+  memory slips.</p>
+  <div class="cards">
+    <div class="card"><div class="n">01 · COMPOSE</div><h3>A swing mints a note</h3>
+      <p>When the live price prints a real pivot, it snaps to the nearest rung and chimes. The whole phrase replays, in order.</p></div>
+    <div class="card"><div class="n">02 · RECALL</div><h3>Tap it back blind</h3>
+      <p>The ladder goes dark. Re-tap the rungs in the exact order the market played them before the recall clock runs out.</p></div>
+    <div class="card"><div class="n">03 · ESCALATE</div><h3>Deep rungs pay more</h3>
+      <p>Note 1 is cheap; note 8 is a fortune. Big swings mint high-value notes — realized volatility writes your payout table.</p></div>
+    <div class="card"><div class="n">04 · BANK OR PUSH</div><h3>Lock in, or one more</h3>
+      <p>Clear the phrase and the market adds a note. Lock in your multiplier — or risk it all to climb one rung deeper.</p></div>
+  </div>
+</section>
+
+<script>
+"use strict";
+/* ======================================================================
+   ECHO LADDER — interactive prototype
+   Live-ish synthetic feed -> pivots -> ladder notes -> memory recall bet
+   ====================================================================== */
+
+const lc = document.getElementById('ladderCanvas');
+const cc = document.getElementById('chartCanvas');
+const fx = document.getElementById('fxlayer');
+const lctx = lc.getContext('2d');
+const cctx = cc.getContext('2d');
+const fxtx = fx.getContext('2d');
+
+let DPR = Math.min(window.devicePixelRatio||1, 2);
+function fit(cv,ctx){
+  const r = cv.getBoundingClientRect();
+  cv.width = Math.max(2,r.width*DPR); cv.height=Math.max(2,r.height*DPR);
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  return {w:r.width,h:r.height};
+}
+let L={w:250,h:700}, C={w:700,h:700}, F={w:1280,h:800};
+function fitAll(){
+  fx.width=window.innerWidth*DPR; fx.height=window.innerHeight*DPR;
+  fxtx.setTransform(DPR,0,0,DPR,0,0);
+  F={w:window.innerWidth,h:window.innerHeight};
+  L=fit(lc,lctx); C=fit(cc,cctx);
+}
+window.addEventListener('resize', ()=>{DPR=Math.min(window.devicePixelRatio||1,2); fitAll();});
+
+/* ---------- market feed (synthetic VOL-style) ---------- */
+const RUNGS = 13;                 // discrete price bands on the ladder
+let price = 1000;
+const hist = [];                  // {p}
+const MAXH = 240;
+let vol = 1.0;                    // regime
+let drift = 0;
+let band = {min:982, max:1018};   // visible price band, eased toward data
+
+function stepPrice(){
+  // occasional regime shifts so "market character" varies
+  if(Math.random()<0.012) vol = 0.5 + Math.random()*1.9;
+  if(Math.random()<0.01) drift = (Math.random()-0.5)*0.55;
+  const shock = (Math.random()<0.04)? (Math.random()-0.5)*4.0 : 0;
+  price += (Math.random()-0.5)*2.0*vol + drift + shock;
+  hist.push(price);
+  if(hist.length>MAXH) hist.shift();
+}
+function priceRange(){
+  let mn=1e9,mx=-1e9;
+  for(const p of hist){ if(p<mn)mn=p; if(p>mx)mx=p; }
+  if(mn===mx){mn-=5;mx+=5;}
+  const pad=(mx-mn)*0.12+1;
+  return {mn:mn-pad, mx:mx+pad};
+}
+
+/* ---------- pivot detection -> mint a note ---------- */
+let lastExtreme=price, lastDir=0, pivotCooldown=0;
+const RETRACE = 1.6;   // price units to confirm a reversal
+function detectPivot(){
+  // returns null or {price, mag} when a real local reversal confirms
+  if(pivotCooldown>0){pivotCooldown--; return null;}
+  const p = price;
+  if(lastDir>=0){ // were rising
+    if(p>lastExtreme){ lastExtreme=p; }
+    else if(lastExtreme - p > RETRACE){ // confirmed top
+      const piv=lastExtreme, mag=Math.min(1, Math.abs(piv-prevPivotPrice)/14);
+      lastDir=-1; lastExtreme=p; prevPivotPrice=piv; pivotCooldown=6;
+      return {price:piv, mag};
+    }
+  }
+  if(lastDir<=0){ // were falling
+    if(p<lastExtreme){ lastExtreme=p; }
+    else if(p - lastExtreme > RETRACE){ // confirmed bottom
+      const piv=lastExtreme, mag=Math.min(1, Math.abs(piv-prevPivotPrice)/14);
+      lastDir=1; lastExtreme=p; prevPivotPrice=piv; pivotCooldown=6;
+      return {price:piv, mag};
+    }
+  }
+  return null;
+}
+let prevPivotPrice=price;
+
+function priceToRung(p){
+  const t=(p-band.min)/(band.max-band.min);
+  return Math.max(0, Math.min(RUNGS-1, Math.round(t*(RUNGS-1))));
+}
+
+/* ---------- game state machine ---------- */
+const PHASE={IDLE:'idle', COMPOSE:'compose', PLAYBACK:'playback', RECALL:'recall', SETTLED:'settled'};
+let phase=PHASE.IDLE;
+let phrase=[];          // array of {rung, mag, weight}
+let recallIdx=0;
+let stake=10, mult=1, banked=0;
+let clock=0, clockMax=1;        // seconds
+let pbIdx=0, pbTimer=0;         // playback cursor
+let composeTimer=0;
+let demoMode=true;              // auto-plays a believable demo until user interacts
+
+const DEPTHCURVE = d => 0.35 + 0.22*d + 0.05*d*d; // super-linear per-note weight base
+
+function rungFlash(rung, color, big){
+  ladderRungs[rung].flash = 1;
+  ladderRungs[rung].color = color;
+  if(big) spawnRing(rungScreenXY(rung), color);
+}
+
+/* phrase value if recalled to idx notes */
+function valueAt(idx){
+  let v=0;
+  for(let i=0;i<idx;i++){ v += phrase[i].weight; }
+  return v;
+}
+function recomputeMult(){
+  mult = 1 + valueAt(recallIdx);
+}
+
+/* ----- transitions ----- */
+function newRound(){
+  phrase=[]; recallIdx=0; mult=1; banked=0; phase=PHASE.COMPOSE;
+  composeTimer=0; demoMode=false;
+  document.getElementById('againBtn').style.display='none';
+  toast('','');
+  composeNote(); // mint first note immediately so it feels responsive
+}
+function composeNote(){
+  phase=PHASE.COMPOSE;
+  setPhaseUI('MARKET COMPOSING','Listen…','The market is minting a note from its last swing.');
+  // force a pivot soon — we wait for the live feed; but guarantee within ~2.5s
+  composeTimer = 2.6;
+  pendingCompose=true;
+}
+let pendingCompose=false;
+function appendNoteFromPivot(piv){
+  const rung=priceToRung(piv.price);
+  const weight = DEPTHCURVE(phrase.length) * (0.6 + 1.4*piv.mag);
+  phrase.push({rung, mag:piv.mag, weight});
+  rungFlash(rung, piv.mag>0.6? '#ffd166' : '#3df0ff', true);
+  blip();
+  startPlayback();
+}
+function startPlayback(){
+  phase=PHASE.PLAYBACK; pbIdx=0; pbTimer=0;
+  setPhaseUI('PLAYBACK','Watch the phrase','The market plays the whole phrase back, in order.');
+}
+function startRecall(){
+  phase=PHASE.RECALL; recallIdx=0;
+  recomputeMult();
+  clockMax = Math.max(2.2, 1.4 + phrase.length*0.55);
+  clock=clockMax;
+  setPhaseUI('YOUR RECALL','Tap it back','Reproduce the rungs in the exact order — before the clock runs out.');
+  document.getElementById('bankBtn').disabled = true; // can't bank mid-recall
+}
+function cleanPhrase(){
+  // full phrase recalled
+  recallIdx=phrase.length; recomputeMult();
+  banked = stake*(mult-1);
+  spawnFountain();
+  arpeggioUp();
+  toast('PHRASE CLEAR', 'var(--green)');
+  phase=PHASE.SETTLED;
+  setPhaseUI('CLEARED','Lock in or push','Bank this multiplier, or let the market add a note.');
+  document.getElementById('bankBtn').disabled=false;
+  // auto-extend prompt: show "again" disabled; allow push via bank decline
+  pushTimer=2.8; // if no action, push deeper automatically in demo-feel
+}
+let pushTimer=0;
+function pushDeeper(){
+  // keep banked baseline; add a note
+  composeNote();
+}
+function slip(badRung){
+  if(badRung!=null){ ladderRungs[badRung].flash=1; ladderRungs[badRung].color='#ff4d6d';
+    spawnShatter(rungScreenXY(badRung)); }
+  shake=14; crack();
+  recomputeMult();
+  const won = stake*(mult-1);
+  phase=PHASE.SETTLED;
+  toast('SLIP!', 'var(--red)');
+  setPhaseUI('SLIPPED','Memory broke','Settled at your last clean depth. Go again?');
+  document.getElementById('bankBtn').disabled=true;
+  document.getElementById('againBtn').style.display='block';
+  flashPhraseFail();
+}
+function lockIn(){
+  recomputeMult();
+  banked = stake*(mult-1);
+  toast('LOCKED +'+banked.toFixed(2), 'var(--gold)');
+  spawnFountain();
+  phase=PHASE.SETTLED;
+  setPhaseUI('BANKED','Locked in','You secured the multiplier. New round when ready.');
+  document.getElementById('bankBtn').disabled=true;
+  document.getElementById('againBtn').style.display='block';
+}
+
+/* ---------- ladder geometry ---------- */
+let ladderRungs=[]; // {y, flash, color, lit}
+function buildLadder(){
+  ladderRungs=[];
+  const top=70, bot=L.h-30, span=bot-top;
+  for(let i=0;i<RUNGS;i++){
+    const y = bot - (i/(RUNGS-1))*span;
+    ladderRungs.push({y, flash:0, color:'#3df0ff', lit:false, x0:24, x1:L.w-24});
+  }
+}
+function rungScreenXY(rung){
+  // returns coords on the FX (window) layer
+  const wrap=document.getElementById('ladderWrap').getBoundingClientRect();
+  const r=ladderRungs[rung];
+  return {x:wrap.left + L.w*0.5, y:wrap.top + r.y};
+}
+
+/* ---------- particles on fx layer ---------- */
+let parts=[]; let shake=0;
+function spawnRing(pos,color){
+  for(let i=0;i<26;i++){const a=Math.PI*2*i/26;
+    parts.push({x:pos.x,y:pos.y,vx:Math.cos(a)*(2+Math.random()*2.4),vy:Math.sin(a)*(2+Math.random()*2.4),
+      life:1,col:color,sz:2+Math.random()*2});}
+}
+function spawnShatter(pos){
+  for(let i=0;i<34;i++){parts.push({x:pos.x,y:pos.y,vx:(Math.random()-0.5)*8,vy:(Math.random()-0.5)*8-1,
+    life:1,col:'#ff4d6d',sz:1.5+Math.random()*2.6,g:0.18});}
+}
+function spawnFountain(){
+  const wrap=document.getElementById('ladderWrap').getBoundingClientRect();
+  for(let i=0;i<60;i++){parts.push({x:wrap.left+L.w*(0.2+Math.random()*0.6),y:wrap.top+L.h-30,
+    vx:(Math.random()-0.5)*2.4,vy:-(4+Math.random()*7),life:1.4,col:Math.random()<0.5?'#ffd166':'#3dffb0',
+    sz:2+Math.random()*2.4,g:0.16});}
+}
+function drawFx(){
+  fxtx.clearRect(0,0,F.w,F.h);
+  for(let i=parts.length-1;i>=0;i--){const p=parts[i];
+    p.x+=p.vx; p.y+=p.vy; if(p.g)p.vy+=p.g; p.vx*=0.97; p.vy*=0.97; p.life-=0.022;
+    if(p.life<=0){parts.splice(i,1); continue;}
+    fxtx.globalAlpha=Math.max(0,p.life);
+    fxtx.fillStyle=p.col; fxtx.shadowColor=p.col; fxtx.shadowBlur=10;
+    fxtx.beginPath(); fxtx.arc(p.x,p.y,p.sz,0,7); fxtx.fill();
+  }
+  fxtx.globalAlpha=1; fxtx.shadowBlur=0;
+}
+
+/* ---------- toast ---------- */
+let toastT=0;
+function toast(txt,color){
+  const el=document.getElementById('toast');
+  if(!txt){el.style.opacity=0; return;}
+  el.textContent=txt; el.style.color=color;
+  el.style.opacity=1; el.style.transform='translate(-50%,-50%) scale(1.06)';
+  toastT=1.4;
+}
+
+/* ---------- audio (web-audio, gentle) ---------- */
+let actx=null;
+function audio(){ if(!actx){try{actx=new (window.AudioContext||window.webkitAudioContext)();}catch(e){}} return actx;}
+function tone(freq,dur,type,gain){
+  const a=audio(); if(!a)return;
+  const o=a.createOscillator(), g=a.createGain();
+  o.type=type||'sine'; o.frequency.value=freq;
+  g.gain.value=0.0001; o.connect(g); g.connect(a.destination);
+  const t=a.currentTime;
+  g.gain.exponentialRampToValueAtTime(gain||0.12,t+0.012);
+  g.gain.exponentialRampToValueAtTime(0.0001,t+(dur||0.2));
+  o.start(t); o.stop(t+(dur||0.2)+0.02);
+}
+function rungFreq(rung){ return 220*Math.pow(2,(rung)/ (RUNGS-1) *1.6); }
+function blip(){ tone(660,0.18,'triangle',0.1); }
+function noteTone(rung){ tone(rungFreq(rung),0.22,'sine',0.13); }
+function crack(){ tone(90,0.32,'sawtooth',0.16); tone(70,0.4,'square',0.08); }
+function arpeggioUp(){ for(let i=0;i<phrase.length;i++){ setTimeout(()=>noteTone(phrase[i].rung), i*70);} }
+
+/* ---------- HUD ---------- */
+function setPhaseUI(tag,big,sub){
+  document.getElementById('phaseTag').textContent=tag;
+  document.getElementById('phaseBig').textContent=big;
+  document.getElementById('phaseSub').textContent=sub;
+}
+function renderHUD(){
+  document.getElementById('depthV').textContent = (phase===PHASE.RECALL? recallIdx : phrase.length);
+  recomputeMult();
+  document.getElementById('multV').textContent = mult.toFixed(2)+'×';
+  document.getElementById('retV').textContent = (stake*(mult-1)).toFixed(2);
+  document.getElementById('stakeV').textContent = stake.toFixed(2);
+  document.getElementById('phraseLen').textContent = phrase.length;
+  document.getElementById('bankBtn').textContent = 'Lock in '+(stake*(mult-1)).toFixed(2);
+  document.getElementById('feedPx').textContent = price.toFixed(2);
+  // phrase dots
+  const dd=document.getElementById('phraseDots');
+  if(dd.childElementCount!==phrase.length){
+    dd.innerHTML='';
+    phrase.forEach((n,i)=>{const e=document.createElement('div'); e.className='pd'; e.textContent=i+1; dd.appendChild(e);});
+  }
+  [...dd.children].forEach((e,i)=>{
+    e.className='pd';
+    if(phase===PHASE.RECALL){
+      if(i<recallIdx) e.classList.add('done');
+      else if(i===recallIdx) e.classList.add('cur');
+    } else if(phase===PHASE.SETTLED && recallIdx>=phrase.length){
+      e.classList.add('done');
+    }
+  });
+  // clock
+  const cf=document.getElementById('clockFill');
+  if(phase===PHASE.RECALL){
+    document.getElementById('clockLab').textContent='RECALL WINDOW';
+    document.getElementById('clockTxt').textContent=clock.toFixed(1)+'s';
+    const r=clock/clockMax;
+    cf.style.transform='scaleX('+Math.max(0,r)+')';
+    cf.style.background = r<0.3? 'linear-gradient(90deg,#ff4d6d,#ffb84d)' : 'linear-gradient(90deg,var(--green),var(--cyan))';
+  } else if(phase===PHASE.COMPOSE){
+    document.getElementById('clockLab').textContent='COMPOSING';
+    document.getElementById('clockTxt').textContent='';
+    cf.style.transform='scaleX('+Math.max(0,Math.min(1,1-composeTimer/2.6))+')';
+    cf.style.background='linear-gradient(90deg,var(--violet),var(--cyan))';
+  } else if(phase===PHASE.PLAYBACK){
+    document.getElementById('clockLab').textContent='PLAYBACK';
+    document.getElementById('clockTxt').textContent=(pbIdx)+'/'+phrase.length;
+    cf.style.transform='scaleX('+(phrase.length? pbIdx/phrase.length:0)+')';
+    cf.style.background='linear-gradient(90deg,var(--cyan),var(--green))';
+  } else {
+    document.getElementById('clockLab').textContent='READY';
+    document.getElementById('clockTxt').textContent='';
+    cf.style.transform='scaleX(1)'; cf.style.background='linear-gradient(90deg,var(--green),var(--cyan))';
+  }
+}
+function flashPhraseFail(){
+  const dd=document.getElementById('phraseDots');
+  [...dd.children].forEach((e,i)=>{ if(i>=recallIdx) e.className='pd fail'; });
+}
+
+/* ---------- draw ladder ---------- */
+function drawLadder(){
+  lctx.clearRect(0,0,L.w,L.h);
+  // ambient column glow
+  const cx=L.w/2;
+  const g=lctx.createLinearGradient(0,0,0,L.h);
+  g.addColorStop(0,'rgba(61,240,255,0.05)'); g.addColorStop(1,'rgba(155,140,255,0.05)');
+  lctx.fillStyle=g; lctx.fillRect(cx-70,40,140,L.h-60);
+
+  const recalling = (phase===PHASE.RECALL);
+  for(let i=0;i<RUNGS;i++){
+    const r=ladderRungs[i];
+    r.flash*=0.9; if(r.flash<0.02)r.flash=0;
+    const isPhraseRung = phrase.some(n=>n.rung===i);
+    // base rung
+    let base = recalling? 0.16 : 0.22;
+    lctx.strokeStyle='rgba(120,160,210,'+base+')';
+    lctx.lineWidth=2;
+    lctx.beginPath(); lctx.moveTo(r.x0,r.y); lctx.lineTo(r.x1,r.y); lctx.stroke();
+    // tick label
+    lctx.fillStyle='rgba(94,119,150,'+(recalling?0.4:0.6)+')';
+    lctx.font='9px Inter, sans-serif'; lctx.textAlign='left';
+    const pval = band.min + (i/(RUNGS-1))*(band.max-band.min);
+    lctx.fillText(pval.toFixed(0), 3, r.y-3);
+    // hover/clickable hint during recall
+    if(recalling){
+      lctx.fillStyle='rgba(61,240,255,0.05)';
+      lctx.fillRect(r.x0,r.y-13,r.x1-r.x0,26);
+    }
+    // flash overlay
+    if(r.flash>0){
+      lctx.save();
+      lctx.shadowColor=r.color; lctx.shadowBlur=24*r.flash;
+      lctx.strokeStyle=r.color; lctx.globalAlpha=Math.min(1,r.flash+0.2); lctx.lineWidth=4;
+      lctx.beginPath(); lctx.moveTo(r.x0,r.y); lctx.lineTo(r.x1,r.y); lctx.stroke();
+      // glowing node
+      lctx.fillStyle=r.color; lctx.beginPath(); lctx.arc(cx,r.y,5+5*r.flash,0,7); lctx.fill();
+      lctx.restore();
+    }
+  }
+  // side rails
+  lctx.strokeStyle='rgba(120,160,210,0.14)'; lctx.lineWidth=2;
+  lctx.beginPath(); lctx.moveTo(24,60); lctx.lineTo(24,L.h-20);
+  lctx.moveTo(L.w-24,60); lctx.lineTo(L.w-24,L.h-20); lctx.stroke();
+}
+
+/* ---------- draw chart ---------- */
+let chartGlow=0;
+function drawChart(){
+  cctx.clearRect(0,0,C.w,C.h);
+  // grid
+  cctx.strokeStyle='rgba(80,140,200,0.09)'; cctx.lineWidth=1;
+  for(let gy=0;gy<=6;gy++){const y=40+gy*((C.h-70)/6); cctx.beginPath();cctx.moveTo(0,y);cctx.lineTo(C.w,y);cctx.stroke();}
+  for(let gx=0;gx<=8;gx++){const x=gx*(C.w/8); cctx.beginPath();cctx.moveTo(x,40);cctx.lineTo(x,C.h-30);cctx.stroke();}
+
+  const rng=priceRange();
+  // ease visible band toward data so rung mapping is stable-ish
+  band.min += (rng.mn-band.min)*0.05; band.max += (rng.mx-band.max)*0.05;
+  const top=40, bot=C.h-30;
+  const X=i=> (i/(MAXH-1))*C.w;
+  const Y=p=> bot - (p-band.min)/(band.max-band.min)*(bot-top);
+
+  // rung gridlines mirrored on chart (so player sees mapping)
+  for(let i=0;i<RUNGS;i++){
+    const pval = band.min + (i/(RUNGS-1))*(band.max-band.min);
+    const y=Y(pval);
+    const on = phrase.some(n=>n.rung===i) && phase!==PHASE.RECALL;
+    cctx.strokeStyle = on? 'rgba(61,240,255,0.16)':'rgba(120,160,210,0.05)';
+    cctx.beginPath();cctx.moveTo(0,y);cctx.lineTo(C.w,y);cctx.stroke();
+  }
+
+  // area fill under line
+  if(hist.length>1){
+    cctx.beginPath(); cctx.moveTo(X(0),Y(hist[0]));
+    for(let i=1;i<hist.length;i++) cctx.lineTo(X(i),Y(hist[i]));
+    cctx.lineTo(X(hist.length-1),bot); cctx.lineTo(X(0),bot); cctx.closePath();
+    const ag=cctx.createLinearGradient(0,top,0,bot);
+    ag.addColorStop(0,'rgba(61,240,255,'+(0.16+chartGlow*0.2)+')'); ag.addColorStop(1,'rgba(61,240,255,0)');
+    cctx.fillStyle=ag; cctx.fill();
+    // line
+    cctx.beginPath(); cctx.moveTo(X(0),Y(hist[0]));
+    for(let i=1;i<hist.length;i++) cctx.lineTo(X(i),Y(hist[i]));
+    cctx.strokeStyle='#3df0ff'; cctx.lineWidth=2.2; cctx.shadowColor='#3df0ff'; cctx.shadowBlur=12+chartGlow*20;
+    cctx.stroke(); cctx.shadowBlur=0;
+    // head dot
+    const hx=X(hist.length-1), hy=Y(hist[hist.length-1]);
+    cctx.fillStyle='#eafcff'; cctx.beginPath(); cctx.arc(hx,hy,4,0,7); cctx.fill();
+    cctx.fillStyle='rgba(61,240,255,0.9)'; cctx.beginPath(); cctx.arc(hx,hy,8,0,7);
+    cctx.globalAlpha=0.3; cctx.fill(); cctx.globalAlpha=1;
+    // current price tag
+    cctx.fillStyle='rgba(61,240,255,0.9)'; cctx.fillRect(hx-2,hy-9,58,18);
+    cctx.fillStyle='#021018'; cctx.font='bold 10px Inter'; cctx.textAlign='left';
+    cctx.fillText(price.toFixed(1), hx+2, hy+3);
+
+    // mark recent pivots as small diamonds
+    for(const pv of recentPivots){
+      const px=X(MAXH-1-(frame-pv.frame)); if(px<0) continue;
+      const py=Y(pv.price);
+      cctx.save(); cctx.translate(px,py); cctx.rotate(Math.PI/4);
+      cctx.fillStyle= pv.mag>0.6? '#ffd166':'#9b8cff'; cctx.shadowColor=cctx.fillStyle; cctx.shadowBlur=10;
+      cctx.fillRect(-3,-3,6,6); cctx.restore();
+    }
+  }
+  chartGlow*=0.92;
+}
+
+/* track pivots for chart markers */
+let recentPivots=[]; let frame=0;
+
+/* ---------- recall interaction ---------- */
+lc.addEventListener('click', (e)=>{
+  audio();
+  if(phase!==PHASE.RECALL) return;
+  const r=lc.getBoundingClientRect();
+  const y=e.clientY-r.top;
+  // nearest rung
+  let best=0,bd=1e9;
+  for(let i=0;i<RUNGS;i++){const d=Math.abs(ladderRungs[i].y-y); if(d<bd){bd=d;best=i;}}
+  handleRecallTap(best);
+});
+function handleRecallTap(rung){
+  const expected=phrase[recallIdx].rung;
+  if(rung===expected){
+    rungFlash(rung,'#3dffb0',true); noteTone(rung);
+    recallIdx++;
+    recomputeMult();
+    if(recallIdx>=phrase.length){ cleanPhrase(); }
+  } else {
+    slip(rung);
+  }
+}
+
+/* ---------- buttons / chips ---------- */
+document.getElementById('bankBtn').addEventListener('click', ()=>{audio(); if(phase===PHASE.SETTLED && !document.getElementById('bankBtn').disabled) lockIn();});
+document.getElementById('againBtn').addEventListener('click', ()=>{audio(); newRound();});
+document.querySelectorAll('.chip').forEach(c=>c.addEventListener('click',()=>{
+  if(phase===PHASE.RECALL) return;
+  document.querySelectorAll('.chip').forEach(x=>x.classList.remove('on'));
+  c.classList.add('on'); stake=parseFloat(c.dataset.s);
+}));
+// click anywhere on hero starts a real round (leaves demo)
+document.getElementById('hero').addEventListener('click',(e)=>{
+  audio();
+  if(demoMode){ newRound(); }
+});
+
+/* allow auto-push when settled+clean and user idles (keeps demo alive) */
+
+/* ---------- demo auto-recall (so hero is ALIVE before interaction) ---------- */
+let demoPlan=null, demoTapTimer=0;
+function demoStartRound(){
+  phrase=[]; recallIdx=0; mult=1; banked=0; phase=PHASE.COMPOSE; composeTimer=0;
+  demoMode=true; pendingCompose=true; composeTimer=2.0;
+}
+
+/* ---------- main sim tick (setInterval so it survives backgrounding) ---------- */
+let last=performance.now();
+function tick(){
+  const now=performance.now(); let dt=(now-last)/1000; last=now;
+  if(dt>0.1)dt=0.1;
+  frame++;
+
+  // feed always alive
+  for(let k=0;k<2;k++){ stepPrice(); }
+  const piv=detectPivot();
+  if(piv){
+    recentPivots.push({price:piv.price, mag:piv.mag, frame});
+    if(recentPivots.length>14) recentPivots.shift();
+    chartGlow=Math.min(1,chartGlow+0.3+piv.mag*0.5);
+    showPivotFlag(piv);
+    // if composing, this pivot mints the note
+    if(phase===PHASE.COMPOSE && pendingCompose){
+      pendingCompose=false; appendNoteFromPivot(piv);
+    }
+  }
+
+  // phase timers
+  if(phase===PHASE.COMPOSE){
+    composeTimer-=dt;
+    if(pendingCompose && composeTimer<=0){
+      // guarantee a note even if no natural pivot yet — use last extreme
+      pendingCompose=false;
+      appendNoteFromPivot({price:lastExtreme, mag:Math.min(1,vol/2)});
+    }
+  }
+  else if(phase===PHASE.PLAYBACK){
+    pbTimer-=dt;
+    if(pbTimer<=0){
+      if(pbIdx<phrase.length){
+        const n=phrase[pbIdx];
+        rungFlash(n.rung, n.mag>0.6?'#ffd166':'#3df0ff', false);
+        noteTone(n.rung);
+        pbIdx++;
+        pbTimer = Math.max(0.28, 0.62 - phrase.length*0.02);
+      } else {
+        pbTimer=0;
+        startRecall();
+        if(demoMode){ scheduleDemoRecall(); }
+      }
+    }
+  }
+  else if(phase===PHASE.RECALL){
+    clock-=dt;
+    if(clock<=0){ slip(null); }
+    if(demoMode){ runDemoRecall(dt); }
+  }
+  else if(phase===PHASE.SETTLED){
+    if(pushTimer>0){ pushTimer-=dt; if(pushTimer<=0){ if(banked>=0) pushDeeper(); } }
+    if(demoMode){
+      // in demo, after a clean phrase auto-push a few times then reset
+      // handled via pushTimer above; cap depth
+    }
+  }
+  else if(phase===PHASE.IDLE){
+    // boot the demo
+    demoStartRound();
+  }
+
+  // toast decay
+  if(toastT>0){ toastT-=dt; if(toastT<=0){ document.getElementById('toast').style.opacity=0; } }
+  if(shake>0) shake*=0.85;
+
+  drawChart();
+  drawLadder();
+  renderHUD();
+}
+
+/* demo recall: auto-tap correctly with small chance of a "human" slip at depth */
+let demoTaps=[], demoTapT=0;
+function scheduleDemoRecall(){
+  demoTaps = phrase.map(n=>n.rung);
+  // demo will usually recall most, occasionally slip deep, to show both outcomes
+  demoSlipAt = (phrase.length>=4 && Math.random()<0.45)? (2+Math.floor(Math.random()*(phrase.length-1))) : 999;
+  demoTapT=0.55;
+}
+let demoSlipAt=999;
+function runDemoRecall(dt){
+  demoTapT-=dt;
+  if(demoTapT<=0 && phase===PHASE.RECALL){
+    demoTapT=0.46 + Math.random()*0.25;
+    if(recallIdx>=demoSlipAt){
+      // tap a wrong-ish rung
+      let wrong=(phrase[recallIdx].rung+2)%RUNGS;
+      handleRecallTap(wrong);
+    } else {
+      handleRecallTap(phrase[recallIdx].rung);
+    }
+  }
+}
+// after a demo settle, reset to a fresh demo round so loop continues
+function demoMaybeReset(){
+  if(demoMode && phase===PHASE.SETTLED){
+    setTimeout(()=>{ if(demoMode){ demoStartRound(); } }, 1700);
+  }
+}
+// hook: when settled in demo, schedule reset (and let push happen a couple times)
+let _demoDepthCap=0;
+const _origClean=cleanPhrase;
+cleanPhrase=function(){ _origClean();
+  if(demoMode){
+    _demoDepthCap++;
+    if(_demoDepthCap>=3+Math.floor(Math.random()*3)){
+      _demoDepthCap=0; pushTimer=0;
+      setTimeout(()=>{ if(demoMode){ lockInDemo(); } }, 1100);
+    }
+  }
+};
+function lockInDemo(){
+  recomputeMult(); toast('LOCKED +'+(stake*(mult-1)).toFixed(2),'var(--gold)'); spawnFountain();
+  phase=PHASE.SETTLED; demoMaybeReset();
+}
+const _origSlip=slip;
+slip=function(b){ _origSlip(b); if(demoMode){ _demoDepthCap=0; demoMaybeReset(); } };
+
+/* pivot flag on chart */
+function showPivotFlag(piv){
+  const el=document.getElementById('pivotFlag');
+  const wrap=document.getElementById('chartWrap').getBoundingClientRect();
+  const rng=priceRange();
+  const top=40, bot=C.h-30;
+  const y=bot-(piv.price-band.min)/(band.max-band.min)*(bot-top);
+  el.style.left=(C.w-46)+'px'; el.style.top=y+'px';
+  el.textContent = piv.mag>0.6? 'BIG SWING':'PIVOT';
+  el.style.background = piv.mag>0.6? '#ffd166':'#3df0ff';
+  el.style.opacity=1;
+  clearTimeout(el._t); el._t=setTimeout(()=>el.style.opacity=0, 900);
+}
+
+/* apply screen shake on hero via transform */
+function applyShake(){
+  const hero=document.getElementById('stage');
+  if(shake>0.5){ hero.style.transform='translate('+((Math.random()-0.5)*shake)+'px,'+((Math.random()-0.5)*shake)+'px)'; }
+  else hero.style.transform='';
+}
+
+/* ---------- boot ---------- */
+function boot(){
+  fitAll(); buildLadder();
+  // seed history so chart is full on frame 1
+  price=1000; hist.length=0;
+  for(let i=0;i<MAXH;i++){ stepPrice(); }
+  lastExtreme=price; prevPivotPrice=price;
+  phase=PHASE.IDLE;
+}
+boot();
+
+// render loop (rAF for smoothness)
+function raf(){ drawFx(); applyShake(); requestAnimationFrame(raf); }
+requestAnimationFrame(raf);
+// sim loop (setInterval so it survives tab backgrounding)
+setInterval(tick, 1000/60);
+// rebuild ladder on resize
+window.addEventListener('resize', ()=>{ setTimeout(()=>{fitAll(); buildLadder();},60); });
+</script>
+</body>
+</html>
