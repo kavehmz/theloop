@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SILKLINE — call the photo finish</title>
+<style>
+  :root{
+    --bg0:#05070f; --bg1:#0a1024; --rail:#1b2a4a;
+    --ink:#e8eefc; --dim:#7c8bb0; --gold:#ffcf4a; --good:#3ff0b2; --bad:#ff5d6c;
+    --glow:#5ec8ff;
+    --c0:#ff4d7d; --c1:#5ec8ff; --c2:#b06bff; --c3:#ffd24a; --c4:#3ff0b2; --c5:#ff8a3d;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;background:var(--bg0);color:var(--ink);
+    font-family:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    overflow-x:hidden;-webkit-font-smoothing:antialiased}
+  /* ===== HERO ===== */
+  #hero{position:relative;width:100%;height:100vh;min-height:760px;overflow:hidden;
+    background:radial-gradient(120% 90% at 50% -10%,#11214a 0%,#0a1024 42%,#05070f 100%);}
+  #track{position:absolute;inset:0;width:100%;height:100%;display:block}
+  /* top bar */
+  .topbar{position:absolute;top:0;left:0;right:0;height:58px;z-index:7;
+    display:flex;align-items:center;justify-content:space-between;padding:0 22px;
+    background:linear-gradient(180deg,rgba(5,7,15,.9),rgba(5,7,15,0));}
+  .brand{display:flex;align-items:baseline;gap:10px}
+  .brand b{font-size:23px;letter-spacing:5px;font-weight:800;
+    background:linear-gradient(90deg,#fff,#9fd4ff 55%,#5ec8ff);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .brand span{font-size:11px;letter-spacing:2px;color:var(--dim);text-transform:uppercase}
+  .balance{font-size:12px;color:var(--dim);text-align:right}
+  .balance b{display:block;font-size:18px;color:var(--gold);letter-spacing:.5px}
+  /* phase pill */
+  .phase{position:absolute;top:64px;left:50%;transform:translateX(-50%);z-index:7;
+    font-size:12px;letter-spacing:3px;text-transform:uppercase;color:var(--glow);
+    padding:6px 18px;border:1px solid rgba(94,200,255,.35);border-radius:30px;
+    background:rgba(8,16,38,.6);backdrop-filter:blur(4px);
+    box-shadow:0 0 24px rgba(94,200,255,.18) inset;white-space:nowrap}
+  .phase b{color:#fff}
+  /* leaderboard */
+  .board{position:absolute;top:108px;right:18px;z-index:6;width:236px;
+    background:linear-gradient(180deg,rgba(10,18,42,.86),rgba(8,12,28,.86));
+    border:1px solid rgba(94,200,255,.16);border-radius:14px;padding:10px 10px 8px;
+    box-shadow:0 18px 50px rgba(0,0,0,.5);backdrop-filter:blur(6px)}
+  .board h4{font-size:10px;letter-spacing:2.5px;color:var(--dim);text-transform:uppercase;margin-bottom:8px;padding-left:4px}
+  .row{display:flex;align-items:center;gap:8px;padding:5px 6px;border-radius:9px;transition:background .25s, transform .25s;}
+  .row .pos{width:18px;text-align:center;font-weight:800;font-size:13px;color:var(--dim)}
+  .row .dot{width:11px;height:11px;border-radius:50%;flex:0 0 auto;box-shadow:0 0 10px currentColor}
+  .row .nm{flex:1;font-size:12.5px;font-weight:700;letter-spacing:.3px}
+  .row .sub{font-size:9.5px;color:var(--dim);letter-spacing:.4px}
+  .row .spd{font-size:11px;font-weight:700;font-variant-numeric:tabular-nums}
+  .row.lead{background:linear-gradient(90deg,rgba(255,207,74,.16),rgba(255,207,74,0));}
+  .row.lead .pos{color:var(--gold)}
+  /* bet panel */
+  .betpanel{position:absolute;left:18px;top:108px;z-index:6;width:262px;
+    background:linear-gradient(180deg,rgba(10,18,42,.9),rgba(8,12,28,.9));
+    border:1px solid rgba(176,107,255,.22);border-radius:14px;padding:12px;
+    box-shadow:0 18px 50px rgba(0,0,0,.5);backdrop-filter:blur(6px)}
+  .betpanel h4{font-size:10px;letter-spacing:2.5px;color:var(--dim);text-transform:uppercase;margin-bottom:4px}
+  .betpanel .hint{font-size:10.5px;color:var(--dim);margin-bottom:9px;line-height:1.35}
+  .silkcard{display:flex;align-items:center;gap:9px;padding:7px 9px;margin-bottom:6px;
+    border-radius:10px;cursor:grab;user-select:none;
+    background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.07);
+    transition:transform .15s, box-shadow .15s, border-color .15s}
+  .silkcard:hover{border-color:rgba(94,200,255,.4);transform:translateX(2px)}
+  .silkcard.drag{opacity:.4}
+  .silkcard.over{box-shadow:0 -2px 0 var(--glow)}
+  .silkcard .ord{width:20px;height:20px;border-radius:6px;display:grid;place-items:center;
+    font-size:11px;font-weight:800;background:rgba(94,200,255,.14);color:var(--glow)}
+  .silkcard .dot{width:13px;height:13px;border-radius:50%;box-shadow:0 0 9px currentColor}
+  .silkcard .nm{flex:1;font-size:12px;font-weight:700}
+  .silkcard .form{font-size:9.5px;color:var(--dim);letter-spacing:.5px}
+  .silkcard .grip{color:var(--dim);font-size:13px;letter-spacing:-2px}
+  .lockbtn{width:100%;margin-top:7px;padding:11px;border:none;border-radius:11px;cursor:pointer;
+    font-size:13px;font-weight:800;letter-spacing:1.5px;color:#06121f;
+    background:linear-gradient(90deg,var(--gold),#ffe089);box-shadow:0 8px 22px rgba(255,207,74,.3);
+    transition:transform .12s, filter .12s}
+  .lockbtn:hover{filter:brightness(1.07)}
+  .lockbtn:active{transform:scale(.98)}
+  .lockbtn.locked{background:linear-gradient(90deg,#23406b,#2d5288);color:#bcd6ff;box-shadow:none;cursor:default}
+  /* payout legend in bet panel */
+  .pay{display:flex;justify-content:space-between;font-size:10px;color:var(--dim);margin-top:8px;padding-top:7px;border-top:1px solid rgba(255,255,255,.07)}
+  .pay b{color:var(--good)}
+  /* multiplier ticker bottom */
+  .ticker{position:absolute;bottom:0;left:0;right:0;height:30px;z-index:6;overflow:hidden;
+    background:linear-gradient(180deg,rgba(5,7,15,0),rgba(5,7,15,.92));
+    display:flex;align-items:center}
+  .tk{white-space:nowrap;font-size:11px;color:var(--dim);font-variant-numeric:tabular-nums;
+    will-change:transform;letter-spacing:.5px}
+  .tk b{color:var(--ink)}
+  .tk .up{color:var(--good)} .tk .dn{color:var(--bad)}
+  /* result flash */
+  #flash{position:absolute;inset:0;z-index:9;display:none;place-items:center;pointer-events:none}
+  #flash .card{padding:26px 46px;border-radius:18px;text-align:center;
+    background:rgba(6,12,28,.82);border:1px solid rgba(94,200,255,.3);backdrop-filter:blur(8px);
+    box-shadow:0 30px 90px rgba(0,0,0,.6)}
+  #flash .ttl{font-size:13px;letter-spacing:4px;text-transform:uppercase;color:var(--dim)}
+  #flash .mult{font-size:64px;font-weight:900;line-height:1.05;margin:4px 0;
+    background:linear-gradient(90deg,#fff,var(--gold));-webkit-background-clip:text;background-clip:text;color:transparent}
+  #flash .sub{font-size:13px;color:var(--dim)}
+  /* below-fold explainer */
+  .below{max-width:1040px;margin:0 auto;padding:54px 26px 90px}
+  .below h2{font-size:13px;letter-spacing:4px;text-transform:uppercase;color:var(--glow);margin-bottom:16px}
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+  .blk{background:linear-gradient(180deg,rgba(13,21,46,.6),rgba(8,12,28,.6));
+    border:1px solid rgba(255,255,255,.07);border-radius:14px;padding:20px}
+  .blk h3{font-size:15px;margin-bottom:8px;color:#fff}
+  .blk p{font-size:13px;line-height:1.6;color:var(--dim)}
+  .below .lede{font-size:18px;line-height:1.6;color:#c9d6f5;max-width:760px;margin-bottom:34px}
+  .below .lede b{color:#fff}
+  .foot{margin-top:40px;font-size:11px;color:#43506f;letter-spacing:.5px}
+  @media (max-width:1180px){ .board{width:200px} .betpanel{width:230px} }
+</style>
+</head>
+<body>
+<section id="hero">
+  <canvas id="track"></canvas>
+
+  <div class="topbar">
+    <div class="brand"><b>SILKLINE</b><span>cross-market silk derby</span></div>
+    <div class="balance">balance<b id="bal">10,000.00</b></div>
+  </div>
+
+  <div class="phase" id="phase">GATES OPEN — drag your <b>finishing order</b>, then LOCK</div>
+
+  <!-- bet panel -->
+  <div class="betpanel" id="betpanel">
+    <h4>Your finishing order</h4>
+    <div class="hint">Drag the six silks 1&rarr;6. Closer your order to the wire, bigger the pay.</div>
+    <div id="cards"></div>
+    <button class="lockbtn" id="lock">LOCK ORDER &nbsp;·&nbsp; 100</button>
+    <div class="pay"><span>podium exact <b>×8</b></span><span>full field <b>×30</b></span></div>
+  </div>
+
+  <!-- leaderboard -->
+  <div class="board">
+    <h4>Live order — to the wire</h4>
+    <div id="rows"></div>
+  </div>
+
+  <!-- result flash -->
+  <div id="flash"><div class="card">
+    <div class="ttl" id="fttl">PHOTO FINISH</div>
+    <div class="mult" id="fmult">×0.0</div>
+    <div class="sub" id="fsub"></div>
+  </div></div>
+
+  <!-- market ticker -->
+  <div class="ticker"><div class="tk" id="tk"></div></div>
+</section>
+
+<div class="below">
+  <h2>How SILKLINE runs</h2>
+  <p class="lede">Six live Deriv synthetic indices line up as six silks. You don't bet up or down — you <b>call the finishing order of the whole field</b>, then watch them trade places. Each runner's speed <b>is</b> its index's live momentum, so the lead really changes and the wire is really a photo finish.</p>
+  <div class="grid3">
+    <div class="blk"><h3>1 · Read the form</h3><p>Each silk carries a live synthetic — Vol 75, Boom 500, Crash 1000, Step, Jump 100, Range Break. The form line shows trailing momentum. Drag the cards into the order you think they'll finish.</p></div>
+    <div class="blk"><h3>2 · The gun</h3><p>Every tick, a runner advances by its index's signed momentum. A market ripping upward surges to the rail; one rolling over gets swallowed. Positions are cumulative — late charges and stumbles are real.</p></div>
+    <div class="blk"><h3>3 · Settle by rank-distance</h3><p>At the wire your predicted order is compared to the realized order. More correctly-ordered pairs = bigger multiplier; exact podium and exact full field pay top-heavy bonuses. Wrong-everywhere pays zero.</p></div>
+  </div>
+  <p class="foot">Prototype · simulated synthetic feeds · the player's bet is a predicted permutation of the field, settled by rank-distance to the realized finishing order.</p>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  // ---------- runners bound to synthetic indices ----------
+  const RUN = [
+    {id:0,nm:"VOL 75",   sub:"Volatility 75",  col:"#ff4d7d", drift: 0.10, vol:1.35},
+    {id:1,nm:"BOOM 500", sub:"Boom 500",       col:"#5ec8ff", drift: 0.05, vol:1.05, boom:true},
+    {id:2,nm:"CRASH 1K", sub:"Crash 1000",     col:"#b06bff", drift: 0.06, vol:1.10, crash:true},
+    {id:3,nm:"STEP IDX", sub:"Step Index",     col:"#ffd24a", drift: 0.02, vol:0.70},
+    {id:4,nm:"JUMP 100", sub:"Jump 100",       col:"#3ff0b2", drift: 0.08, vol:1.20, jump:true},
+    {id:5,nm:"RANGE BR", sub:"Range Break",    col:"#ff8a3d", drift: 0.04, vol:0.95},
+  ];
+  const N = RUN.length;
+  const TRACKLEN = 1.0;          // normalized race distance
+  const cv = document.getElementById('track');
+  const ctx = cv.getContext('2d');
+  let W=1280,H=800,DPR=1;
+  function resize(){
+    DPR = Math.min(window.devicePixelRatio||1, 2);
+    W = cv.clientWidth; H = cv.clientHeight;
+    cv.width = W*DPR; cv.height = H*DPR;
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+  }
+  window.addEventListener('resize', resize);
+
+  // ---------- market state per runner (price + momentum) ----------
+  const M = RUN.map(r=>({
+    price: 1000+Math.random()*40,
+    mom: 0,
+    hist: new Array(64).fill(0).map(()=>0),
+  }));
+  // candle strip data (one shared scrolling feed per runner, drawn under rail)
+  function stepMarket(dt){
+    for(let i=0;i<N;i++){
+      const r=RUN[i], m=M[i];
+      // base GBM-ish increment
+      let inc = (Math.random()-0.5)*r.vol + r.drift*0.4;
+      // signature events
+      if(r.boom && Math.random()<0.012) inc += 6+Math.random()*4;   // sudden spike up
+      if(r.crash && Math.random()<0.012) inc -= 6+Math.random()*4;  // sudden spike down
+      if(r.jump && Math.random()<0.05) inc += (Math.random()-0.5)*5;
+      m.price += inc;
+      // momentum = smoothed signed rate of change
+      m.mom = m.mom*0.86 + inc*0.14;
+      m.hist.push(m.mom); if(m.hist.length>96) m.hist.shift();
+    }
+  }
+
+  // ---------- race entities ----------
+  let pos = new Float64Array(N);     // distance along track 0..TRACKLEN
+  let vis = new Float64Array(N);     // smoothed visual speed
+  let order = [];                    // current ranking (indices, leader first)
+  let realized = null;               // finishing permutation (indices in finish order)
+
+  // ---------- player prediction (permutation of indices) ----------
+  let pred = [0,1,2,3,4,5];          // default order; reorder via drag
+
+  // ---------- phases ----------
+  const PHASE = {CARD:0, RACE:1, PHOTO:2, SETTLE:3};
+  let phase = PHASE.CARD;
+  let phaseT = 0;                    // ms in phase
+  const CARD_MS=8000, PHOTO_MS=2400, SETTLE_MS=4600;
+  const DEMO = /[?&]demo/.test(location.search);  // freeze a rich mid-race frame for capture
+  let locked = false;
+  let balance = 10000;
+  let lastResult = null;
+
+  function resetRace(){
+    pos = new Float64Array(N);
+    vis = new Float64Array(N);
+    trail = RUN.map(()=>[]);
+    realized = null;
+    locked = false;
+    lastResult = null;
+    phase = PHASE.CARD; phaseT=0;
+    document.getElementById('flash').style.display='none';
+    setPhaseText();
+    renderCards();
+    lockBtn.classList.remove('locked');
+    lockBtn.innerHTML = 'LOCK ORDER &nbsp;·&nbsp; 100';
+    lockBtn.disabled=false;
+  }
+
+  // ---------- DOM: bet cards (drag to reorder) ----------
+  const cardsEl = document.getElementById('cards');
+  const lockBtn = document.getElementById('lock');
+  function formStr(i){
+    const m=M[i]; const s=m.mom>=0?'▲':'▼';
+    const v=Math.abs(m.mom).toFixed(2);
+    return `form ${s}${v}`;
+  }
+  function renderCards(){
+    cardsEl.innerHTML='';
+    pred.forEach((idx,slot)=>{
+      const r=RUN[idx];
+      const el=document.createElement('div');
+      el.className='silkcard'; el.draggable=!locked; el.dataset.idx=idx;
+      el.innerHTML = `<div class="ord">${slot+1}</div>
+        <div class="dot" style="color:${r.col};background:${r.col}"></div>
+        <div class="nm">${r.nm}</div>
+        <div class="form">${formStr(idx)}</div>
+        <div class="grip">⋮⋮</div>`;
+      cardsEl.appendChild(el);
+    });
+    bindDrag();
+  }
+  let dragIdx=null;
+  function bindDrag(){
+    [...cardsEl.children].forEach(el=>{
+      el.addEventListener('dragstart',e=>{ if(locked){e.preventDefault();return;} dragIdx=+el.dataset.idx; el.classList.add('drag');});
+      el.addEventListener('dragend',()=>{ el.classList.remove('drag'); [...cardsEl.children].forEach(c=>c.classList.remove('over'));});
+      el.addEventListener('dragover',e=>{e.preventDefault(); el.classList.add('over');});
+      el.addEventListener('dragleave',()=>el.classList.remove('over'));
+      el.addEventListener('drop',e=>{
+        e.preventDefault(); if(locked) return;
+        const targetIdx=+el.dataset.idx; if(targetIdx===dragIdx) return;
+        const from=pred.indexOf(dragIdx), to=pred.indexOf(targetIdx);
+        pred.splice(from,1); pred.splice(to,0,dragIdx);
+        renderCards();
+      });
+    });
+  }
+  lockBtn.addEventListener('click',()=>{
+    if(phase!==PHASE.CARD || locked) return;
+    locked=true; balance-=100; updateBal();
+    lockBtn.classList.add('locked'); lockBtn.innerHTML='ORDER LOCKED — to post';
+    lockBtn.disabled=true;
+    renderCards();
+    // jump straight to race
+    phase=PHASE.RACE; phaseT=0; setPhaseText();
+  });
+
+  function updateBal(){ document.getElementById('bal').textContent = balance.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}); }
+
+  function setPhaseText(){
+    const p=document.getElementById('phase');
+    if(phase===PHASE.CARD) p.innerHTML='GATES OPEN — drag your <b>finishing order</b>, then LOCK';
+    else if(phase===PHASE.RACE) p.innerHTML='AND THEY\'RE OFF — <b>momentum is speed</b>';
+    else if(phase===PHASE.PHOTO) p.innerHTML='PHOTO FINISH — <b>reading the wire…</b>';
+    else p.innerHTML='SETTLED — <b>next gate in moments</b>';
+  }
+
+  // ---------- leaderboard ----------
+  const rowsEl=document.getElementById('rows');
+  function renderBoard(){
+    // order by pos desc
+    const ord=[...Array(N).keys()].sort((a,b)=>pos[b]-pos[a]);
+    order=ord;
+    rowsEl.innerHTML='';
+    ord.forEach((idx,rank)=>{
+      const r=RUN[idx];
+      const el=document.createElement('div');
+      el.className='row'+(rank===0?' lead':'');
+      const spd=(vis[idx]*1000).toFixed(0);
+      el.innerHTML=`<div class="pos">${rank+1}</div>
+        <div class="dot" style="color:${r.col};background:${r.col}"></div>
+        <div style="flex:1"><div class="nm" style="color:${rank===0?'#fff':'#cdd9f5'}">${r.nm}</div>
+        <div class="sub">${(pos[idx]*100).toFixed(0)}% · ${r.sub}</div></div>
+        <div class="spd" style="color:${r.col}">${spd}</div>`;
+      rowsEl.appendChild(el);
+    });
+  }
+
+  // ---------- ticker ----------
+  function renderTicker(){
+    const tk=document.getElementById('tk');
+    let s='';
+    for(let k=0;k<2;k++){
+      RUN.forEach((r,i)=>{
+        const m=M[i]; const up=m.mom>=0;
+        s+=`<b style="color:${r.col}">${r.nm}</b> ${m.price.toFixed(1)} <span class="${up?'up':'dn'}">${up?'▲':'▼'}${Math.abs(m.mom).toFixed(2)}</span>&nbsp;&nbsp;·&nbsp;&nbsp;`;
+      });
+    }
+    tk.innerHTML=s;
+  }
+  let tkX=0;
+  function moveTicker(dt){
+    tkX -= dt*0.04; const tk=document.getElementById('tk');
+    if(tk.scrollWidth && -tkX > tk.scrollWidth/2) tkX += tk.scrollWidth/2;
+    tk.style.transform=`translateX(${tkX}px)`;
+  }
+
+  // ---------- particles (silk confetti / dust) ----------
+  let parts=[];
+  function burst(x,y,col,n){
+    for(let i=0;i<n;i++){
+      const a=Math.random()*Math.PI*2, sp=1+Math.random()*5;
+      parts.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-2,life:1,col,sz:2+Math.random()*4});
+    }
+  }
+  function stepParts(){
+    for(const p of parts){ p.x+=p.vx; p.y+=p.vy; p.vy+=0.12; p.vx*=0.99; p.life-=0.018; }
+    parts=parts.filter(p=>p.life>0);
+  }
+  // ambient track sparks (always-on visual mass)
+  let sparks=[];
+  function seedSparks(){
+    sparks=[]; for(let i=0;i<70;i++) sparks.push({t:Math.random(), li:Math.floor(Math.random()*N), v:0.0001+Math.random()*0.0004, off:(Math.random()-0.5)});
+  }
+  // per-runner position trail (history of x positions) for dense streaks
+  let trail = RUN.map(()=>[]);
+
+  // ---------- scoring: rank-distance ----------
+  function concordantPairs(a,b){ // a,b permutations of indices (positions). count pairs in same relative order
+    // build position maps
+    const pa={},pb={};
+    a.forEach((v,i)=>pa[v]=i); b.forEach((v,i)=>pb[v]=i);
+    let c=0,tot=0;
+    for(let i=0;i<N;i++)for(let j=i+1;j<N;j++){
+      tot++;
+      const x=a[i],y=a[j];
+      if((pa[x]-pa[y])*(pb[x]-pb[y])>0) c++;
+    }
+    return {c,tot};
+  }
+  function settle(){
+    // realized = finish order (leader first) = order at photo
+    realized=[...order];
+    const {c,tot}=concordantPairs(pred,realized);   // 0..15
+    const exactFull = pred.every((v,i)=>v===realized[i]);
+    const podiumExact = pred.slice(0,3).every((v,i)=>v===realized[i]);
+    const podiumSet = pred.slice(0,3).slice().sort().join()===realized.slice(0,3).slice().sort().join();
+    const top1 = pred[0]===realized[0];
+    let mult;
+    if(exactFull) mult=30;
+    else if(podiumExact) mult=8;
+    else if(podiumSet) mult=2.5 + (top1?0.8:0);
+    else {
+      mult = Math.max(0, (c/tot)*2.4 - 0.7);   // graded by rank correlation, with a real floor at 0
+      if(top1) mult+=0.6;
+    }
+    mult=Math.round(mult*10)/10;
+    const win = mult*100;
+    balance += win; updateBal();
+    lastResult={mult,c,tot,exactFull,podiumExact,podiumSet,win,top1};
+    return lastResult;
+  }
+
+  function showFlash(res){
+    const f=document.getElementById('flash');
+    f.style.display='grid';
+    document.getElementById('fmult').textContent='×'+res.mult.toFixed(1);
+    let ttl,sub;
+    if(res.exactFull){ttl='WIRE TO WIRE — FULL FIELD';sub=`Perfect order · won ${res.win.toLocaleString()}`;}
+    else if(res.podiumExact){ttl='PODIUM NAILED';sub=`Top three exact · won ${res.win.toLocaleString()}`;}
+    else if(res.podiumSet){ttl='PODIUM — ORDER MISSED';sub=`Right three, wrong order · won ${res.win.toLocaleString()}`;}
+    else if(res.mult>0){ttl='CLOSE AT THE WIRE';sub=`${res.c}/${res.tot} pairs right · won ${res.win.toLocaleString()}`;}
+    else {ttl='BEATEN TO THE LINE';sub=`Field reshuffled · stake lost`;}
+    document.getElementById('fttl').textContent=ttl;
+    document.getElementById('fsub').textContent=sub;
+    document.getElementById('fmult').style.color = res.mult>=8?'':(res.mult>0? '':'');
+    // confetti
+    if(res.mult>0){ for(let k=0;k<4;k++) RUN.forEach((r,i)=> burst(W/2+(Math.random()-.5)*220, H/2, r.col, 14)); }
+  }
+
+  // ---------- main sim tick (setInterval so it survives backgrounding) ----------
+  let last=performance.now();
+  function tick(){
+    const now=performance.now(); let dt=now-last; last=now;
+    if(dt>120) dt=120;
+    phaseT+=dt;
+    stepMarket(dt);
+    moveTicker(dt);
+
+    if(phase===PHASE.CARD){
+      // gentle pre-race jitter at gate
+      for(let i=0;i<N;i++){ vis[i]=vis[i]*0.9+0.0006*9; }
+      if(phaseT>CARD_MS && !locked){
+        // auto-lock default order if player idle (keeps demo alive)
+        locked=true; balance-=100; updateBal();
+        lockBtn.classList.add('locked'); lockBtn.innerHTML='ORDER LOCKED — to post'; lockBtn.disabled=true;
+        renderCards();
+        phase=PHASE.RACE; phaseT=0; setPhaseText();
+      }
+    }
+    else if(phase===PHASE.RACE && !DEMO){
+      let leaderDone=false;
+      for(let i=0;i<N;i++){
+        const m=M[i];
+        // speed = base + k*momentum (clamped non-negative-ish so they always move forward)
+        let v = 0.000165 + 0.00009*Math.max(-2.5, m.mom);
+        if(v<0.00003) v=0.00003;
+        vis[i]=vis[i]*0.8+v*0.2;
+        pos[i]+=vis[i]*dt;
+        if(pos[i]>=TRACKLEN){ pos[i]=TRACKLEN; leaderDone=true; }
+        // record trail
+        const tr=trail[i]; tr.push(pos[i]); if(tr.length>34) tr.shift();
+      }
+      renderBoard();
+      if(leaderDone){
+        phase=PHASE.PHOTO; phaseT=0; setPhaseText();
+      }
+    }
+    else if(phase===PHASE.PHOTO){
+      // freeze; small final creep for trailing runners visual
+      if(phaseT>PHOTO_MS){
+        const res=settle();
+        showFlash(res);
+        phase=PHASE.SETTLE; phaseT=0; setPhaseText();
+      }
+    }
+    else if(phase===PHASE.SETTLE){
+      if(phaseT>SETTLE_MS){ resetRace(); }
+    }
+
+    stepParts();
+    // periodic DOM refresh (cards form, board, ticker) — throttled
+    domThrottle+=dt;
+    if(domThrottle>320){
+      domThrottle=0;
+      if(phase===PHASE.CARD && !locked) renderCards();
+      if(phase!==PHASE.RACE) renderBoard();
+      renderTicker();
+    }
+    draw();
+  }
+  let domThrottle=0;
+
+  // ---------- DRAW: velodrome perspective track ----------
+  function draw(){
+    const t=performance.now();
+    ctx.clearRect(0,0,W,H);
+
+    // track is the clear central column between the side panels
+    const railL = 298;                 // gate x (just right of bet panel)
+    const railR = W - 270;             // wire x (just left of leaderboard)
+    const span  = railR - railL;
+    const trackTop = 150, trackBot = H-74;
+    const bandH = trackBot-trackTop;
+    const laneH = bandH/N;
+
+    // --- deep stadium backdrop with vignette + light bloom ---
+    const bg=ctx.createRadialGradient(W/2,trackTop-20,40, W/2,trackTop+bandH*0.4, W*0.8);
+    bg.addColorStop(0,'rgba(34,60,124,0.45)'); bg.addColorStop(0.5,'rgba(14,26,58,0.35)'); bg.addColorStop(1,'rgba(5,8,20,0)');
+    ctx.fillStyle=bg; ctx.fillRect(0,0,W,H);
+
+    // --- crowd / stadium light haze across the whole top (depth) ---
+    if(!draw._crowd){ draw._crowd=[]; for(let i=0;i<360;i++) draw._crowd.push({x:Math.random()*W,y:60+Math.random()*82,c:['#2c4f8f','#34306e','#46357e','#23477a','#3a5fa0'][i%5],ph:Math.random()*6,s:1+Math.random()*1.6}); }
+    for(const c of draw._crowd){
+      const tw=0.35+0.65*Math.abs(Math.sin(t/600+c.ph));
+      ctx.globalAlpha=tw*0.5; ctx.fillStyle=c.c; ctx.fillRect(c.x,c.y,c.s,c.s);
+    }
+    ctx.globalAlpha=1;
+    // sweeping spotlights
+    for(let s=0;s<3;s++){
+      const cx = W*0.5 + Math.sin(t/2600 + s*2.1)*W*0.34;
+      const lg=ctx.createLinearGradient(cx,40,cx + (s-1)*120, trackTop+40);
+      lg.addColorStop(0,'rgba(120,170,255,0.10)'); lg.addColorStop(1,'rgba(120,170,255,0)');
+      ctx.fillStyle=lg; ctx.beginPath(); ctx.moveTo(cx,44); ctx.lineTo(cx-90,trackTop+30); ctx.lineTo(cx+90,trackTop+30); ctx.closePath(); ctx.fill();
+    }
+
+    // --- the track floor (glossy band) — distinctly lighter than backdrop ---
+    const floor=ctx.createLinearGradient(0,trackTop,0,trackBot);
+    floor.addColorStop(0,'rgba(40,62,116,0.98)'); floor.addColorStop(0.5,'rgba(24,40,84,0.98)'); floor.addColorStop(1,'rgba(16,28,62,0.99)');
+    ctx.fillStyle=floor; ctx.fillRect(railL-6,trackTop, span+12, bandH);
+    // top sheen on the floor
+    const sheen=ctx.createLinearGradient(0,trackTop,0,trackTop+30);
+    sheen.addColorStop(0,'rgba(120,170,255,0.18)'); sheen.addColorStop(1,'rgba(120,170,255,0)');
+    ctx.fillStyle=sheen; ctx.fillRect(railL-6,trackTop, span+12, 30);
+    // outer rail glow
+    ctx.strokeStyle='rgba(120,210,255,0.8)'; ctx.lineWidth=2;
+    ctx.strokeRect(railL-6,trackTop, span+12, bandH);
+    ctx.shadowColor='rgba(94,200,255,0.7)'; ctx.shadowBlur=20;
+    ctx.strokeRect(railL-6,trackTop, span+12, bandH); ctx.shadowBlur=0;
+
+    // --- distance ticks ---
+    for(let k=1;k<10;k++){
+      const fx=railL+span*(k/10);
+      ctx.strokeStyle='rgba(120,160,230,0.10)'; ctx.lineWidth=1;
+      ctx.beginPath(); ctx.moveTo(fx,trackTop+2); ctx.lineTo(fx,trackBot-2); ctx.stroke();
+    }
+
+    // --- per-lane bands + lights ---
+    for(let li=0;li<N;li++){
+      const r=RUN[li]; const ly=trackTop+laneH*li;
+      // alternating tint
+      ctx.fillStyle = li%2 ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.14)';
+      ctx.fillRect(railL-6,ly,span+12,laneH);
+      // faint colored wash down each lane
+      ctx.globalAlpha=0.05; ctx.fillStyle=r.col; ctx.fillRect(railL-6,ly,span+12,laneH); ctx.globalAlpha=1;
+      // colored lane edge strip at gate
+      ctx.fillStyle=r.col; ctx.globalAlpha=0.85;
+      ctx.fillRect(railL-6, ly+laneH-3, span+12, 2); ctx.globalAlpha=1;
+      // lane gate label chip
+      ctx.fillStyle='rgba(8,14,32,0.9)'; ctx.fillRect(railL-6, ly+3, 70, laneH-8);
+      ctx.fillStyle=r.col; ctx.fillRect(railL-6, ly+3, 3, laneH-8);
+      ctx.fillStyle='#cdd9f5'; ctx.font='700 9px Inter,sans-serif'; ctx.textAlign='left';
+      ctx.fillText(r.nm, railL+2, ly+laneH/2+3);
+    }
+
+    // --- checkered finish wire (thick) ---
+    const cell=Math.max(8,laneH/3);
+    for(let r=0;r<Math.ceil(bandH/cell);r++){
+      for(let cc=0;cc<2;cc++){
+        ctx.fillStyle=((r+cc)%2)?'rgba(255,255,255,.82)':'rgba(255,255,255,.14)';
+        ctx.fillRect(railR-2+cc*8, trackTop+r*cell, 8, cell);
+      }
+    }
+    ctx.fillStyle='rgba(255,255,255,.7)'; ctx.font='700 10px Inter,sans-serif'; ctx.textAlign='center';
+    ctx.fillText('WIRE', railR+6, trackTop-7);
+
+    // --- ambient sparks streaking the lanes (always-on motion mass) ---
+    for(const sp of sparks){
+      sp.t+=sp.v*16; if(sp.t>1){ sp.t=0; sp.li=Math.floor(Math.random()*N); }
+      const ly=trackTop+laneH*(sp.li+0.5)+sp.off*laneH*0.3;
+      const x=railL+span*sp.t;
+      ctx.globalAlpha=0.35; ctx.fillStyle=RUN[sp.li].col;
+      ctx.fillRect(x,ly, 10, 1.4);
+    }
+    ctx.globalAlpha=1;
+
+    // --- runners: dense fading trail + silk + head ---
+    const orderSet = order.length?order:[...Array(N).keys()];
+    for(let i=0;i<N;i++){
+      const r=RUN[i]; const yc=trackTop+laneH*(i+0.5);
+      const px = railL + span*pos[i];
+      const tr=trail[i];
+      // dense multi-segment trail
+      const segs = tr.length>1 ? tr : [Math.max(0,pos[i]-0.02),pos[i]];
+      ctx.lineCap='round';
+      for(let s=1;s<segs.length;s++){
+        const x0=railL+span*segs[s-1], x1=railL+span*segs[s];
+        const a=(s/segs.length);
+        ctx.strokeStyle=r.col; ctx.globalAlpha=a*0.55;
+        ctx.lineWidth=Math.min(laneH*0.42, 9)*a;
+        ctx.beginPath(); ctx.moveTo(x0,yc); ctx.lineTo(x1,yc); ctx.stroke();
+      }
+      // bright comet near head
+      const tl=18+vis[i]*42000;
+      const grad=ctx.createLinearGradient(px-tl,yc,px,yc);
+      grad.addColorStop(0,'rgba(0,0,0,0)'); grad.addColorStop(1,r.col);
+      ctx.strokeStyle=grad; ctx.globalAlpha=0.95; ctx.lineWidth=Math.min(laneH*0.4,8);
+      ctx.beginPath(); ctx.moveTo(Math.max(railL,px-tl),yc); ctx.lineTo(px,yc); ctx.stroke();
+      ctx.globalAlpha=1;
+
+      const isLead = orderSet[0]===i && (phase===PHASE.RACE||phase===PHASE.PHOTO);
+      // speed lines for leader
+      if(isLead){
+        ctx.strokeStyle='rgba(255,255,255,0.5)';
+        for(let l=0;l<3;l++){ ctx.globalAlpha=0.25; ctx.lineWidth=1;
+          ctx.beginPath(); ctx.moveTo(px-16-l*9, yc-3+l*3); ctx.lineTo(px-30-l*9, yc-3+l*3); ctx.stroke(); }
+        ctx.globalAlpha=1;
+      }
+      // silk sail behind head
+      ctx.save(); ctx.translate(px,yc);
+      ctx.fillStyle=r.col; ctx.globalAlpha=0.9;
+      const wob=Math.sin(t/120+i)*2;
+      ctx.beginPath(); ctx.moveTo(-3,-7); ctx.lineTo(-16,-9+wob); ctx.lineTo(-13,0); ctx.lineTo(-16,9-wob); ctx.lineTo(-3,7); ctx.closePath(); ctx.fill();
+      ctx.globalAlpha=1; ctx.restore();
+      // head orb
+      ctx.shadowColor=r.col; ctx.shadowBlur=isLead?28:15; ctx.fillStyle=r.col;
+      ctx.beginPath(); ctx.arc(px,yc, isLead?9:7, 0,Math.PI*2); ctx.fill(); ctx.shadowBlur=0;
+      ctx.fillStyle='#06121f'; ctx.font='800 10px Inter,sans-serif'; ctx.textAlign='center';
+      ctx.fillText(String(i+1), px, yc+3.5); ctx.textAlign='left';
+    }
+
+    // --- candle strip beneath track (live market depth) ---
+    const csTop=trackBot+8, csH=42;
+    ctx.fillStyle='rgba(5,9,22,.72)'; ctx.fillRect(0,csTop,W,csH);
+    ctx.strokeStyle='rgba(94,200,255,.12)'; ctx.beginPath(); ctx.moveTo(0,csTop); ctx.lineTo(W,csTop); ctx.stroke();
+    const nc=96, colW=W/nc;
+    for(let i=0;i<N;i++){
+      const m=M[i]; const lane=csH/N; const ly=csTop+lane*i;
+      for(let c=0;c<m.hist.length;c++){
+        const val=m.hist[c]; const x=c*colW;
+        const h=Math.min(lane/2-0.5, Math.abs(val)*3.2);
+        ctx.fillStyle=val>=0?RUN[i].col:'rgba(255,93,108,0.85)';
+        ctx.globalAlpha=0.7;
+        ctx.fillRect(x, ly+lane/2 - (val>0?h:0), Math.max(1,colW-0.4), Math.max(0.8,h));
+      }
+    }
+    ctx.globalAlpha=1;
+    ctx.fillStyle='rgba(124,139,176,0.7)'; ctx.font='700 9px Inter,sans-serif';
+    ctx.fillText('LIVE SYNTHETIC FEEDS — momentum drives speed', 10, csTop+csH+2);
+
+    // --- photo-finish scan ---
+    if(phase===PHASE.PHOTO){
+      const sx = railR - Math.min(1,phaseT/PHOTO_MS)*span;
+      ctx.fillStyle='rgba(94,200,255,'+(0.55+0.3*Math.sin(phaseT/70))+')';
+      ctx.fillRect(sx-1,trackTop-6, 2, bandH+12);
+      ctx.fillStyle='rgba(94,200,255,.08)'; ctx.fillRect(sx, trackTop-6, railR-sx, bandH+12);
+    }
+
+    // --- win/loss particles ---
+    for(const p of parts){ ctx.globalAlpha=Math.max(0,p.life); ctx.fillStyle=p.col; ctx.fillRect(p.x,p.y,p.sz,p.sz); }
+    ctx.globalAlpha=1;
+  }
+
+  // ---------- boot ----------
+  resize();
+  seedSparks();
+  // seed momentum so form lines aren't zero
+  for(let s=0;s<40;s++) stepMarket(16);
+  // DEMO: jump straight into a rich mid-race frame for capture
+  if(DEMO){
+    locked=true; phase=PHASE.RACE; phaseT=0;
+    const spread=[0.74,0.66,0.58,0.49,0.40,0.31];
+    for(let i=0;i<N;i++){ pos[i]=spread[i]+(Math.random()-0.5)*0.04; vis[i]=0.0002+Math.random()*0.0003;
+      trail[i]=[]; for(let k=0;k<30;k++) trail[i].push(Math.max(0,pos[i]-(30-k)*0.006)); }
+    lockBtn.classList.add('locked'); lockBtn.innerHTML='ORDER LOCKED — to post'; lockBtn.disabled=true;
+  }
+  renderCards(); renderBoard(); renderTicker(); setPhaseText();
+  draw();                 // paint one synchronous frame immediately (so load-time capture has content)
+  // setInterval drives sim (survives tab-backgrounding); ~50fps
+  setInterval(tick, 20);
+})();
+</script>
+</body>
+</html>
