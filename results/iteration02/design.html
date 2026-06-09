@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>REACTOR — Contain the Storm</title>
+<style>
+  :root{
+    --bg:#05070d;
+    --panel:#0a0f1c;
+    --panel2:#0d1426;
+    --line:#1b2742;
+    --cyan:#36e6ff;
+    --cyan-soft:#7af0ff;
+    --teal:#2af5c8;
+    --magenta:#ff3d8b;
+    --red:#ff4242;
+    --amber:#ffc24b;
+    --txt:#dfe9ff;
+    --muted:#6f80a6;
+    --font:'Segoe UI',Roboto,system-ui,-apple-system,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:radial-gradient(1200px 800px at 50% -10%,#0d1730 0%,var(--bg) 60%);
+    color:var(--txt);
+    font-family:var(--font);
+    overflow-x:hidden;
+    -webkit-font-smoothing:antialiased;
+  }
+  .mono{font-variant-numeric:tabular-nums;font-feature-settings:"tnum"}
+
+  /* ============ HERO (above the fold) ============ */
+  .hero{
+    position:relative;
+    width:100%;
+    height:800px;            /* tuned for 1280x800 iframe */
+    min-height:100vh;
+    display:grid;
+    grid-template-columns:230px 1fr 230px;
+    gap:0;
+    overflow:hidden;
+  }
+
+  /* top status bar */
+  .topbar{
+    position:absolute;top:0;left:0;right:0;height:54px;z-index:30;
+    display:flex;align-items:center;justify-content:space-between;
+    padding:0 22px;
+    background:linear-gradient(180deg,rgba(8,12,22,.92),rgba(8,12,22,0));
+    pointer-events:none;
+  }
+  .brand{display:flex;align-items:center;gap:12px}
+  .brand .logo{
+    width:30px;height:30px;border-radius:8px;position:relative;
+    background:conic-gradient(from 0deg,var(--cyan),var(--teal),var(--magenta),var(--cyan));
+    box-shadow:0 0 22px rgba(54,230,255,.6);
+    animation:spin 6s linear infinite;
+  }
+  .brand .logo::after{content:"";position:absolute;inset:5px;border-radius:5px;background:var(--bg)}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .brand h1{font-size:19px;letter-spacing:5px;font-weight:700}
+  .brand h1 b{color:var(--cyan)}
+  .brand .tag{font-size:10.5px;letter-spacing:3px;color:var(--muted);margin-top:1px}
+  .ticker{display:flex;gap:26px;align-items:center}
+  .tk{display:flex;flex-direction:column;align-items:flex-end}
+  .tk .k{font-size:9.5px;letter-spacing:2px;color:var(--muted)}
+  .tk .v{font-size:15px;font-weight:700}
+  .tk .v.up{color:var(--teal)} .tk .v.dn{color:var(--magenta)}
+
+  /* left rail : controls */
+  .rail{
+    position:relative;z-index:20;
+    background:linear-gradient(180deg,rgba(12,18,34,.55),rgba(8,12,22,.2));
+    border-right:1px solid var(--line);
+    padding:64px 16px 16px;
+    display:flex;flex-direction:column;gap:14px;
+    backdrop-filter:blur(3px);
+  }
+  .rail.right{border-right:none;border-left:1px solid var(--line);padding-top:64px}
+  .card{
+    background:rgba(13,20,38,.6);
+    border:1px solid var(--line);
+    border-radius:12px;padding:13px 13px 14px;
+  }
+  .card h3{font-size:10px;letter-spacing:2.5px;color:var(--muted);font-weight:700;margin-bottom:10px;display:flex;justify-content:space-between}
+  .bigval{font-size:30px;font-weight:800;line-height:1;letter-spacing:-.5px}
+  .bigval .u{font-size:13px;color:var(--muted);font-weight:600;margin-left:3px}
+
+  /* field strength dial */
+  .dial-row{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:8px}
+  .mult{font-size:26px;font-weight:800;color:var(--cyan);text-shadow:0 0 18px rgba(54,230,255,.5)}
+  .field-w{font-size:12px;color:var(--muted)}
+  input[type=range]{
+    -webkit-appearance:none;width:100%;height:6px;border-radius:6px;
+    background:linear-gradient(90deg,var(--teal),var(--cyan) 40%,var(--magenta));
+    outline:none;cursor:pointer;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;width:18px;height:18px;border-radius:50%;
+    background:#fff;border:3px solid var(--cyan);cursor:grab;
+    box-shadow:0 0 14px rgba(54,230,255,.9);
+  }
+  .scale{display:flex;justify-content:space-between;font-size:9px;color:var(--muted);margin-top:6px;letter-spacing:1px}
+
+  /* stake */
+  .stake-row{display:flex;gap:7px;margin-top:9px}
+  .chip{
+    flex:1;text-align:center;padding:7px 0;border-radius:8px;cursor:pointer;
+    background:rgba(54,230,255,.07);border:1px solid var(--line);
+    font-size:12px;font-weight:700;color:var(--cyan-soft);transition:.15s;
+  }
+  .chip:hover{background:rgba(54,230,255,.16)}
+  .chip.on{background:var(--cyan);color:#04121a;border-color:var(--cyan);box-shadow:0 0 16px rgba(54,230,255,.5)}
+
+  /* meters */
+  .meter{position:relative;height:14px;border-radius:8px;background:#0a0f1e;border:1px solid var(--line);overflow:hidden}
+  .meter .fill{position:absolute;left:0;top:0;bottom:0;border-radius:8px;transition:width .08s linear}
+  .fill.energy{background:linear-gradient(90deg,#1bd4c8,var(--cyan));box-shadow:0 0 18px rgba(54,230,255,.7) inset}
+  .fill.breach{background:linear-gradient(90deg,#ff9b3d,var(--red));box-shadow:0 0 18px rgba(255,66,66,.7) inset}
+  .meter-top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:7px}
+  .meter-top .lbl{font-size:10px;letter-spacing:2px;color:var(--muted)}
+  .meter-top .pct{font-size:16px;font-weight:800}
+
+  /* buttons */
+  .btn{
+    width:100%;border:none;border-radius:12px;padding:15px 0;font-family:var(--font);
+    font-size:15px;font-weight:800;letter-spacing:2px;cursor:pointer;transition:.15s;
+  }
+  .btn-ignite{background:linear-gradient(180deg,var(--teal),#10c7a0);color:#04201a;box-shadow:0 8px 28px rgba(42,245,200,.35)}
+  .btn-ignite:hover{transform:translateY(-2px);box-shadow:0 12px 34px rgba(42,245,200,.5)}
+  .btn-eject{background:linear-gradient(180deg,#ffd76b,var(--amber));color:#241500;box-shadow:0 8px 28px rgba(255,194,75,.4);animation:ejectpulse 1.1s ease-in-out infinite}
+  @keyframes ejectpulse{0%,100%{box-shadow:0 8px 28px rgba(255,194,75,.35)}50%{box-shadow:0 8px 40px rgba(255,194,75,.7)}}
+  .btn:disabled{opacity:.35;cursor:not-allowed;animation:none;transform:none;box-shadow:none}
+
+  /* center stage */
+  .stage{position:relative;display:flex;align-items:center;justify-content:center}
+  #reactor{display:block}
+  .stage-overlay{position:absolute;inset:0;pointer-events:none;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding-top:60px}
+  .vol-badge{
+    display:flex;align-items:center;gap:9px;padding:7px 16px;border-radius:40px;
+    background:rgba(10,15,30,.6);border:1px solid var(--line);backdrop-filter:blur(4px);
+  }
+  .vol-badge .dot{width:9px;height:9px;border-radius:50%;background:var(--teal);box-shadow:0 0 12px var(--teal)}
+  .vol-badge .txt{font-size:11px;letter-spacing:2px;color:var(--muted)}
+  .vol-badge .lvl{font-size:13px;font-weight:800}
+
+  .center-readout{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;padding:26px 40px;border-radius:50%}
+  .center-readout::before{content:"";position:absolute;inset:-30px;border-radius:50%;background:radial-gradient(closest-side,rgba(3,6,14,.78),rgba(3,6,14,.34) 55%,rgba(3,6,14,0));z-index:-1}
+  .center-readout .e{font-size:56px;font-weight:900;letter-spacing:-2px;line-height:.95;text-shadow:0 2px 10px rgba(0,0,0,.9),0 0 40px rgba(54,230,255,.5)}
+  .center-readout .e .x{font-size:24px;color:var(--cyan)}
+  .center-readout .sub{font-size:11px;letter-spacing:4px;color:var(--muted);margin-top:6px}
+
+  /* status flash */
+  .flash{
+    position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) scale(.7);
+    font-size:60px;font-weight:900;letter-spacing:3px;opacity:0;pointer-events:none;z-index:25;
+    text-align:center;white-space:nowrap;
+  }
+  .flash.show{animation:flashpop 1.4s ease-out forwards}
+  @keyframes flashpop{
+    0%{opacity:0;transform:translate(-50%,-50%) scale(.6)}
+    18%{opacity:1;transform:translate(-50%,-50%) scale(1.08)}
+    78%{opacity:1}
+    100%{opacity:0;transform:translate(-50%,-50%) scale(1.25)}
+  }
+  .flash .small{font-size:18px;letter-spacing:5px;color:var(--muted);font-weight:700;margin-top:8px}
+
+  /* bottom mini chart strip inside hero */
+  .stripwrap{position:absolute;left:230px;right:230px;bottom:0;height:84px;z-index:15;
+    border-top:1px solid var(--line);background:linear-gradient(180deg,rgba(8,12,22,0),rgba(6,9,17,.85))}
+  #strip{display:block;width:100%;height:84px}
+  .strip-lbl{position:absolute;left:14px;top:8px;font-size:9px;letter-spacing:2px;color:var(--muted)}
+
+  .hint{font-size:9.5px;color:var(--muted);line-height:1.5;letter-spacing:.3px}
+  .kpi-row{display:flex;gap:9px}
+  .kpi{flex:1;background:rgba(13,20,38,.6);border:1px solid var(--line);border-radius:10px;padding:9px 10px}
+  .kpi .k{font-size:9px;letter-spacing:1.5px;color:var(--muted)}
+  .kpi .v{font-size:17px;font-weight:800;margin-top:2px}
+
+  /* shake */
+  .shake{animation:shake .5s cubic-bezier(.36,.07,.19,.97) both}
+  @keyframes shake{
+    10%,90%{transform:translate3d(-2px,0,0)}20%,80%{transform:translate3d(4px,0,0)}
+    30%,50%,70%{transform:translate3d(-8px,0,0)}40%,60%{transform:translate3d(8px,0,0)}
+  }
+
+  /* ============ BELOW THE FOLD ============ */
+  .below{max-width:1180px;margin:0 auto;padding:46px 24px 80px}
+  .below h2{font-size:13px;letter-spacing:4px;color:var(--cyan);margin-bottom:6px}
+  .below .lead{font-size:22px;font-weight:300;color:#aebbd9;margin-bottom:30px;line-height:1.35}
+  .steps{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:42px}
+  .step{background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:20px}
+  .step .n{font-size:12px;font-weight:800;color:var(--bg);background:var(--cyan);width:26px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center;margin-bottom:12px}
+  .step h4{font-size:14px;margin-bottom:7px}
+  .step p{font-size:12.5px;color:var(--muted);line-height:1.55}
+  .legend{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .leg{display:flex;gap:13px;align-items:flex-start;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:15px}
+  .leg .sw{width:38px;height:38px;border-radius:9px;flex-shrink:0}
+  .leg h4{font-size:13px;margin-bottom:4px}
+  .leg p{font-size:12px;color:var(--muted);line-height:1.5}
+  .foot{text-align:center;color:var(--muted);font-size:11px;margin-top:46px;letter-spacing:1px}
+  .scrollcue{position:absolute;left:50%;bottom:96px;transform:translateX(-50%);font-size:10px;letter-spacing:3px;color:var(--muted);z-index:16;animation:bob 2s ease-in-out infinite;pointer-events:none}
+  @keyframes bob{0%,100%{transform:translateX(-50%) translateY(0)}50%{transform:translateX(-50%) translateY(5px)}}
+</style>
+</head>
+<body>
+
+<!-- ===================== HERO ===================== -->
+<section class="hero" id="hero">
+
+  <div class="topbar">
+    <div class="brand">
+      <div class="logo"></div>
+      <div>
+        <h1>RE<b>A</b>CTOR</h1>
+        <div class="tag">CONTAIN&nbsp;THE&nbsp;STORM</div>
+      </div>
+    </div>
+    <div class="ticker">
+      <div class="tk"><span class="k">SYNTHETIC&nbsp;INDEX</span><span class="v">VOL&nbsp;75</span></div>
+      <div class="tk"><span class="k">PRICE</span><span class="v up mono" id="tkPrice">10000.00</span></div>
+      <div class="tk"><span class="k">REALIZED&nbsp;VOL</span><span class="v mono" id="tkVol">0.00</span></div>
+      <div class="tk"><span class="k">BALANCE</span><span class="v mono" id="tkBal">1000.00</span></div>
+    </div>
+  </div>
+
+  <!-- LEFT RAIL: arm the field -->
+  <aside class="rail">
+    <div class="card">
+      <h3>FIELD STRENGTH <span id="regimeArm" style="color:var(--muted)"></span></h3>
+      <div class="dial-row">
+        <span class="mult mono" id="multLbl">×3.0</span>
+        <span class="field-w mono" id="fieldLbl">± 14 ticks</span>
+      </div>
+      <input type="range" id="field" min="4" max="40" value="18" />
+      <div class="scale"><span>TIGHT · HIGH YIELD</span><span>WIDE · SAFE</span></div>
+    </div>
+
+    <div class="card">
+      <h3>STAKE</h3>
+      <div class="bigval mono">$<span id="stakeVal">10</span></div>
+      <div class="stake-row">
+        <div class="chip" data-s="5">5</div>
+        <div class="chip on" data-s="10">10</div>
+        <div class="chip" data-s="25">25</div>
+        <div class="chip" data-s="50">50</div>
+      </div>
+    </div>
+
+    <div class="card" style="flex:1;display:flex;flex-direction:column;justify-content:flex-end">
+      <div class="hint">A <b style="color:var(--cyan)">tighter field</b> multiplies harvested energy but the plasma breaches sooner. Match the field to the storm.</div>
+    </div>
+  </aside>
+
+  <!-- CENTER: the reactor -->
+  <main class="stage" id="stage">
+    <canvas id="reactor" width="720" height="700"></canvas>
+    <div class="stage-overlay">
+      <div class="vol-badge">
+        <span class="dot" id="volDot"></span>
+        <span class="txt">MARKET&nbsp;TURBULENCE</span>
+        <span class="lvl" id="volLvl">CALM</span>
+      </div>
+    </div>
+    <div class="center-readout">
+      <div class="e mono"><span id="eVal">0.00</span><span class="x">×</span></div>
+      <div class="sub" id="eSub">ENERGY HARVESTED</div>
+    </div>
+    <div class="flash" id="flash"></div>
+  </main>
+
+  <!-- RIGHT RAIL: live meters + action -->
+  <aside class="rail right">
+    <div class="card">
+      <div class="meter-top"><span class="lbl">ENERGY</span><span class="pct mono" style="color:var(--cyan)" id="energyPct">0%</span></div>
+      <div class="meter"><div class="fill energy" id="energyFill" style="width:0%"></div></div>
+    </div>
+    <div class="card">
+      <div class="meter-top"><span class="lbl">BREACH PRESSURE</span><span class="pct mono" style="color:var(--red)" id="breachPct">0%</span></div>
+      <div class="meter"><div class="fill breach" id="breachFill" style="width:0%"></div></div>
+      <div class="hint" style="margin-top:9px" id="breachHint">Ring stable.</div>
+    </div>
+
+    <div class="kpi-row">
+      <div class="kpi"><div class="k">PAYOUT&nbsp;NOW</div><div class="v mono" style="color:var(--teal)">$<span id="payoutNow">0.00</span></div></div>
+      <div class="kpi"><div class="k">P&amp;L</div><div class="v mono" id="pnl">$0.00</div></div>
+    </div>
+
+    <div style="flex:1"></div>
+    <button class="btn btn-ignite" id="igniteBtn">IGNITE</button>
+    <button class="btn btn-eject" id="ejectBtn" disabled>EJECT &amp; BANK</button>
+  </aside>
+
+  <!-- live volatility strip -->
+  <div class="stripwrap">
+    <span class="strip-lbl">LIVE PRICE · VOL 75 SYNTHETIC</span>
+    <canvas id="strip" width="820" height="84"></canvas>
+  </div>
+
+  <div class="scrollcue">HOW IT WORKS ↓</div>
+</section>
+
+<!-- ===================== BELOW THE FOLD ===================== -->
+<section class="below">
+  <h2>THE GAME</h2>
+  <div class="lead">You don't bet which way the market goes. You harvest <b style="color:var(--cyan)">how hard it shakes</b> — and cage it before it blows.</div>
+
+  <div class="steps">
+    <div class="step"><div class="n">1</div><h4>Arm the field</h4><p>Set the magnetic containment field width. Tight fields multiply your energy yield but rupture under pressure. Place your stake.</p></div>
+    <div class="step"><div class="n">2</div><h4>Ignite</h4><p>The live price becomes a plasma filament inside the ring. Every tick of movement — up or down, doesn't matter — pumps the reactor.</p></div>
+    <div class="step"><div class="n">3</div><h4>Harvest the chop</h4><p>Realized volatility fills your Energy meter. A wild market is a torrent. But the same turbulence raises Breach Pressure toward 100%.</p></div>
+    <div class="step"><div class="n">4</div><h4>Eject &amp; bank</h4><p>Cash out anytime: <b>stake × energy × field multiplier</b>. Wait for more power, but a breach at 100% detonates the round and your stake.</p></div>
+  </div>
+
+  <h2>READING THE REACTOR</h2>
+  <div class="legend" style="margin-top:10px">
+    <div class="leg"><div class="sw" style="background:linear-gradient(135deg,#1bd4c8,var(--cyan));box-shadow:0 0 20px rgba(54,230,255,.6)"></div><div><h4>Plasma intensity = realized volatility</h4><p>The filament swells and roars in proportion to how violently the market is moving right now. Calm = thin trickle. Storm = thick, lashing arc.</p></div></div>
+    <div class="leg"><div class="sw" style="background:linear-gradient(135deg,#ff9b3d,var(--red));box-shadow:0 0 20px rgba(255,66,66,.6)"></div><div><h4>Breach pressure = danger</h4><p>Sustained excursions past your field band and sharp volatility spikes load the ring. The outer glow reddens and pulses faster as you near rupture.</p></div></div>
+    <div class="leg"><div class="sw" style="background:conic-gradient(from 0deg,var(--cyan),var(--teal),var(--magenta),var(--cyan))"></div><div><h4>The containment ring</h4><p>Two faint guide arcs mark your field band. When plasma presses them they spark — a live read on how close you are to losing containment.</p></div></div>
+    <div class="leg"><div class="sw" style="background:linear-gradient(135deg,#ffd76b,var(--amber));box-shadow:0 0 20px rgba(255,194,75,.6)"></div><div><h4>The eject decision</h4><p>One dial, one exit. Bank early for safe, modest energy — or ride a screaming market for a huge multiplier and dare the ring to hold.</p></div></div>
+  </div>
+
+  <div class="foot">REACTOR · a volatility-harvesting concept for Deriv synthetic indices · prototype with simulated market data</div>
+</section>
+
+<script>
+/* ============================================================
+   REACTOR — volatility containment game (prototype)
+   ============================================================ */
+const cv = document.getElementById('reactor');
+const ctx = cv.getContext('2d');
+const W = cv.width, H = cv.height, CX = W/2, CY = H/2 - 6;
+const R = 250;                 // containment ring radius
+
+const strip = document.getElementById('strip');
+const sctx = strip.getContext('2d');
+
+// ---- market simulation (volatility regimes) ----
+let price = 10000;
+const ticks = [];              // recent |dprice| for realized vol
+let stripPrices = [];
+let regime = 0;                // 0 calm .. 1 storm, drifts
+let regimeTarget = 0.25;
+let baseVol = 1.0;
+let lastDelta = 0;
+let spikeCooldown = 0;
+
+function stepMarket(){
+  // regime slowly wanders, occasionally jumps to a storm
+  if(Math.random()<0.012){ regimeTarget = Math.random()<0.4 ? 0.15+Math.random()*0.2 : 0.55+Math.random()*0.45; }
+  regime += (regimeTarget - regime)*0.03;
+  const sigma = baseVol*(0.6 + regime*7.5);          // volatility of the synthetic
+  let d = (Math.random()*2-1)*sigma;
+  // occasional shock tick (a "spike")
+  spikeCooldown--;
+  if(regime>0.4 && Math.random()<0.02 && spikeCooldown<0){ d *= (3+Math.random()*3); spikeCooldown=40; }
+  price += d;
+  lastDelta = d;
+  ticks.push(Math.abs(d));
+  if(ticks.length>40) ticks.shift();
+  stripPrices.push(price);
+  if(stripPrices.length>200) stripPrices.shift();
+}
+function realizedVol(){
+  if(!ticks.length) return 0;
+  let s=0; for(const t of ticks) s+=t*t;
+  return Math.sqrt(s/ticks.length);
+}
+
+// ---- game state ----
+const G = {
+  state:'idle',        // idle | running | ejected | breached
+  stake:10,
+  fieldTicks:18,       // half-width band
+  energy:0,            // harvested (0..~)
+  breach:0,            // 0..1
+  bankPulse:0,
+  balance:1000,
+  pnl:0,
+  detonation:0,        // detonation animation timer
+  ejectFx:0,
+};
+
+// field tightness -> multiplier (tight = high)
+function fieldMult(ft){
+  // ft 4..40  => mult ~6.0 .. 1.2
+  const t = (ft-4)/(40-4);
+  return +(1.2 + (1-t)*4.8).toFixed(2);
+}
+
+// ---- particles ----
+const parts = [];
+function burst(x,y,n,col,spd,life){
+  for(let i=0;i<n;i++){
+    const a=Math.random()*Math.PI*2, s=spd*(0.3+Math.random());
+    parts.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:life*(0.5+Math.random()),max:life,col});
+  }
+}
+
+// ---- DOM ----
+const el = id=>document.getElementById(id);
+const fieldSlider = el('field');
+const multLbl=el('multLbl'), fieldLbl=el('fieldLbl');
+const eVal=el('eVal'), eSub=el('eSub');
+const energyFill=el('energyFill'), energyPct=el('energyPct');
+const breachFill=el('breachFill'), breachPct=el('breachPct'), breachHint=el('breachHint');
+const payoutNow=el('payoutNow'), pnlEl=el('pnl');
+const igniteBtn=el('igniteBtn'), ejectBtn=el('ejectBtn');
+const flash=el('flash'), stage=el('stage');
+const volLvl=el('volLvl'), volDot=el('volDot');
+const tkPrice=el('tkPrice'), tkVol=el('tkVol'), tkBal=el('tkBal');
+const regimeArm=el('regimeArm');
+
+function updFieldUI(){
+  G.fieldTicks=+fieldSlider.value;
+  multLbl.textContent='×'+fieldMult(G.fieldTicks).toFixed(1);
+  fieldLbl.textContent='± '+G.fieldTicks+' ticks';
+}
+fieldSlider.addEventListener('input',()=>{ if(G.state!=='running') updFieldUI(); });
+
+document.querySelectorAll('.chip').forEach(c=>{
+  c.addEventListener('click',()=>{
+    if(G.state==='running') return;
+    document.querySelectorAll('.chip').forEach(x=>x.classList.remove('on'));
+    c.classList.add('on'); G.stake=+c.dataset.s; el('stakeVal').textContent=G.stake;
+  });
+});
+
+function showFlash(html,col){
+  flash.innerHTML=html; flash.style.color=col;
+  flash.classList.remove('show'); void flash.offsetWidth; flash.classList.add('show');
+}
+
+function ignite(){
+  if(G.state==='running') return;
+  if(G.balance < G.stake) return;
+  G.balance -= G.stake;
+  G.state='running'; G.energy=0; G.breach=0; G.bandCenter=price;
+  igniteBtn.disabled=true; ejectBtn.disabled=false; fieldSlider.disabled=true;
+}
+function eject(){
+  if(G.state!=='running') return;
+  const payout = G.stake * G.energy * fieldMult(G.fieldTicks);
+  G.balance += payout;
+  G.pnl = payout - G.stake;
+  G.state='ejected'; G.ejectFx=1; G.bankPulse=1;
+  burst(CX,CY,90,'#36e6ff',9,46);
+  burst(CX,CY,40,'#ffd76b',6,40);
+  showFlash('+ $'+payout.toFixed(2)+'<div class="small">BANKED · '+G.energy.toFixed(2)+'× ENERGY</div>','#2af5c8');
+  endRound();
+}
+function breachOut(){
+  G.state='breached'; G.detonation=1; G.pnl=-G.stake;
+  burst(CX,CY,160,'#ff4242',13,52);
+  burst(CX,CY,80,'#ffffff',10,40);
+  stage.classList.add('shake'); setTimeout(()=>stage.classList.remove('shake'),520);
+  showFlash('CONTAINMENT BREACH<div class="small">REACTOR LOST · −$'+G.stake.toFixed(2)+'</div>','#ff4242');
+  endRound();
+}
+function endRound(){
+  ejectBtn.disabled=true;
+  setTimeout(()=>{
+    G.state='idle'; igniteBtn.disabled=false; fieldSlider.disabled=false;
+    G.energy=0; G.breach=0;
+  }, 1700);
+}
+igniteBtn.addEventListener('click',ignite);
+ejectBtn.addEventListener('click',eject);
+
+// ---- core update ----
+function update(){
+  stepMarket();
+  const rv = realizedVol();
+  const rvNorm = Math.min(1, rv/9);        // 0..1 normalized turbulence
+
+  // turbulence label
+  let lvl='CALM', col='#2af5c8';
+  if(rvNorm>0.66){lvl='VIOLENT';col='#ff3d8b';}
+  else if(rvNorm>0.33){lvl='CHOPPY';col='#ffc24b';}
+  volLvl.textContent=lvl; volLvl.style.color=col; volDot.style.background=col; volDot.style.boxShadow='0 0 12px '+col;
+
+  if(G.state==='running'){
+    // ENERGY: integral of realized volatility (the harvest)
+    G.energy += rvNorm*0.018 + 0.0006;
+
+    // BREACH: excursion beyond band + spikes
+    const excursion = Math.abs(price - G.bandCenter);
+    const bandPx = G.fieldTicks; // ticks ~ price units here
+    const over = Math.max(0, excursion - bandPx)/bandPx;       // how far outside band
+    const tight = (40 - G.fieldTicks)/36;                      // tighter -> faster pressure
+    // pressure rises with excursion & spikes, leaks slowly when contained
+    let dP = over*(0.010+tight*0.018) + rvNorm*tight*0.006;
+    if(Math.abs(lastDelta) > G.fieldTicks*0.9) dP += 0.05*(0.4+tight); // spike shock
+    if(over<=0) dP -= 0.004;                                   // contained -> bleed off
+    G.breach = Math.max(0, Math.min(1, G.breach + dP));
+    // band center drifts slightly toward price (field tracks the market a little)
+    G.bandCenter += (price-G.bandCenter)*0.015;
+
+    if(G.breach>=1) breachOut();
+  }
+
+  // particles
+  for(let i=parts.length-1;i>=0;i--){
+    const p=parts[i]; p.x+=p.vx; p.y+=p.vy; p.vy+=0.12; p.vx*=0.97; p.life--;
+    if(p.life<=0) parts.splice(i,1);
+  }
+  if(G.detonation>0) G.detonation=Math.max(0,G.detonation-0.03);
+  if(G.ejectFx>0) G.ejectFx=Math.max(0,G.ejectFx-0.04);
+  if(G.bankPulse>0) G.bankPulse=Math.max(0,G.bankPulse-0.03);
+
+  // ---- DOM sync ----
+  tkPrice.textContent=price.toFixed(2);
+  tkPrice.className='v mono '+(lastDelta>=0?'up':'dn');
+  tkVol.textContent=rv.toFixed(2);
+  tkBal.textContent=G.balance.toFixed(2);
+  regimeArm.textContent = G.state==='running' ? '' : '';
+
+  const ePctV=Math.min(100,G.energy/2.5*100);
+  energyFill.style.width=ePctV+'%'; energyPct.textContent=Math.round(ePctV)+'%';
+  eVal.textContent=G.energy.toFixed(2);
+  breachFill.style.width=(G.breach*100)+'%'; breachPct.textContent=Math.round(G.breach*100)+'%';
+  const po = G.state==='running' ? G.stake*G.energy*fieldMult(G.fieldTicks) : 0;
+  payoutNow.textContent=po.toFixed(2);
+  pnlEl.textContent=(G.pnl>=0?'$':'-$')+Math.abs(G.pnl).toFixed(2);
+  pnlEl.style.color = G.pnl>0?'#2af5c8':(G.pnl<0?'#ff4242':'var(--txt)');
+
+  if(G.state==='running'){
+    eSub.textContent='HARVESTING';
+    if(G.breach>0.8) breachHint.textContent='RING CRITICAL — eject now!';
+    else if(G.breach>0.5) breachHint.textContent='Pressure rising. Plasma straining.';
+    else breachHint.textContent='Ring holding.';
+  } else if(G.state==='idle'){ eSub.textContent='ARM FIELD · IGNITE'; breachHint.textContent='Ring offline.'; }
+
+  return {rvNorm,col};
+}
+
+// ---- render reactor ----
+let frame=0;
+function drawReactor(rvNorm,turbCol){
+  frame++;
+  ctx.clearRect(0,0,W,H);
+
+  // ambient backglow
+  const amb=ctx.createRadialGradient(CX,CY,40,CX,CY,R+120);
+  const breachGlow=G.breach;
+  amb.addColorStop(0,`rgba(${20+breachGlow*180},${40},${60-breachGlow*40},0.18)`);
+  amb.addColorStop(1,'rgba(5,7,13,0)');
+  ctx.fillStyle=amb; ctx.fillRect(0,0,W,H);
+
+  // detonation flash
+  if(G.detonation>0){
+    ctx.fillStyle=`rgba(255,${120*G.detonation},${120*G.detonation},${G.detonation*0.85})`;
+    ctx.fillRect(0,0,W,H);
+  }
+
+  const active = G.state==='running';
+  const pulse = 1 + Math.sin(frame*0.05)*0.012;
+
+  // ===== outer containment ring =====
+  // breach pressure -> red glow + faster pulse
+  const bp=G.breach;
+  const ringPulse = 1 + Math.sin(frame*(0.04+bp*0.22))*(0.01+bp*0.05);
+  // base ring
+  ctx.lineWidth=3;
+  ctx.strokeStyle=`rgba(${60+bp*195},${200-bp*150},${255-bp*180},0.85)`;
+  ctx.shadowBlur=24+bp*40; ctx.shadowColor=`rgba(${60+bp*195},${200-bp*120},${255-bp*200},0.9)`;
+  ctx.beginPath(); ctx.arc(CX,CY,R*ringPulse,0,Math.PI*2); ctx.stroke();
+  // inner ring tick marks
+  ctx.shadowBlur=0;
+  ctx.strokeStyle=`rgba(${80+bp*160},${160},${220-bp*120},0.25)`;
+  ctx.lineWidth=1;
+  for(let a=0;a<Math.PI*2;a+=Math.PI/36){
+    const r1=R-10, r2=R-(a*180/Math.PI%30<2?22:14);
+    ctx.beginPath();
+    ctx.moveTo(CX+Math.cos(a)*r1,CY+Math.sin(a)*r1);
+    ctx.lineTo(CX+Math.cos(a)*r2,CY+Math.sin(a)*r2);
+    ctx.stroke();
+  }
+  // rotating energy arc on the ring (shows charge)
+  if(active){
+    const sweep = Math.min(Math.PI*2, (G.energy/2.5)*Math.PI*2);
+    ctx.lineWidth=5; ctx.shadowBlur=20; ctx.shadowColor='#36e6ff';
+    ctx.strokeStyle='#36e6ff';
+    ctx.beginPath(); ctx.arc(CX,CY,R+9,-Math.PI/2,-Math.PI/2+sweep); ctx.stroke();
+    ctx.shadowBlur=0;
+  }
+
+  // ===== field band guide arcs (inner) =====
+  const bandR = 60 + (G.fieldTicks/40)*150;   // visual radius of containment band
+  ctx.setLineDash([5,9]); ctx.lineWidth=1.4;
+  ctx.strokeStyle=`rgba(122,240,255,${active?0.5:0.28})`;
+  ctx.shadowBlur=active?10:0; ctx.shadowColor='#7af0ff';
+  ctx.beginPath(); ctx.arc(CX,CY,bandR,0,Math.PI*2); ctx.stroke();
+  ctx.setLineDash([]); ctx.shadowBlur=0;
+
+  // ===== plasma core =====
+  // intensity from realized vol; size pulses; turbulence from rvNorm
+  const intensity = active ? (0.5 + rvNorm*0.7) : 0.34 + rvNorm*0.3;
+  const coreR = (active? (46 + rvNorm*54) : 38) * pulse;
+  const breached = G.state==='breached';
+
+  // additive blending makes overlapping plasma glow like real light
+  ctx.globalCompositeOperation='lighter';
+
+  // big soft outer halo (always present so the hero reads even when calm)
+  const halo=ctx.createRadialGradient(CX,CY,coreR*0.5,CX,CY,coreR*4.2);
+  halo.addColorStop(0,`rgba(54,230,255,${0.22*intensity})`);
+  halo.addColorStop(0.4,`rgba(42,245,200,${0.10*intensity})`);
+  halo.addColorStop(1,'rgba(54,230,255,0)');
+  if(breached){halo.addColorStop(0,`rgba(255,80,80,${0.3})`);}
+  ctx.fillStyle=halo;
+  ctx.beginPath(); ctx.arc(CX,CY,coreR*4.2,0,Math.PI*2); ctx.fill();
+
+  // plasma blob: layered radial gradients + lashing tendrils
+  const cg=ctx.createRadialGradient(CX,CY,2,CX,CY,coreR*2.6);
+  const hot = breached ? '255,90,90' : '150,255,245';
+  cg.addColorStop(0,`rgba(255,255,255,${Math.min(1,1.1*intensity)})`);
+  cg.addColorStop(0.16,`rgba(${hot},${Math.min(1,1.0*intensity)})`);
+  cg.addColorStop(0.45,`rgba(54,230,255,${0.55*intensity})`);
+  cg.addColorStop(0.75,`rgba(${breached?'255,70,120':'58,150,255'},${0.25*intensity})`);
+  cg.addColorStop(1,'rgba(54,230,255,0)');
+  ctx.fillStyle=cg;
+  ctx.beginPath(); ctx.arc(CX,CY,coreR*2.6,0,Math.PI*2); ctx.fill();
+
+  // lashing plasma tendrils (turbulence visualization) — always visible, electric
+  const arms = 34;
+  ctx.lineCap='round';
+  for(let i=0;i<arms;i++){
+    const baseA = (i/arms)*Math.PI*2;
+    const wob = Math.sin(frame*0.08 + i*1.7)*0.4 + Math.cos(frame*0.13+i)*0.3;
+    const a = baseA + wob*(0.25+rvNorm);
+    const len = coreR*(0.9 + (0.5+rvNorm*2.2)*(0.5+Math.random()*0.5));
+    const segs=6; let px=CX, py=CY;
+    ctx.beginPath(); ctx.moveTo(px,py);
+    for(let s=1;s<=segs;s++){
+      const t=s/segs;
+      const jitter=(Math.random()-0.5)*(8+rvNorm*26)*t;
+      const rr=len*t;
+      px=CX+Math.cos(a)*rr + Math.cos(a+1.57)*jitter;
+      py=CY+Math.sin(a)*rr + Math.sin(a+1.57)*jitter;
+      ctx.lineTo(px,py);
+    }
+    const al=(0.18+intensity*0.5)*(0.45+Math.random()*0.55);
+    ctx.strokeStyle = breached
+      ? `rgba(255,${90+Math.random()*80},90,${al})`
+      : `rgba(${150+Math.random()*105},${235+Math.random()*20},255,${al})`;
+    ctx.lineWidth=1.2+rvNorm*3;
+    ctx.shadowBlur=12; ctx.shadowColor= breached?'#ff5050':'#36e6ff';
+    ctx.stroke();
+  }
+  ctx.shadowBlur=0;
+
+  // bright core dot
+  ctx.fillStyle=`rgba(255,255,255,${0.8+0.2*Math.sin(frame*0.2)})`;
+  ctx.shadowBlur=22; ctx.shadowColor=breached?'#ff6060':'#9ffcff';
+  ctx.beginPath(); ctx.arc(CX,CY,6+rvNorm*6,0,Math.PI*2); ctx.fill();
+  ctx.shadowBlur=0;
+  ctx.globalCompositeOperation='source-over';
+
+  // sparks where plasma touches band (when turbulent + tight)
+  if(active && rvNorm>0.3){
+    const sparkN=Math.floor(rvNorm*6);
+    for(let i=0;i<sparkN;i++){
+      const a=Math.random()*Math.PI*2;
+      const sx=CX+Math.cos(a)*bandR, sy=CY+Math.sin(a)*bandR;
+      ctx.fillStyle=`rgba(255,255,255,${Math.random()*0.8})`;
+      ctx.beginPath(); ctx.arc(sx,sy,Math.random()*2.2,0,Math.PI*2); ctx.fill();
+      if(G.breach>0.6 && Math.random()<0.3) burst(sx,sy,1,'#ff7a7a',2,18);
+    }
+  }
+
+  // eject discharge ring
+  if(G.ejectFx>0){
+    const er=R*(1.2 - G.ejectFx) + 40;
+    ctx.strokeStyle=`rgba(122,240,255,${G.ejectFx})`;
+    ctx.lineWidth=6*G.ejectFx; ctx.shadowBlur=30; ctx.shadowColor='#36e6ff';
+    ctx.beginPath(); ctx.arc(CX,CY,er,0,Math.PI*2); ctx.stroke();
+    ctx.shadowBlur=0;
+  }
+
+  // particles
+  for(const p of parts){
+    const a=p.life/p.max;
+    ctx.fillStyle=p.col.replace(')',`,${a})`).replace('rgb','rgba').replace('#','');
+    // support hex colors:
+    ctx.globalAlpha=a; ctx.fillStyle=p.col;
+    ctx.beginPath(); ctx.arc(p.x,p.y,2.4*a+0.6,0,Math.PI*2); ctx.fill();
+  }
+  ctx.globalAlpha=1;
+}
+
+// ---- render strip ----
+function drawStrip(turbCol){
+  sctx.clearRect(0,0,strip.width,strip.height);
+  const n=stripPrices.length; if(n<2) return;
+  const min=Math.min(...stripPrices), max=Math.max(...stripPrices);
+  const rng=(max-min)||1, w=strip.width, h=strip.height;
+  // area
+  sctx.beginPath();
+  for(let i=0;i<n;i++){
+    const x=i/(n-1)*w;
+    const y=h-8-((stripPrices[i]-min)/rng)*(h-20);
+    i?sctx.lineTo(x,y):sctx.moveTo(x,y);
+  }
+  const last={x:w,y:h-8-((stripPrices[n-1]-min)/rng)*(h-20)};
+  const grad=sctx.createLinearGradient(0,0,0,h);
+  grad.addColorStop(0,'rgba(54,230,255,0.28)');
+  grad.addColorStop(1,'rgba(54,230,255,0)');
+  sctx.lineTo(w,h); sctx.lineTo(0,h); sctx.closePath();
+  sctx.fillStyle=grad; sctx.fill();
+  // line
+  sctx.beginPath();
+  for(let i=0;i<n;i++){
+    const x=i/(n-1)*w;
+    const y=h-8-((stripPrices[i]-min)/rng)*(h-20);
+    i?sctx.lineTo(x,y):sctx.moveTo(x,y);
+  }
+  sctx.strokeStyle=turbCol||'#36e6ff'; sctx.lineWidth=1.8;
+  sctx.shadowBlur=10; sctx.shadowColor=turbCol||'#36e6ff'; sctx.stroke(); sctx.shadowBlur=0;
+  // head dot
+  sctx.fillStyle='#fff';
+  sctx.beginPath(); sctx.arc(last.x-1,last.y,2.6,0,Math.PI*2); sctx.fill();
+}
+
+// ---- loop ----
+function loop(){
+  const {rvNorm,col}=update();
+  drawReactor(rvNorm,col);
+  drawStrip(col);
+  requestAnimationFrame(loop);
+}
+updFieldUI();
+loop();
+
+// auto-demo: if idle for a while, gently auto-ignite a short demo round so the gallery looks alive
+let idleClock=0;
+setInterval(()=>{
+  if(G.state==='idle'){ idleClock++; if(idleClock>4){ idleClock=0; ignite(); } }
+  else idleClock=0;
+  // auto-eject the demo round opportunistically (only the auto-started ones)
+  if(G.state==='running' && (G.energy>1.1 || G.breach>0.72)) {
+    if(Math.random()<0.5) eject();
+  }
+},1500);
+</script>
+</body>
+</html>
