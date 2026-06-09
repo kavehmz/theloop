@@ -11,3 +11,4 @@ One line per design: name — core mechanic — STATUS
 - PULSEPOINT — tap exactly when the live price reverses; timing graded and chained into a Flow multiplier — KEEPER
 - TOLLGATE — bid to own discrete future price levels priced by live demand; HOLD for the touch-toll or FLIP the claim — KEEPER
 - BALLAST — stack cargo on a fulcrum beam while price velocity tilts it and volatility quakes; bank height before topple — KEEPER
+- APOAPSIS — orbit a live-price gravity-star; burn fuel to hold a bet-on orbital band, banking per lap; crash-in or escape-out loses — KEEPER

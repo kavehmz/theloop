@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>APOAPSIS — orbit the price-star</title>
+<style>
+  :root{
+    --bg0:#04060f; --bg1:#0a0f22; --ink:#e8ecff; --dim:#7f88b5;
+    --cyan:#36e6ff; --mag:#ff4fd8; --amber:#ffc24d; --green:#36ffb0;
+    --red:#ff5470; --ring:#7c8cff; --panel:rgba(16,22,46,.72);
+    --hair:rgba(124,140,255,.18);
+  }
+  *{box-sizing:border-box; margin:0; padding:0}
+  html,body{height:100%}
+  body{
+    background:radial-gradient(140% 100% at 50% 0%, #0a1230 0%, var(--bg1) 35%, var(--bg0) 100%);
+    color:var(--ink);
+    font-family:"SF Pro Display","Segoe UI",system-ui,-apple-system,sans-serif;
+    overflow:hidden;
+    -webkit-font-smoothing:antialiased;
+  }
+  /* ====== HERO STAGE: locked to 1280x800-friendly layout ====== */
+  .stage{
+    position:relative; width:100vw; height:100vh; min-height:100vh;
+    display:grid;
+    grid-template-columns: 268px 1fr 268px;
+    grid-template-rows: 56px 1fr 92px;
+    gap:0;
+  }
+  /* ---------- top bar ---------- */
+  .topbar{
+    grid-column:1/4; grid-row:1;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:0 22px;
+    border-bottom:1px solid var(--hair);
+    background:linear-gradient(180deg, rgba(12,18,40,.9), rgba(12,18,40,.35));
+    backdrop-filter:blur(8px);
+    z-index:6;
+  }
+  .brand{display:flex; align-items:center; gap:12px}
+  .logo{
+    width:30px;height:30px;border-radius:50%;
+    background:radial-gradient(circle at 38% 32%, #fff, var(--amber) 36%, #ff7a3c 62%, #7a1f00 100%);
+    box-shadow:0 0 18px rgba(255,150,60,.8), 0 0 40px rgba(255,90,40,.35);
+    position:relative;
+  }
+  .logo::after{content:"";position:absolute;inset:-7px;border-radius:50%;
+    border:1px solid rgba(124,140,255,.5); transform:rotate(-22deg) scaleY(.42)}
+  .brand h1{font-size:19px; letter-spacing:.32em; font-weight:700}
+  .brand h1 b{color:var(--amber)}
+  .brand .sub{font-size:10px; letter-spacing:.34em; color:var(--dim); margin-top:1px}
+  .ticker{display:flex; align-items:center; gap:18px; font-variant-numeric:tabular-nums}
+  .ticker .pill{
+    display:flex; flex-direction:column; align-items:flex-end; line-height:1.1
+  }
+  .ticker .pill .lab{font-size:9px; letter-spacing:.2em; color:var(--dim)}
+  .ticker .pill .val{font-size:16px; font-weight:700}
+  .ticker .sym{font-size:11px;letter-spacing:.18em;color:var(--dim)}
+  .up{color:var(--green)} .down{color:var(--red)}
+  .bal{
+    padding:7px 14px;border:1px solid var(--hair);border-radius:10px;
+    background:rgba(54,255,176,.06);
+  }
+  .bal .lab{font-size:9px;letter-spacing:.2em;color:var(--dim)}
+  .bal .val{font-size:16px;font-weight:700;color:var(--green)}
+
+  /* ---------- left & right rails ---------- */
+  .rail{
+    grid-row:2; padding:16px 16px; display:flex; flex-direction:column; gap:14px;
+    z-index:5;
+  }
+  .rail.left{grid-column:1; border-right:1px solid var(--hair)}
+  .rail.right{grid-column:3; border-left:1px solid var(--hair)}
+  .card{
+    background:var(--panel); border:1px solid var(--hair); border-radius:14px;
+    padding:13px 14px; backdrop-filter:blur(6px);
+  }
+  .card h3{font-size:10px;letter-spacing:.26em;color:var(--dim);font-weight:600;margin-bottom:10px}
+
+  /* band selector */
+  .bands{display:flex;flex-direction:column;gap:8px}
+  .band{
+    position:relative; cursor:pointer; border:1px solid var(--hair); border-radius:11px;
+    padding:9px 11px; display:flex;align-items:center;justify-content:space-between;
+    transition:.18s; overflow:hidden;
+  }
+  .band:hover{border-color:rgba(124,140,255,.5)}
+  .band.sel{border-color:var(--cyan); background:rgba(54,230,255,.09);
+    box-shadow:0 0 0 1px rgba(54,230,255,.4) inset, 0 0 22px rgba(54,230,255,.18)}
+  .band .nm{font-size:12px;font-weight:700;letter-spacing:.12em}
+  .band .mu{font-size:13px;font-weight:700;font-variant-numeric:tabular-nums}
+  .band .dot{position:absolute;left:0;top:0;bottom:0;width:3px}
+  .band.inner .dot{background:var(--mag)} .band.inner .mu{color:var(--mag)}
+  .band.mid .dot{background:var(--cyan)} .band.mid .mu{color:var(--cyan)}
+  .band.outer .dot{background:var(--green)} .band.outer .mu{color:var(--green)}
+  .band .risk{font-size:8px;letter-spacing:.18em;color:var(--dim);margin-top:2px}
+
+  /* stake */
+  .stakeRow{display:flex;align-items:center;gap:8px}
+  .stakeRow input{
+    flex:1; background:rgba(0,0,0,.35); border:1px solid var(--hair); border-radius:9px;
+    color:var(--ink); font-size:17px; font-weight:700; padding:8px 10px; text-align:right;
+    font-variant-numeric:tabular-nums; outline:none;
+  }
+  .stakeRow .cur{font-size:12px;color:var(--dim)}
+  .chips{display:flex;gap:6px;margin-top:8px}
+  .chip{flex:1;text-align:center;font-size:11px;padding:6px 0;border:1px solid var(--hair);
+    border-radius:8px;cursor:pointer;color:var(--dim);transition:.15s}
+  .chip:hover{color:var(--ink);border-color:rgba(124,140,255,.5)}
+
+  /* gauges (right rail) */
+  .gauge{margin-bottom:11px}
+  .gauge:last-child{margin-bottom:0}
+  .gauge .top{display:flex;justify-content:space-between;font-size:10px;letter-spacing:.16em;
+    color:var(--dim);margin-bottom:5px}
+  .gauge .top b{color:var(--ink);font-variant-numeric:tabular-nums;letter-spacing:0}
+  .track{height:8px;border-radius:6px;background:rgba(0,0,0,.4);overflow:hidden;position:relative}
+  .fill{height:100%;width:50%;border-radius:6px;transition:width .12s linear}
+  .fuel .fill{background:linear-gradient(90deg,var(--green),var(--cyan))}
+  .peri .fill{background:linear-gradient(90deg,var(--red),var(--amber))}
+  .apo .fill{background:linear-gradient(90deg,var(--cyan),var(--ring))}
+  .prec .fill{background:linear-gradient(90deg,var(--mag),var(--amber))}
+
+  .capsule{
+    text-align:center; padding:14px 10px; border-radius:14px;
+    border:1px solid rgba(54,255,176,.3); background:rgba(54,255,176,.06);
+  }
+  .capsule .lab{font-size:9px;letter-spacing:.26em;color:var(--dim)}
+  .capsule .big{font-size:34px;font-weight:800;color:var(--green);
+    font-variant-numeric:tabular-nums; line-height:1.05; text-shadow:0 0 22px rgba(54,255,176,.45)}
+  .capsule .sub{font-size:11px;color:var(--dim)}
+  .laps{display:flex;justify-content:center;gap:5px;margin-top:9px}
+  .lapdot{width:8px;height:8px;border-radius:50%;background:rgba(124,140,255,.22)}
+  .lapdot.on{background:var(--green);box-shadow:0 0 9px var(--green)}
+
+  /* ---------- center canvas ---------- */
+  .field{grid-column:2; grid-row:2; position:relative; overflow:hidden}
+  #space{position:absolute; inset:0; width:100%; height:100%}
+  .center-hud{
+    position:absolute; top:14px; left:0; right:0; text-align:center; pointer-events:none;
+    z-index:3;
+  }
+  .center-hud .state{font-size:11px;letter-spacing:.4em;color:var(--cyan);font-weight:600}
+  .center-hud .multi{font-size:46px;font-weight:800;line-height:1;margin-top:2px;
+    font-variant-numeric:tabular-nums; text-shadow:0 0 30px rgba(54,230,255,.4)}
+  .toast{
+    position:absolute; left:50%; top:46%; transform:translate(-50%,-50%) scale(.8);
+    font-size:50px; font-weight:800; letter-spacing:.06em; opacity:0; pointer-events:none;
+    z-index:4; text-align:center; transition:.0s;
+  }
+  .toast.show{animation:toast 1.3s cubic-bezier(.2,.8,.2,1) forwards}
+  @keyframes toast{
+    0%{opacity:0; transform:translate(-50%,-50%) scale(.6)}
+    18%{opacity:1; transform:translate(-50%,-50%) scale(1.08)}
+    72%{opacity:1; transform:translate(-50%,-50%) scale(1)}
+    100%{opacity:0; transform:translate(-50%,-50%) scale(1.02)}
+  }
+
+  /* ---------- bottom controls ---------- */
+  .controls{
+    grid-column:1/4; grid-row:3;
+    display:flex; align-items:center; justify-content:center; gap:14px;
+    border-top:1px solid var(--hair);
+    background:linear-gradient(0deg, rgba(12,18,40,.92), rgba(12,18,40,.3));
+    backdrop-filter:blur(8px); z-index:6; padding:0 18px;
+  }
+  .btn{
+    border:1px solid var(--hair); border-radius:13px; cursor:pointer;
+    padding:0 20px; height:58px; display:flex;flex-direction:column;align-items:center;justify-content:center;
+    background:rgba(255,255,255,.03); color:var(--ink); transition:.13s; user-select:none;
+    min-width:118px;
+  }
+  .btn .k{font-size:8px;letter-spacing:.2em;color:var(--dim)}
+  .btn .t{font-size:15px;font-weight:700;letter-spacing:.08em}
+  .btn:active{transform:translateY(1px)}
+  .btn.thrust{border-color:rgba(54,230,255,.5)}
+  .btn.thrust:hover{background:rgba(54,230,255,.12); box-shadow:0 0 22px rgba(54,230,255,.25)}
+  .btn.brake{border-color:rgba(255,79,216,.5)}
+  .btn.brake:hover{background:rgba(255,79,216,.12); box-shadow:0 0 22px rgba(255,79,216,.25)}
+  .btn.launch{background:linear-gradient(135deg,var(--cyan),var(--ring));color:#05122a;
+    border:none;min-width:188px;height:60px}
+  .btn.launch .t{font-size:17px;letter-spacing:.14em}
+  .btn.launch:hover{box-shadow:0 0 32px rgba(54,230,255,.55)}
+  .btn.eject{background:linear-gradient(135deg,var(--green),#1fd0a0);color:#03241a;border:none;min-width:170px;height:60px}
+  .btn.eject .t{font-size:17px;letter-spacing:.12em}
+  .btn.eject:hover{box-shadow:0 0 30px rgba(54,255,176,.5)}
+  .btn[disabled]{opacity:.32; pointer-events:none; filter:saturate(.4)}
+  .hint{position:absolute; left:20px; font-size:10px; letter-spacing:.18em; color:var(--dim)}
+  .keyhint{position:absolute; right:20px; font-size:10px; letter-spacing:.1em; color:var(--dim)}
+  .keyhint kbd{border:1px solid var(--hair);border-radius:4px;padding:1px 5px;font-size:9px;color:var(--ink)}
+
+  /* below-fold explainer */
+  .below{padding:36px 8vw 80px; max-width:1180px; margin:0 auto; color:var(--dim);
+    border-top:1px solid var(--hair)}
+  .below h2{color:var(--ink);font-size:15px;letter-spacing:.24em;margin-bottom:14px;font-weight:700}
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+  .grid3 .b{background:var(--panel);border:1px solid var(--hair);border-radius:14px;padding:16px}
+  .grid3 .b b{color:var(--ink)}
+  .grid3 .b .n{font-size:11px;letter-spacing:.2em;color:var(--cyan);margin-bottom:6px}
+  .below p{line-height:1.6;font-size:13px;margin-top:14px}
+</style>
+</head>
+<body>
+<div class="stage">
+
+  <!-- TOP BAR -->
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo"></div>
+      <div>
+        <h1>APO<b>·</b>APSIS</h1>
+        <div class="sub">ORBITAL · DERIV SYNTHETICS</div>
+      </div>
+    </div>
+    <div class="ticker">
+      <div class="pill">
+        <span class="sym">VOL 100 INDEX</span>
+        <span class="val" id="px">—</span>
+      </div>
+      <div class="pill">
+        <span class="lab">Δ 60s</span>
+        <span class="val" id="chg">—</span>
+      </div>
+      <div class="bal">
+        <div class="lab">BALANCE</div>
+        <div class="val" id="bal">$2,500.00</div>
+      </div>
+    </div>
+  </header>
+
+  <!-- LEFT RAIL -->
+  <aside class="rail left">
+    <div class="card">
+      <h3>BET · ORBIT BAND</h3>
+      <div class="bands">
+        <div class="band inner" data-band="inner">
+          <div class="dot"></div>
+          <div><div class="nm">INNER</div><div class="risk">HIGH PULL · CRASH RISK</div></div>
+          <div class="mu">×1.90<span style="font-size:9px;color:var(--dim)">/lap</span></div>
+        </div>
+        <div class="band mid sel" data-band="mid">
+          <div class="dot"></div>
+          <div><div class="nm">MID</div><div class="risk">BALANCED ORBIT</div></div>
+          <div class="mu">×1.45<span style="font-size:9px;color:var(--dim)">/lap</span></div>
+        </div>
+        <div class="band outer" data-band="outer">
+          <div class="dot"></div>
+          <div><div class="nm">OUTER</div><div class="risk">LOW PULL · ESCAPE RISK</div></div>
+          <div class="mu">×1.22<span style="font-size:9px;color:var(--dim)">/lap</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <h3>STAKE</h3>
+      <div class="stakeRow">
+        <span class="cur">$</span>
+        <input id="stake" value="25" inputmode="decimal" />
+      </div>
+      <div class="chips">
+        <div class="chip" data-s="10">10</div>
+        <div class="chip" data-s="25">25</div>
+        <div class="chip" data-s="100">100</div>
+        <div class="chip" data-s="max">MAX</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- CENTER FIELD -->
+  <main class="field">
+    <canvas id="space"></canvas>
+    <div class="center-hud">
+      <div class="state" id="state">SELECT BAND · LAUNCH</div>
+      <div class="multi" id="multi" style="display:none">×1.00</div>
+    </div>
+    <div class="toast" id="toast"></div>
+  </main>
+
+  <!-- RIGHT RAIL -->
+  <aside class="rail right">
+    <div class="card">
+      <h3>FLIGHT TELEMETRY</h3>
+      <div class="gauge fuel">
+        <div class="top"><span>FUEL</span><b id="fuelv">100%</b></div>
+        <div class="track"><div class="fill" id="fuelf" style="width:100%"></div></div>
+      </div>
+      <div class="gauge peri">
+        <div class="top"><span>PERIAPSIS · crash</span><b id="periv">—</b></div>
+        <div class="track"><div class="fill" id="perif" style="width:60%"></div></div>
+      </div>
+      <div class="gauge apo">
+        <div class="top"><span>APOAPSIS · escape</span><b id="apov">—</b></div>
+        <div class="track"><div class="fill" id="apof" style="width:55%"></div></div>
+      </div>
+      <div class="gauge prec">
+        <div class="top"><span>BAND PRECISION</span><b id="precv">—</b></div>
+        <div class="track"><div class="fill" id="precf" style="width:0%"></div></div>
+      </div>
+    </div>
+    <div class="card capsule">
+      <div class="lab">CAPSULE</div>
+      <div class="big" id="capv">$0.00</div>
+      <div class="sub" id="capsub">eject to bank</div>
+      <div class="laps" id="laps"></div>
+    </div>
+  </aside>
+
+  <!-- BOTTOM CONTROLS -->
+  <footer class="controls">
+    <span class="hint" id="starinfo">STAR MASS —</span>
+    <button class="btn brake"  id="bRetro" disabled>
+      <span class="k">RETROGRADE · lower</span><span class="t">◂ BRAKE</span>
+    </button>
+    <button class="btn launch" id="bLaunch">
+      <span class="k">CAPTURE INTO BAND</span><span class="t">LAUNCH ▶</span>
+    </button>
+    <button class="btn eject"  id="bEject" disabled>
+      <span class="k">BANK CAPSULE</span><span class="t">EJECT ⏏</span>
+    </button>
+    <button class="btn thrust" id="bPro" disabled>
+      <span class="k">PROGRADE · raise</span><span class="t">BOOST ▸</span>
+    </button>
+    <span class="keyhint">BURN <kbd>←</kbd> brake &nbsp; <kbd>→</kbd> boost &nbsp; <kbd>Space</kbd> eject</span>
+  </footer>
+</div>
+
+<!-- BELOW THE FOLD -->
+<section class="below">
+  <h2>HOW THE MARKET IS THE GRAVITY</h2>
+  <div class="grid3">
+    <div class="b"><div class="n">PRICE LEVEL → MASS</div><b>The star's pull is the price.</b><br>
+      A rising market fattens the star; its gravity strengthens and your orbit decays inward. Burn prograde to survive.</div>
+    <div class="b"><div class="n">VELOCITY → DRIFT</div><b>Fast moves slide the star.</b><br>
+      Price momentum pushes the gravity well sideways, knocking your tidy circle into an ellipse you must re-trim.</div>
+    <div class="b"><div class="n">VOLATILITY → FLARES</div><b>Spikes pulse the core.</b><br>
+      A burst of variance flares the star and over-pulls for a beat — pre-burn before it eats your periapsis.</div>
+  </div>
+  <p>Bet a band, capture into it, and bank a lap every time you complete an orbit inside the ring. Die by
+  <b style="color:var(--red)">CRASH</b> (periapsis touches the core) or by <b style="color:var(--cyan)">ESCAPE</b>
+  (apoapsis crosses the escape ring) — both decided by where you are in space, never by a hidden bust. Hug the
+  band's center line for precision bonuses, and choose: eject the capsule now, or push one cleaner lap.
+  <i>Prototype — simulated VOL 100 feed.</i></p>
+</section>
+
+<script>
+"use strict";
+/* ============================================================
+   APOAPSIS — orbital mechanics over a live (simulated) market
+   ============================================================ */
+const cv = document.getElementById('space');
+const ctx = cv.getContext('2d');
+let W=0,H=0,DPR=Math.min(window.devicePixelRatio||1,2);
+function resize(){
+  const r = cv.parentElement.getBoundingClientRect();
+  W=r.width; H=r.height;
+  cv.width=W*DPR; cv.height=H*DPR; cv.style.width=W+'px'; cv.style.height=H+'px';
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+}
+window.addEventListener('resize', resize);
+
+/* ---------- DOM ---------- */
+const el = id=>document.getElementById(id);
+const ui = {
+  px:el('px'), chg:el('chg'), bal:el('bal'), state:el('state'), multi:el('multi'),
+  toast:el('toast'), fuelv:el('fuelv'), fuelf:el('fuelf'), periv:el('periv'),
+  perif:el('perif'), apov:el('apov'), apof:el('apof'), precv:el('precv'), precf:el('precf'),
+  capv:el('capv'), capsub:el('capsub'), laps:el('laps'), starinfo:el('starinfo'),
+  bLaunch:el('bLaunch'), bEject:el('bEject'), bPro:el('bPro'), bRetro:el('bRetro'),
+  stake:el('stake')
+};
+
+/* ---------- market sim (live-ish VOL index) ---------- */
+let price=1000, priceHist=[], vel=0, vol=0.5, t=0;
+function stepMarket(dt){
+  t+=dt;
+  // regime-switching volatility for drama
+  const regime = 0.5 + 0.5*Math.sin(t*0.07) + 0.35*Math.sin(t*0.23+1.3);
+  vol = 0.6 + Math.max(0,regime)*1.7;
+  // occasional flare
+  if(Math.random()<0.012) vol += 2.2 + Math.random()*3;
+  const shock = (Math.random()-0.5);
+  const drift = Math.sin(t*0.11)*0.12;
+  const d = (shock*vol + drift);
+  price = Math.max(620, Math.min(1480, price + d*1.6));
+  vel = vel*0.86 + d*0.14;
+  priceHist.push(price);
+  if(priceHist.length>240) priceHist.shift();
+}
+function recentChange(){
+  if(priceHist.length<2) return 0;
+  const a=priceHist[Math.max(0,priceHist.length-60)], b=price;
+  return (b-a)/a*100;
+}
+
+/* ---------- star (driven by price) ---------- */
+const star = { x:0,y:0, mass:1, flare:0, dispX:0,dispY:0, hue:0 };
+function updateStar(){
+  // mass from price level (normalized ~0.55..1.9)
+  const norm = (price-620)/(1480-620);              // 0..1
+  star.mass = 0.62 + norm*1.5;                       // pull strength
+  // lateral drift target from velocity
+  star.dispX += (vel*5.0 - star.dispX)*0.05;
+  star.dispY += (Math.sin(t*0.3)*8 - star.dispY)*0.04;
+  star.x = W*0.5 + star.dispX;
+  star.y = H*0.5 + star.dispY;
+  // flare from volatility
+  star.flare += ((vol-0.6)*0.5 - star.flare)*0.08;
+  star.hue = norm; // 0 cool .. 1 hot/red
+}
+
+/* ---------- satellite / orbital state ---------- */
+let game = 'idle';       // idle | flying | dead
+let sat = null;          // {x,y,vx,vy, trail:[]}
+let band = 'mid';
+let fuel = 100, capsule=0, mult=1.0, laps=0, stake=25, balance=2500;
+let precision = 0;        // 0..1 rolling
+let lastAngle=0, angleAcc=0; // lap detection
+const G = 5200;           // gravity constant (tuned)
+const CORE_R = 26;        // star surface radius (crash boundary base)
+function bandRadius(){
+  // visual ring radii based on field size
+  const base = Math.min(W,H)*0.5;
+  return { inner: base*0.30, mid: base*0.50, outer: base*0.72,
+           escape: base*0.92 };
+}
+function ringCenterR(b){ const r=bandRadius(); return b==='inner'?r.inner:b==='mid'?r.mid:r.outer; }
+function bandHalfWidth(){ return Math.min(W,H)*0.5*0.10; }
+
+/* ---------- controls / state ---------- */
+function selBand(b){
+  band=b;
+  document.querySelectorAll('.band').forEach(x=>x.classList.toggle('sel',x.dataset.band===b));
+}
+document.querySelectorAll('.band').forEach(x=>x.addEventListener('click',()=>{ if(game!=='flying') selBand(x.dataset.band); }));
+document.querySelectorAll('.chip').forEach(c=>c.addEventListener('click',()=>{
+  if(game==='flying') return;
+  ui.stake.value = c.dataset.s==='max'? Math.floor(balance) : c.dataset.s;
+}));
+
+function setButtons(){
+  const flying = game==='flying';
+  ui.bLaunch.disabled = flying;
+  ui.bEject.disabled  = !flying;
+  ui.bPro.disabled    = !flying;
+  ui.bRetro.disabled  = !flying;
+  ui.bLaunch.style.display = flying?'none':'flex';
+  ui.bEject.style.display  = flying?'flex':'none';
+}
+
+function launch(){
+  if(game==='flying') return;
+  stake = Math.max(1, Math.min(balance, parseFloat(ui.stake.value)||25));
+  ui.stake.value = stake;
+  balance -= stake;
+  ui.bal.textContent = '$'+balance.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+  // spawn satellite on the target ring, give it (near) circular velocity
+  const R = ringCenterR(band);
+  const ang = -Math.PI/2 + (Math.random()-0.5)*0.6;
+  const px = star.x + Math.cos(ang)*R;
+  const py = star.y + Math.sin(ang)*R;
+  const vcirc = Math.sqrt(G*star.mass/R);
+  // tangential direction (counter-clockwise)
+  const tx = -Math.sin(ang), ty = Math.cos(ang);
+  // small capture imperfection the player must trim
+  const imperfect = 0.9 + Math.random()*0.2;
+  sat = { x:px, y:py, vx:tx*vcirc*imperfect, vy:ty*vcirc*imperfect, trail:[] };
+  fuel=100; capsule=0; mult=1.0; laps=0; precision=0.5; angleAcc=0;
+  lastAngle = Math.atan2(py-star.y, px-star.x);
+  game='flying';
+  ui.multi.style.display='block';
+  ui.state.textContent='HOLD ORBIT';
+  buildLaps();
+  setButtons();
+}
+
+function burn(dir){ // dir +1 prograde, -1 retrograde
+  if(game!=='flying' || fuel<=0) return;
+  const sp = Math.hypot(sat.vx,sat.vy)||1e-3;
+  const ux=sat.vx/sp, uy=sat.vy/sp;
+  const dv = 7.5*dir;
+  sat.vx += ux*dv; sat.vy += uy*dv;
+  fuel = Math.max(0, fuel - 4.2);
+  spawnThrust(dir);
+}
+
+/* thrust particles */
+let parts=[];
+function spawnThrust(dir){
+  if(!sat) return;
+  const sp=Math.hypot(sat.vx,sat.vy)||1; const ux=sat.vx/sp, uy=sat.vy/sp;
+  for(let i=0;i<10;i++){
+    const spread=(Math.random()-0.5)*0.7;
+    const bx=-ux*Math.cos(spread)+uy*Math.sin(spread);
+    const by=-uy*Math.cos(spread)-ux*Math.sin(spread);
+    parts.push({x:sat.x,y:sat.y, vx:(dir>0?bx:-bx)*(1.8+Math.random()*2)+sat.vx*0.02,
+      vy:(dir>0?by:-by)*(1.8+Math.random()*2)+sat.vy*0.02,
+      life:1, col: dir>0?'54,230,255':'255,79,216'});
+  }
+}
+let burstParts=[];
+function burst(color, n, big){
+  for(let i=0;i<n;i++){
+    const a=Math.random()*Math.PI*2, s=(big?2:1)*(1.5+Math.random()*4);
+    burstParts.push({x:sat?sat.x:star.x,y:sat?sat.y:star.y,
+      vx:Math.cos(a)*s, vy:Math.sin(a)*s, life:1, col:color, r:1+Math.random()*2.5});
+  }
+}
+
+function buildLaps(){
+  ui.laps.innerHTML='';
+  for(let i=0;i<8;i++){ const d=document.createElement('div'); d.className='lapdot'; ui.laps.appendChild(d); }
+}
+function markLaps(){
+  [...ui.laps.children].forEach((d,i)=>d.classList.toggle('on', i<laps));
+}
+
+function eject(){
+  if(game!=='flying') return;
+  const won = stake*mult;
+  balance += won;
+  ui.bal.textContent = '$'+balance.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+  endRound('EJECTED', '54,255,176', '+$'+won.toFixed(2)+'  ·  '+laps+' laps  ·  ×'+mult.toFixed(2));
+}
+function die(kind){
+  if(game!=='flying') return;
+  if(kind==='CRASH'){ burst('255,84,112',60,true); }
+  else { burst('54,230,255',50,true); }
+  endRound(kind, kind==='CRASH'?'255,84,112':'54,230,255', 'capsule lost');
+}
+function endRound(label, col, sub){
+  game='dead';
+  ui.multi.style.display='none';
+  ui.state.textContent='SELECT BAND · LAUNCH';
+  ui.toast.style.color='rgb('+col+')';
+  ui.toast.innerHTML = label + '<div style="font-size:16px;letter-spacing:.18em;margin-top:8px;color:#aeb6e0">'+sub+'</div>';
+  ui.toast.classList.remove('show'); void ui.toast.offsetWidth; ui.toast.classList.add('show');
+  setTimeout(()=>{ sat=null; game='idle'; setButtons(); }, 1300);
+  setButtons();
+}
+
+/* ---------- physics & lap logic ---------- */
+function physics(dt){
+  if(game!=='flying'||!sat) return;
+  const sub=4; const h=dt/sub;
+  for(let s=0;s<sub;s++){
+    const dx=star.x-sat.x, dy=star.y-sat.y;
+    let r=Math.hypot(dx,dy); if(r<1)r=1;
+    // gravity (with flare overpull)
+    const pull = G*star.mass*(1+star.flare*0.5)/(r*r);
+    sat.vx += (dx/r)*pull*h;
+    sat.vy += (dy/r)*pull*h;
+    sat.x += sat.vx*h; sat.y += sat.vy*h;
+  }
+  // trail
+  sat.trail.push({x:sat.x,y:sat.y});
+  if(sat.trail.length>140) sat.trail.shift();
+
+  // current radius vs band
+  const dx=sat.x-star.x, dy=sat.y-star.y;
+  const r=Math.hypot(dx,dy);
+  const rings=bandRadius();
+  const cr=ringCenterR(band), hw=bandHalfWidth();
+
+  // boundaries
+  if(r <= CORE_R + 8 + star.flare*10){ die('CRASH'); return; }
+  if(r >= rings.escape){ die('ESCAPE'); return; }
+
+  // precision: how close to band center this instant
+  const inBand = Math.abs(r-cr) <= hw;
+  const close = 1 - Math.min(1, Math.abs(r-cr)/(hw*1.6));
+  precision += (close - precision)*0.06;
+
+  // lap detection via accumulated angle
+  const ang=Math.atan2(dy,dx);
+  let dA = ang - lastAngle;
+  if(dA>Math.PI) dA-=2*Math.PI; if(dA<-Math.PI) dA+=2*Math.PI;
+  angleAcc += dA;
+  lastAngle = ang;
+  if(Math.abs(angleAcc) >= Math.PI*2){
+    angleAcc -= Math.sign(angleAcc)*Math.PI*2;
+    completeLap(inBand);
+  }
+}
+const baseMu = {inner:1.90, mid:1.45, outer:1.22};
+function completeLap(inBand){
+  laps++;
+  // step uses band base; precision adds up to +35%
+  const step = baseMu[band] * (inBand?1:0.72) * (1 + precision*0.35) ;
+  // multiplier compounds gently toward step value
+  mult *= (1 + (step-1)); // each lap adds (step-1) of stake-growth
+  capsule = stake*mult;
+  burst(inBand?'54,255,176':'255,194,77', 26, false);
+  // lap pulse ring
+  lapPulses.push({x:star.x,y:star.y,r:Math.hypot(sat.x-star.x,sat.y-star.y),life:1});
+  markLaps();
+  if(laps>=8){ // auto-eject mastery cap
+    eject();
+  }
+}
+let lapPulses=[];
+
+/* ---------- render ---------- */
+let stars=[];
+function initStars(){ stars=[]; for(let i=0;i<150;i++) stars.push({x:Math.random(),y:Math.random(),z:Math.random()*0.8+0.2}); }
+function draw(){
+  ctx.clearRect(0,0,W,H);
+  // background gradient vignette already from body; draw starfield
+  for(const s of stars){
+    const x=s.x*W, y=s.y*H;
+    ctx.globalAlpha=s.z*0.7;
+    ctx.fillStyle='#aab4ff';
+    ctx.fillRect(x,y,s.z*1.6,s.z*1.6);
+  }
+  ctx.globalAlpha=1;
+
+  // gravity-well grid
+  drawGrid();
+
+  // bet bands (annuli)
+  drawBands();
+
+  // star
+  drawStar();
+
+  // lap pulses
+  for(let i=lapPulses.length-1;i>=0;i--){
+    const p=lapPulses[i]; p.r+=2.4; p.life-=0.025;
+    if(p.life<=0){lapPulses.splice(i,1);continue;}
+    ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+    ctx.strokeStyle='rgba(54,255,176,'+(p.life*0.5)+')'; ctx.lineWidth=2; ctx.stroke();
+  }
+
+  // satellite + trail
+  if(sat) drawSat();
+
+  // particles
+  drawParticles();
+
+  // periapsis/apoapsis markers
+  if(sat) drawOrbitMarkers();
+}
+
+function drawGrid(){
+  const step=44; ctx.lineWidth=1;
+  for(let gx=0; gx<=W+step; gx+=step){
+    ctx.beginPath();
+    for(let gy=0; gy<=H+step; gy+=step){
+      const {x,y}=warp(gx,gy);
+      if(gy===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+    }
+    ctx.strokeStyle='rgba(124,140,255,0.06)'; ctx.stroke();
+  }
+  for(let gy=0; gy<=H+step; gy+=step){
+    ctx.beginPath();
+    for(let gx=0; gx<=W+step; gx+=step){
+      const {x,y}=warp(gx,gy);
+      if(gx===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+    }
+    ctx.strokeStyle='rgba(124,140,255,0.06)'; ctx.stroke();
+  }
+}
+function warp(gx,gy){
+  const dx=gx-star.x, dy=gy-star.y; const r=Math.hypot(dx,dy)+0.001;
+  const dip = (star.mass*(1+star.flare*0.4))*2600/(r+90);
+  const k = dip/r;
+  return { x: gx - dx*k*0.018, y: gy - dy*k*0.018 };
+}
+
+function drawBands(){
+  const r=bandRadius(), hw=bandHalfWidth();
+  const conf=[['outer',r.outer,'54,255,176'],['mid',r.mid,'54,230,255'],['inner',r.inner,'255,79,216']];
+  for(const [name,rad,col] of conf){
+    const sel = (name===band);
+    // filled annulus
+    ctx.beginPath();
+    ctx.arc(star.x,star.y,rad+hw,0,Math.PI*2);
+    ctx.arc(star.x,star.y,rad-hw,0,Math.PI*2,true);
+    ctx.fillStyle='rgba('+col+','+(sel?0.10:0.03)+')';
+    ctx.fill('evenodd');
+    // center line
+    ctx.beginPath(); ctx.arc(star.x,star.y,rad,0,Math.PI*2);
+    ctx.strokeStyle='rgba('+col+','+(sel?0.85:0.28)+')';
+    ctx.lineWidth=sel?2:1; ctx.setLineDash(sel?[]:[3,7]); ctx.stroke(); ctx.setLineDash([]);
+  }
+  // escape ring
+  ctx.beginPath(); ctx.arc(star.x,star.y,r.escape,0,Math.PI*2);
+  ctx.strokeStyle='rgba(255,255,255,0.10)'; ctx.lineWidth=1; ctx.setLineDash([2,9]); ctx.stroke(); ctx.setLineDash([]);
+}
+
+function drawStar(){
+  const hot = star.hue; // 0 cool .. 1 hot
+  const R = CORE_R + star.flare*9;
+  // corona
+  const g=ctx.createRadialGradient(star.x,star.y,2,star.x,star.y,R*4.2+star.flare*22);
+  const c1 = hot>0.5? '255,150,70':'255,200,120';
+  g.addColorStop(0,'rgba(255,255,255,0.95)');
+  g.addColorStop(0.18,'rgba('+c1+',0.9)');
+  g.addColorStop(0.45,'rgba('+(hot>0.6?'255,90,50':'255,140,70')+',0.30)');
+  g.addColorStop(1,'rgba(255,90,50,0)');
+  ctx.beginPath(); ctx.arc(star.x,star.y,R*4.2+star.flare*22,0,Math.PI*2);
+  ctx.fillStyle=g; ctx.fill();
+  // core
+  const cg=ctx.createRadialGradient(star.x-R*0.3,star.y-R*0.3,1,star.x,star.y,R);
+  cg.addColorStop(0,'#ffffff');
+  cg.addColorStop(0.5,hot>0.55?'#ffb24d':'#ffd27a');
+  cg.addColorStop(1,hot>0.55?'#ff5a2c':'#ff7a3c');
+  ctx.beginPath(); ctx.arc(star.x,star.y,R,0,Math.PI*2); ctx.fillStyle=cg; ctx.fill();
+}
+
+function drawSat(){
+  // trail (the painted ellipse)
+  for(let i=1;i<sat.trail.length;i++){
+    const a=sat.trail[i-1], b=sat.trail[i];
+    const al=i/sat.trail.length;
+    ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y);
+    ctx.strokeStyle='rgba(54,230,255,'+(al*0.6)+')'; ctx.lineWidth=al*2.4; ctx.stroke();
+  }
+  // craft
+  const sp=Math.hypot(sat.vx,sat.vy)||1; const ux=sat.vx/sp,uy=sat.vy/sp;
+  ctx.save(); ctx.translate(sat.x,sat.y); ctx.rotate(Math.atan2(uy,ux));
+  ctx.beginPath();
+  ctx.moveTo(8,0); ctx.lineTo(-5,4.5); ctx.lineTo(-3,0); ctx.lineTo(-5,-4.5); ctx.closePath();
+  ctx.fillStyle='#eaf4ff'; ctx.shadowColor='#36e6ff'; ctx.shadowBlur=14; ctx.fill();
+  ctx.restore();
+}
+
+function drawOrbitMarkers(){
+  // estimate peri/apo from energy is complex live; show current radius marker on selected band handled in HUD.
+}
+
+function drawParticles(){
+  for(let i=parts.length-1;i>=0;i--){
+    const p=parts[i]; p.x+=p.vx; p.y+=p.vy; p.life-=0.05; p.vx*=0.95; p.vy*=0.95;
+    if(p.life<=0){parts.splice(i,1);continue;}
+    ctx.beginPath(); ctx.arc(p.x,p.y,2.1*p.life+0.4,0,Math.PI*2);
+    ctx.fillStyle='rgba('+p.col+','+p.life+')'; ctx.fill();
+  }
+  for(let i=burstParts.length-1;i>=0;i--){
+    const p=burstParts[i]; p.x+=p.vx; p.y+=p.vy; p.life-=0.022; p.vx*=0.97; p.vy*=0.97;
+    if(p.life<=0){burstParts.splice(i,1);continue;}
+    ctx.beginPath(); ctx.arc(p.x,p.y,(p.r||2)*p.life,0,Math.PI*2);
+    ctx.fillStyle='rgba('+p.col+','+p.life+')'; ctx.fill();
+  }
+}
+
+/* ---------- HUD update ---------- */
+function updateHUD(){
+  ui.px.textContent = price.toFixed(2);
+  const chg=recentChange();
+  ui.chg.textContent=(chg>=0?'+':'')+chg.toFixed(2)+'%';
+  ui.chg.className='val '+(chg>=0?'up':'down');
+  ui.starinfo.textContent='STAR MASS '+star.mass.toFixed(2)+'×  ·  VOL '+vol.toFixed(2)+(star.flare>0.5?'  ⚠ FLARE':'');
+
+  ui.fuelv.textContent=Math.round(fuel)+'%';
+  ui.fuelf.style.width=fuel+'%';
+
+  if(sat){
+    const r=Math.hypot(sat.x-star.x,sat.y-star.y);
+    const rings=bandRadius();
+    // peri proxy: closeness to crash (smaller r => fuller/red)
+    const periPct = Math.max(0,Math.min(1,1-(r-CORE_R)/(rings.mid)));
+    ui.perif.style.width=(periPct*100).toFixed(0)+'%';
+    ui.periv.textContent=Math.round(r-CORE_R)+'px';
+    // apo proxy: closeness to escape
+    const apoPct = Math.max(0,Math.min(1, r/rings.escape));
+    ui.apof.style.width=(apoPct*100).toFixed(0)+'%';
+    ui.apov.textContent=Math.round(rings.escape-r)+'px';
+    ui.precv.textContent=Math.round(precision*100)+'%';
+    ui.precf.style.width=(precision*100)+'%';
+    ui.multi.textContent='×'+mult.toFixed(2);
+    ui.multi.style.color = mult>=2? 'var(--green)':'var(--ink)';
+    ui.capv.textContent='$'+(stake*mult).toFixed(2);
+    ui.capsub.textContent = laps+' laps  ·  eject to bank';
+  } else {
+    ui.periv.textContent='—'; ui.apov.textContent='—'; ui.precv.textContent='—';
+    ui.precf.style.width='0%';
+    if(game!=='dead'){ ui.capv.textContent='$0.00'; ui.capsub.textContent='eject to bank'; }
+  }
+}
+
+/* ---------- loop ---------- */
+let last=performance.now();
+function frame(now){
+  const dt=Math.min(0.05,(now-last)/1000); last=now;
+  // market ticks a few times/sec scaled
+  stepMarket(dt*6);
+  updateStar();
+  physics(dt*60);
+  draw();
+  updateHUD();
+  requestAnimationFrame(frame);
+}
+
+/* ---------- wire controls ---------- */
+ui.bLaunch.addEventListener('click',launch);
+ui.bEject.addEventListener('click',eject);
+ui.bPro.addEventListener('mousedown',()=>burn(1));
+ui.bRetro.addEventListener('mousedown',()=>burn(-1));
+window.addEventListener('keydown',e=>{
+  if(e.repeat) return;
+  if(e.key==='ArrowRight'){ burn(1); }
+  else if(e.key==='ArrowLeft'){ burn(-1); }
+  else if(e.code==='Space'){ e.preventDefault(); if(game==='flying') eject(); else launch(); }
+});
+
+/* ---------- boot ---------- */
+function boot(){
+  resize(); initStars();
+  // warm the market so it looks alive immediately
+  for(let i=0;i<120;i++) stepMarket(0.6);
+  updateStar();
+  selBand('mid'); buildLaps(); setButtons();
+  requestAnimationFrame(frame);
+}
+boot();
+</script>
+</body>
+</html>
