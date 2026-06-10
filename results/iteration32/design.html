@@ -1,0 +1,795 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MURMUR — Herd the Market's Murmuration | Deriv</title>
+<style>
+  :root{
+    --ink:#0a0e1f; --teal:#36e6c8; --teal2:#19b8d8; --amber:#ffb347; --amber2:#ff8a3d;
+    --red:#ff5470; --text:#eaf2ff; --dim:#8fa3c8; --glass:rgba(13,20,44,.62);
+    --stroke:rgba(120,160,255,.16);
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{background:#05060f;color:var(--text);font-family:"Segoe UI",system-ui,-apple-system,sans-serif;overflow-x:hidden}
+  #hero{position:relative;width:100%;height:100vh;min-height:620px;max-height:1000px;overflow:hidden}
+  #cv{position:absolute;inset:0;width:100%;height:100%;display:block;cursor:crosshair}
+
+  /* ---------- top bar ---------- */
+  #topbar{position:absolute;top:0;left:0;right:0;display:flex;align-items:center;gap:18px;
+    padding:10px 22px;background:linear-gradient(180deg,rgba(5,7,18,.85),rgba(5,7,18,0));
+    pointer-events:none;z-index:5}
+  .logo{display:flex;align-items:baseline;gap:10px;pointer-events:auto}
+  .logo b{font-size:26px;letter-spacing:6px;font-weight:800;
+    background:linear-gradient(90deg,#9fe8ff,#36e6c8 45%,#ffb347);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .logo span{font-size:11px;color:var(--dim);letter-spacing:1.5px;text-transform:uppercase}
+  .pill{background:var(--glass);border:1px solid var(--stroke);border-radius:10px;padding:7px 14px;
+    backdrop-filter:blur(6px);display:flex;flex-direction:column;gap:1px;min-width:96px}
+  .pill .k{font-size:9px;letter-spacing:2px;color:var(--dim);text-transform:uppercase}
+  .pill .v{font-size:17px;font-weight:700;font-variant-numeric:tabular-nums}
+  #balV{color:#b8ffe9}
+  #timerV{color:#ffd9a0}
+  .spacer{flex:1}
+  /* turbulence + momentum meters */
+  .meter{background:var(--glass);border:1px solid var(--stroke);border-radius:10px;padding:7px 14px;min-width:150px;backdrop-filter:blur(6px)}
+  .meter .k{font-size:9px;letter-spacing:2px;color:var(--dim);text-transform:uppercase;display:flex;justify-content:space-between}
+  .bar{height:7px;border-radius:4px;background:rgba(255,255,255,.07);margin-top:5px;overflow:hidden;position:relative}
+  .bar i{position:absolute;left:0;top:0;bottom:0;border-radius:4px;transition:width .25s}
+  #turbFill{background:linear-gradient(90deg,#36e6c8,#ffd166,#ff5470)}
+  #momFill{background:linear-gradient(90deg,#ff5470,#8fa3c8,#36e6c8);left:auto}
+  #momWrap{position:relative}
+  #momTick{position:absolute;top:-2px;bottom:-2px;width:2px;background:#fff;border-radius:2px;left:50%;transition:left .2s}
+
+  /* ---------- left tier ladder ---------- */
+  #ladder{position:absolute;left:18px;top:96px;z-index:5;width:172px;background:var(--glass);
+    border:1px solid var(--stroke);border-radius:14px;padding:12px 12px 10px;backdrop-filter:blur(8px)}
+  #ladder h3{font-size:10px;letter-spacing:2.4px;color:var(--dim);text-transform:uppercase;margin-bottom:8px}
+  .tier{display:flex;justify-content:space-between;align-items:center;padding:5px 9px;border-radius:8px;
+    font-size:12.5px;color:var(--dim);font-variant-numeric:tabular-nums;border:1px solid transparent;margin-bottom:3px}
+  .tier b{font-size:13.5px}
+  .tier.active{background:linear-gradient(90deg,rgba(54,230,200,.18),rgba(255,179,71,.12));
+    color:#fff;border-color:rgba(54,230,200,.45);box-shadow:0 0 18px rgba(54,230,200,.25)}
+  .tier.active b{color:var(--teal)}
+  .tier.zero.active{background:rgba(255,84,112,.14);border-color:rgba(255,84,112,.4)}
+  .tier.zero.active b{color:var(--red)}
+
+  /* ---------- right flock panel ---------- */
+  #flock{position:absolute;right:18px;top:96px;z-index:5;width:158px;background:var(--glass);
+    border:1px solid var(--stroke);border-radius:14px;padding:14px;backdrop-filter:blur(8px);text-align:center}
+  #flock .k{font-size:9.5px;letter-spacing:2.4px;color:var(--dim);text-transform:uppercase}
+  #homeV{font-size:42px;font-weight:800;line-height:1.05;color:var(--amber);font-variant-numeric:tabular-nums;
+    text-shadow:0 0 24px rgba(255,179,71,.5)}
+  #homeT{font-size:12px;color:var(--dim);margin-bottom:10px}
+  #multNow{font-size:15px;font-weight:700;color:var(--teal);margin-bottom:10px}
+  #strayRow{display:flex;justify-content:space-between;gap:10px;border-top:1px solid var(--stroke);padding-top:9px}
+  #strayRow .k{font-size:8.5px;letter-spacing:1.4px}
+  #strayRow .v{font-size:16px;font-weight:700}
+
+  /* ---------- bottom controls ---------- */
+  #controls{position:absolute;left:0;right:0;bottom:0;z-index:6;display:flex;align-items:center;gap:14px;
+    padding:12px 22px 14px;background:linear-gradient(0deg,rgba(4,6,14,.92),rgba(4,6,14,0))}
+  .stakeBox{display:flex;align-items:center;gap:8px;background:var(--glass);border:1px solid var(--stroke);
+    border-radius:12px;padding:8px 12px;backdrop-filter:blur(8px)}
+  .stakeBox .k{font-size:9px;letter-spacing:2px;color:var(--dim);text-transform:uppercase;margin-right:2px}
+  .sBtn{width:30px;height:30px;border-radius:8px;border:1px solid var(--stroke);background:rgba(255,255,255,.06);
+    color:#fff;font-size:17px;cursor:pointer;transition:.15s}
+  .sBtn:hover{background:rgba(54,230,200,.25);border-color:var(--teal)}
+  #stakeV{font-size:19px;font-weight:800;min-width:64px;text-align:center;color:#b8ffe9;font-variant-numeric:tabular-nums}
+  #betBtn{border:none;border-radius:14px;padding:13px 30px;font-size:16px;font-weight:800;letter-spacing:1.6px;
+    cursor:pointer;color:#04222a;text-transform:uppercase;
+    background:linear-gradient(135deg,#36e6c8,#19b8d8);box-shadow:0 0 28px rgba(54,230,200,.45);transition:.2s}
+  #betBtn:hover{transform:translateY(-2px);box-shadow:0 0 40px rgba(54,230,200,.7)}
+  #betBtn:disabled{background:linear-gradient(135deg,#27414e,#1c2f3e);color:#6e8aa0;box-shadow:none;cursor:default;transform:none}
+  #pulseBox{display:flex;align-items:center;gap:6px;background:var(--glass);border:1px solid var(--stroke);
+    border-radius:12px;padding:10px 14px;backdrop-filter:blur(8px)}
+  #pulseBox .k{font-size:9px;letter-spacing:2px;color:var(--dim);text-transform:uppercase;margin-right:4px}
+  .pip{width:11px;height:11px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#c4fff1,#36e6c8 60%,#0f8d7c);
+    box-shadow:0 0 9px rgba(54,230,200,.8);transition:.2s}
+  .pip.used{background:rgba(255,255,255,.08);box-shadow:none}
+  #whistleBtn{border:1px solid rgba(255,179,71,.6);border-radius:12px;padding:10px 18px;font-size:12.5px;font-weight:800;
+    letter-spacing:1.6px;cursor:pointer;color:var(--amber);background:rgba(255,179,71,.1);transition:.2s;text-transform:uppercase}
+  #whistleBtn:hover{background:rgba(255,179,71,.28);box-shadow:0 0 22px rgba(255,179,71,.4)}
+  #whistleBtn:disabled{opacity:.32;cursor:default;box-shadow:none}
+  #hint{flex:1;text-align:right;font-size:12px;color:var(--dim);letter-spacing:.4px}
+  #hint b{color:#bfe8ff}
+
+  /* ---------- demo tag + banner ---------- */
+  #demoTag{position:absolute;top:74px;left:50%;transform:translateX(-50%);z-index:5;font-size:11px;
+    letter-spacing:3px;color:#ffd9a0;background:rgba(255,179,71,.12);border:1px solid rgba(255,179,71,.4);
+    border-radius:999px;padding:5px 16px;text-transform:uppercase;backdrop-filter:blur(6px)}
+  #banner{position:absolute;left:50%;top:42%;transform:translate(-50%,-50%) scale(.8);z-index:8;text-align:center;
+    pointer-events:none;opacity:0;transition:opacity .3s,transform .3s}
+  #banner.show{opacity:1;transform:translate(-50%,-50%) scale(1)}
+  #banner .big{font-size:54px;font-weight:900;letter-spacing:3px;
+    text-shadow:0 0 40px rgba(54,230,200,.6),0 4px 24px rgba(0,0,0,.7)}
+  #banner .sub{font-size:18px;color:#cfe2ff;margin-top:6px;letter-spacing:1px;text-shadow:0 2px 12px rgba(0,0,0,.8)}
+  .win .big{color:#7dffd9}.lose .big{color:#ff7d96}.push .big{color:#ffd9a0}
+
+  /* ---------- below the fold ---------- */
+  #below{max-width:1080px;margin:0 auto;padding:64px 32px 90px}
+  #below h2{font-size:30px;letter-spacing:4px;margin-bottom:8px;
+    background:linear-gradient(90deg,#9fe8ff,#36e6c8,#ffb347);-webkit-background-clip:text;background-clip:text;color:transparent}
+  #below .lead{color:var(--dim);font-size:15px;margin-bottom:38px;max-width:720px;line-height:1.6}
+  .cols{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;margin-bottom:44px}
+  .card{background:rgba(13,20,44,.5);border:1px solid var(--stroke);border-radius:16px;padding:22px}
+  .card h4{font-size:13px;letter-spacing:2.5px;color:var(--teal);text-transform:uppercase;margin-bottom:10px}
+  .card p{font-size:13.5px;color:#b9c8e6;line-height:1.65}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th,td{padding:10px 14px;text-align:center;border-bottom:1px solid var(--stroke)}
+  th{color:var(--dim);font-size:11px;letter-spacing:2px;text-transform:uppercase}
+  td b{color:var(--teal)}
+  footer{color:#54648a;font-size:12px;text-align:center;margin-top:48px;letter-spacing:1px}
+</style>
+</head>
+<body>
+<div id="hero">
+  <canvas id="cv"></canvas>
+
+  <div id="topbar">
+    <div class="logo"><b>MURMUR</b><span>herd the market home</span></div>
+    <div class="pill"><span class="k">Balance</span><span class="v" id="balV">$1,000.00</span></div>
+    <div class="pill"><span class="k">Round</span><span class="v" id="roundV">#1</span></div>
+    <div class="pill"><span class="k">Bell in</span><span class="v" id="timerV">28.0s</span></div>
+    <div class="spacer"></div>
+    <div class="meter"><span class="k"><span>Turbulence · σ</span><span id="turbLbl">CALM</span></span>
+      <div class="bar"><i id="turbFill" style="width:20%"></i></div></div>
+    <div class="meter"><span class="k"><span>Momentum lift</span><span id="momLbl">+0.0</span></span>
+      <div class="bar" id="momWrap"><i id="momTick"></i></div></div>
+    <div class="pill"><span class="k">VOL 75 INDEX</span><span class="v" id="priceV">100.00</span></div>
+  </div>
+
+  <div id="demoTag">Demo flight — place a stake to herd for real</div>
+
+  <div id="ladder">
+    <h3>Heads-home payout</h3>
+    <div class="tier" data-min="52"><span>52 – 60</span><b>7.0×</b></div>
+    <div class="tier" data-min="44"><span>44 – 51</span><b>3.8×</b></div>
+    <div class="tier" data-min="35"><span>35 – 43</span><b>2.3×</b></div>
+    <div class="tier" data-min="25"><span>25 – 34</span><b>1.5×</b></div>
+    <div class="tier" data-min="15"><span>15 – 24</span><b>0.5×</b></div>
+    <div class="tier zero" data-min="0"><span>&lt; 15</span><b>0×</b></div>
+  </div>
+
+  <div id="flock">
+    <div class="k">Heads home</div>
+    <div id="homeV">0</div>
+    <div id="homeT">of 60 starlings</div>
+    <div id="multNow">0× live</div>
+    <div id="strayRow">
+      <div><div class="k">In stream</div><div class="v" id="streamV" style="color:#7df3ff">0</div></div>
+      <div><div class="k">Strays</div><div class="v" id="strayV" style="color:#ff9db1">60</div></div>
+    </div>
+  </div>
+
+  <div id="banner"><div class="big"></div><div class="sub"></div></div>
+
+  <div id="controls">
+    <div class="stakeBox"><span class="k">Stake</span>
+      <button class="sBtn" id="stakeDn">−</button>
+      <span id="stakeV">$25</span>
+      <button class="sBtn" id="stakeUp">+</button>
+    </div>
+    <button id="betBtn">Herd &amp; Bet $25</button>
+    <div id="pulseBox"><span class="k">Pressure pulses</span><span id="pips"></span></div>
+    <button id="whistleBtn">⟫ Whistle</button>
+    <div id="hint"><b>Click the sky</b> to drop a pressure pulse — birds flee it. Ride the jetstream to the roost.</div>
+  </div>
+</div>
+
+<section id="below">
+  <h2>MURMUR</h2>
+  <p class="lead">Sixty starlings ride a jetstream that <em>is</em> the live price line. Momentum lifts and sinks the
+  whole flock, volatility is literal turbulence, and the roost gate is pinned to the round's opening price.
+  You get eight pressure pulses and one whistle — spend them well and get paid by headcount at the bell.</p>
+  <div class="cols">
+    <div class="card"><h4>The market is the wind</h4>
+      <p>The glowing stream along the price line carries birds toward the roost — but only while they're inside it.
+      A trending market walks the stream away from your flock; a vol spike blasts strays clean out of it.
+      Outside the stream a headwind pushes birds backwards. Every market feature has a mechanical job:
+      level = stream position, momentum = vertical lift, volatility = turbulence, open = gate height.</p></div>
+    <div class="card"><h4>Eight pulses, one whistle</h4>
+      <p>Click anywhere: a pressure pulse makes nearby birds flee the point — classic sheepdog herding.
+      Push strays back into the stream, pre-position the flock before a momentum flip, or shove the
+      final stragglers across the headwind into the gate. The whistle surges the whole murmuration
+      toward the roost for 1.5&nbsp;seconds — most herders save it for the final funnel.</p></div>
+    <div class="card"><h4>Paid by headcount</h4>
+      <p>Birds that reach the gate perch on the wires — banked, safe, counted live. At the bell your
+      stake settles on delivery tiers, up to 7× for a near-perfect 52+. Three birds short of a tier
+      with one pulse left is the whole game.</p></div>
+  </div>
+  <table>
+    <tr><th>Heads home</th><th>&lt; 15</th><th>15 – 24</th><th>25 – 34</th><th>35 – 43</th><th>44 – 51</th><th>52 – 60</th></tr>
+    <tr><td>Payout</td><td><b>0×</b></td><td><b>0.5×</b></td><td><b>1.5×</b></td><td><b>2.3×</b></td><td><b>3.8×</b></td><td><b>7.0×</b></td></tr>
+  </table>
+  <footer>MURMUR · concept prototype for Deriv.com · simulated Volatility 75 feed · not investment advice</footer>
+</section>
+
+<script>
+"use strict";
+/* ================= MURMUR — swarm shepherding on a live market ================= */
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+let W = 1280, H = 800;
+function resize(){
+  const hero = document.getElementById('hero');
+  W = cv.width  = hero.clientWidth;
+  H = cv.height = hero.clientHeight;
+  layout();
+}
+let GATE_X, GATE_W, SKY_TOP, SKY_BOT;
+function layout(){
+  GATE_X = W - 150; GATE_W = 132;
+  SKY_TOP = 64; SKY_BOT = H - 70;
+}
+window.addEventListener('resize', resize);
+
+/* ---------------- market engine ---------------- */
+const DT = 1/30;               // sim seconds per tick
+const DX = 2.0;                // px the chart advances per tick
+let price = 100, cam = 100;    // cam = slow-follow camera center price
+const PSCALE = 26;             // px per price unit
+let regime = 1.0, regTimer = 6, drift = 0;
+let velEMA = 0, volEMA = 0.05, lastDp = 0;
+let hist = [];                 // price history, newest last
+let simT = 0;
+function histLen(){ return Math.ceil(GATE_X / DX) + 4; }
+function gauss(){ let s=0; for(let i=0;i<4;i++) s+=Math.random(); return (s-2)*1.732; }
+function stepMarket(){
+  regTimer -= DT;
+  if (regTimer <= 0){
+    regTimer = 4 + Math.random()*8;
+    const r = Math.random();
+    regime = r < .38 ? 0.55 : r < .76 ? 1.0 : 1.9;          // calm / normal / storm
+    drift  = (Math.random()-.5) * 0.05 * (regime>1.4?1.6:1);
+  }
+  const dp = drift*DT*8 + 0.052*regime*gauss();
+  price += dp; lastDp = dp;
+  velEMA += (dp/DT - velEMA)*0.045;
+  volEMA += (Math.abs(dp) - volEMA)*0.03;
+  cam += (price - cam)*0.012;
+  hist.push(price);
+  const m = histLen();
+  if (hist.length > m) hist.splice(0, hist.length - m);
+}
+function mapY(p){ return H*0.5 - (p - cam)*PSCALE; }
+function lineYat(x){                 // y of price line at screen x
+  const n = hist.length; if (!n) return H/2;
+  const i = Math.max(0, Math.min(n-1, Math.round(n-1 - (GATE_X - x)/DX)));
+  return mapY(hist[i]);
+}
+function lineSlopeAt(x){
+  const n = hist.length; if (n<3) return 0;
+  const i = Math.max(2, Math.min(n-1, Math.round(n-1 - (GATE_X - x)/DX)));
+  return (mapY(hist[i]) - mapY(hist[i-2])) / (2*DX);
+}
+
+/* ---------------- flock ---------------- */
+const NB = 60, BAND = 62;
+const birds = [];
+function spawnFlock(){
+  birds.length = 0;
+  const y0 = lineYat(140);
+  for (let i=0;i<NB;i++){
+    birds.push({
+      x: 40 + Math.random()*180,
+      y: Math.max(SKY_TOP+30, Math.min(SKY_BOT-30, y0 + (Math.random()-.5)*260)),
+      vx: 30+Math.random()*40, vy:(Math.random()-.5)*40,
+      perched:false, slot:-1, trail:[], tw: Math.random()*6.28, bob: Math.random()*6.28
+    });
+  }
+}
+let perchOrder = [];
+function gateBandY(){                 // [top, bottom] of roost band (pinned to round-open price)
+  let cy = mapY(roundOpen);
+  cy = Math.max(SKY_TOP+108, Math.min(SKY_BOT-108, cy));
+  return [cy-92, cy+92];
+}
+function perchPos(slot){
+  const [gt, gb] = gateBandY();
+  const row = slot % 5, col = (slot/5)|0;
+  return [ GATE_X + 16 + col*((GATE_W-30)/11), gt + 30 + row*((gb-gt-58)/4) ];
+}
+
+/* ---------------- player actions ---------------- */
+const pulses = [];                    // {x,y,t}
+let pulsesLeft = 8, whistleLeft = 1, whistleT = -9;
+const floaters = [];                  // {x,y,t,txt,col}
+function firePulse(x,y){
+  if (state!=='flight' || pulsesLeft<=0) return;
+  pulsesLeft--; pulses.push({x,y,t:simT});
+  renderPips();
+}
+function fireWhistle(){
+  if (state!=='flight' || whistleLeft<=0) return;
+  whistleLeft--; whistleT = simT;
+  document.getElementById('whistleBtn').disabled = true;
+}
+
+/* ---------------- round state ---------------- */
+const ROUND_S = 28, REST_S = 4.2;
+let state = 'flight', stateT = 0, roundNum = 1, roundOpen = 100;
+let isDemo = true, stake = 25, balance = 1000, lastHumanT = -99;
+const STAKES = [5,10,25,50,100,250];
+const TIERS = [[52,7],[44,3.8],[35,2.3],[25,1.5],[15,0.5],[0,0]];
+function tierFor(n){ for (const [m,x] of TIERS) if (n>=m) return x; return 0; }
+function startRound(real){
+  state='flight'; stateT=0; roundOpen = price;
+  pulsesLeft = 8; whistleLeft = 1; whistleT=-9; pulses.length=0; perchOrder.length=0;
+  isDemo = !real;
+  spawnFlock(); renderPips();
+  document.getElementById('whistleBtn').disabled = false;
+  document.getElementById('demoTag').style.display = isDemo ? 'block':'none';
+  document.getElementById('roundV').textContent = '#'+roundNum;
+  hideBanner();
+  updateBet();
+}
+function settle(){
+  state='settle'; stateT=0;
+  const n = birds.filter(b=>b.perched).length;
+  const mult = tierFor(n);
+  const bn = document.getElementById('banner');
+  const big = bn.querySelector('.big'), sub = bn.querySelector('.sub');
+  bn.className = mult>=1.5 ? 'win' : (mult>0 ? 'push':'lose');
+  if (isDemo){
+    big.textContent = n + ' HOME — ' + mult.toFixed(1) + '×';
+    sub.textContent = 'Demo flight settled · place a stake to herd for real';
+  } else {
+    const pay = stake*mult;
+    balance += pay;
+    big.textContent = mult>0 ? (n+' HOME — '+mult.toFixed(1)+'× — +$'+pay.toFixed(2))
+                             : ('FLOCK SCATTERED — '+n+' home');
+    sub.textContent = mult>=1.5 ? 'Beautiful herding. The roost is full.'
+                    : mult>0   ? 'Half the stake back. The storm took the rest.'
+                               : 'Fewer than 15 made the wires. Stake lost.';
+    renderBal();
+  }
+  bn.classList.add('show');
+  roundNum++;
+  updateBet();
+}
+function hideBanner(){ document.getElementById('banner').classList.remove('show'); }
+
+/* ---------------- demo shepherd bot ---------------- */
+let botT = 0;
+function botAct(){
+  if (!isDemo || state!=='flight') return;
+  if (simT - lastHumanT < 3.5) return;            // human took over
+  botT -= DT; if (botT > 0) return;
+  botT = 0.95 + Math.random()*0.6;
+  const free = birds.filter(b=>!b.perched);
+  if (!free.length) return;
+  const [gt,gb] = gateBandY(); const gy=(gt+gb)/2;
+  // pool waiting at the funnel mouth?
+  const pool = free.filter(b=> b.x > GATE_X-320 && Math.abs(b.y-gy) < 230);
+  let grp, tx, ty;
+  if (pool.length >= 9){
+    grp = pool; tx = GATE_X+40; ty = gy;             // shove the pool through the gate
+  } else {
+    // herd worst strays back into the stream / downstream
+    free.sort((a,b)=>{
+      const sa = Math.abs(a.y - lineYat(a.x)) > BAND ? 1:0;
+      const sb = Math.abs(b.y - lineYat(b.x)) > BAND ? 1:0;
+      if (sa!==sb) return sb-sa;
+      return (GATE_X-b.x) - (GATE_X-a.x);
+    });
+    grp = free.slice(0, Math.min(16, free.length));
+    let mx=0; grp.forEach(b=>{mx+=b.x}); mx/=grp.length;
+    tx = Math.min(mx+170, GATE_X-40); ty = lineYat(Math.min(mx+60, GATE_X-10));
+  }
+  let cx=0, cy=0; grp.forEach(b=>{cx+=b.x;cy+=b.y}); cx/=grp.length; cy/=grp.length;
+  let dx = tx-cx, dy = ty-cy; const d = Math.hypot(dx,dy)||1; dx/=d; dy/=d;
+  if (pulsesLeft>0) firePulse(cx - dx*88 + (Math.random()-.5)*26, cy - dy*88 + (Math.random()-.5)*26);
+  const left = ROUND_S - stateT;
+  if (whistleLeft>0 && left < 8 && birds.filter(b=>b.perched).length < 46) fireWhistle();
+}
+
+/* ---------------- physics tick ---------------- */
+function tick(doRender){
+  if (doRender === undefined) doRender = true;
+  simT += DT;
+  stepMarket(); botAct();
+  stateT += DT;
+  if (state==='flight' && stateT >= ROUND_S) settle();
+  else if (state==='settle' && stateT >= REST_S) startRound(pendingReal);
+
+  if (state==='flight'){
+    const volN = Math.min(2.4, volEMA/0.05);      // 1 = baseline turbulence
+    const lift = -velEMA * 85;                     // momentum lift: rallies pull the flock up, dumps sink it
+    const gust = Math.abs(lastDp) > 0.10 ? -lastDp*PSCALE*3.2 : 0;   // vol spike = shear kick on stream riders
+    const [gt,gb] = gateBandY(); const gy=(gt+gb)/2;
+    const whistleOn = simT - whistleT < 1.5;
+    for (const b of birds){
+      if (b.perched) continue;
+      let ax=0, ay=0;
+      // --- boids (light) ---
+      let nx=0,ny=0,nvx=0,nvy=0,nc=0,sx=0,sy=0;
+      for (const o of birds){
+        if (o===b||o.perched) continue;
+        const dx=o.x-b.x, dy=o.y-b.y, d2=dx*dx+dy*dy;
+        if (d2 < 2500){ nx+=o.x;ny+=o.y;nvx+=o.vx;nvy+=o.vy;nc++;
+          if (d2 < 380){ sx-=dx;sy-=dy; } }
+      }
+      if (nc){ ax += (nx/nc - b.x)*0.55; ay += (ny/nc - b.y)*0.55;
+               ax += (nvx/nc - b.vx)*0.9; ay += (nvy/nc - b.vy)*0.9; }
+      ax += sx*4.2; ay += sy*4.2;
+      // --- jetstream / dead-air funnel / headwind ---
+      const ly = lineYat(b.x), off = b.y - ly;
+      const inStream = Math.abs(off) < BAND;
+      const inFunnel = b.x > GATE_X - 150;         // carry dies before the roost: pulses must push birds across
+      if (inStream && !inFunnel){
+        const slope = lineSlopeAt(b.x);
+        const inv = 1/Math.hypot(1,slope);
+        ax += 138*inv;  ay += 138*slope*inv;       // carry along the line, toward gate
+        ay += -off*1.35;                           // soft centering in the stream
+        const tn = Math.min(volN, 1.7);
+        b.vx += gauss()*3*tn; b.vy += gauss()*7*tn + gust*(0.5+Math.random());   // turbulence + gust shear
+      } else if (inStream){
+        ax += -30;                                 // dead air: stream stalls at the funnel mouth
+        ay += -off*0.8;
+        b.vx += gauss()*1.6*volN; b.vy += gauss()*2.6*volN;
+      } else {
+        ax += -36;                                 // headwind outside the stream
+        b.vx += gauss()*0.8*volN; b.vy += gauss()*0.8*volN;
+      }
+      ay += lift;                                  // global momentum lift
+      // --- player pulses (flee) ---
+      for (const p of pulses){
+        const age = simT - p.t; if (age > 0.95) continue;
+        const dx=b.x-p.x, dy=b.y-p.y, d=Math.hypot(dx,dy);
+        if (d < 195 && d > 0.5){
+          const f = 660*(1 - d/195)*(1 - age/0.95);
+          ax += dx/d*f; ay += dy/d*f;
+        }
+      }
+      // --- whistle: surge to gate mouth ---
+      if (whistleOn){
+        let dx = (GATE_X+26)-b.x, dy = gy-b.y; const d=Math.hypot(dx,dy)||1;
+        ax += dx/d*290; ay += dy/d*290;
+      }
+      // --- walls ---
+      if (b.x < 26) ax += (26-b.x)*9;
+      if (b.y < SKY_TOP+18) ay += (SKY_TOP+18-b.y)*7;
+      if (b.y > SKY_BOT-14) ay += (SKY_BOT-14-b.y)*7;
+      if (b.x > GATE_X+6 && (b.y < gt || b.y > gb)){       // right wall outside gate
+        ax += (GATE_X+6-b.x)*9;
+      }
+      // --- integrate ---
+      b.vx = (b.vx + ax*DT)*0.965; b.vy = (b.vy + ay*DT)*0.965;
+      const sp = Math.hypot(b.vx,b.vy);
+      if (sp > 250){ b.vx*=250/sp; b.vy*=250/sp; }
+      if (sp < 18 && sp>0){ b.vx*=18/sp; b.vy*=18/sp; }
+      b.x += b.vx*DT; b.y += b.vy*DT;
+      b.tw += DT*9;
+      if (((simT*30)|0) % 2 === 0){ b.trail.push(b.x, b.y); if (b.trail.length > 14) b.trail.splice(0,2); }
+      // --- perch check ---
+      if (b.x > GATE_X+12 && b.y > gt+8 && b.y < gb-8){
+        b.perched = true; b.slot = perchOrder.length; perchOrder.push(b);
+        floaters.push({x:b.x, y:b.y, t:simT, txt:'+1', col:'#ffd9a0'});
+      }
+    }
+  }
+  // floaters decay
+  for (let i=floaters.length-1;i>=0;i--) if (simT - floaters[i].t > 1.2) floaters.splice(i,1);
+  for (let i=pulses.length-1;i>=0;i--) if (simT - pulses[i].t > 1.2) pulses.splice(i,1);
+  if (doRender){ updateHUD(); render(); }
+}
+
+/* ---------------- HUD ---------------- */
+function fmt(n){ return n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function renderBal(){ document.getElementById('balV').textContent = '$'+fmt(balance); }
+function renderPips(){
+  const el = document.getElementById('pips'); let s='';
+  for (let i=0;i<8;i++) s += '<span class="pip'+(i<8-pulsesLeft?' used':'')+'" style="display:inline-block;margin:0 2px"></span>';
+  el.innerHTML = s;
+}
+let pendingReal = false;
+function updateBet(){
+  const btn = document.getElementById('betBtn');
+  if (state==='flight' && !isDemo){ btn.disabled = true; btn.textContent = 'Round live — herd!'; }
+  else if (pendingReal && state==='settle'){ btn.disabled = true; btn.textContent = 'Releasing flock…'; }
+  else { btn.disabled = balance < stake; btn.textContent = 'Herd & Bet $'+stake; }
+  document.getElementById('stakeV').textContent = '$'+stake;
+}
+function updateHUD(){
+  const n = birds.filter(b=>b.perched).length;
+  const inS = birds.filter(b=>!b.perched && Math.abs(b.y - lineYat(b.x)) < BAND).length;
+  document.getElementById('homeV').textContent = n;
+  document.getElementById('streamV').textContent = inS;
+  document.getElementById('strayV').textContent = NB - n - inS;
+  document.getElementById('multNow').textContent = tierFor(n).toFixed(1)+'× live';
+  document.querySelectorAll('.tier').forEach(t=>{
+    const mn = +t.dataset.min;
+    const rows = TIERS.map(x=>x[0]).sort((a,b)=>a-b);
+    let active = n >= mn; // active only if it's the matched tier
+    const next = rows[rows.indexOf(mn)+1];
+    if (next !== undefined && n >= next) active = false;
+    t.classList.toggle('active', active);
+  });
+  const left = state==='flight' ? Math.max(0, ROUND_S - stateT) : 0;
+  document.getElementById('timerV').textContent = left.toFixed(1)+'s';
+  document.getElementById('priceV').textContent = price.toFixed(2);
+  const volN = Math.min(2.4, volEMA/0.05);
+  document.getElementById('turbFill').style.width = Math.min(100, volN*42)+'%';
+  document.getElementById('turbLbl').textContent = volN<0.8?'CALM':volN<1.5?'CHOPPY':'STORM';
+  const mom = Math.max(-1, Math.min(1, velEMA/0.8));
+  document.getElementById('momTick').style.left = (50 + mom*46)+'%';
+  document.getElementById('momLbl').textContent = (velEMA>=0?'+':'')+velEMA.toFixed(1);
+}
+
+/* ---------------- render ---------------- */
+const stars = []; for (let i=0;i<150;i++) stars.push([Math.random(), Math.random()*0.9, Math.random()*6.28, .4+Math.random()*1.4]);
+function render(){
+  /* sky */
+  const g = ctx.createLinearGradient(0,0,0,H);
+  g.addColorStop(0,'#070a1c'); g.addColorStop(.45,'#0a1130'); g.addColorStop(.78,'#10173a'); g.addColorStop(1,'#1b1330');
+  ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
+  /* nebula blobs */
+  const blobs = [[.18,.3,'#1b3f6e',300],[.55,.62,'#173a5e',360],[.82,.25,'#33245e',260],[.38,.8,'#0e4a4e',300],[.95,.7,'#4b2a4e',230]];
+  for (let i=0;i<blobs.length;i++){
+    const [bx,by,c,r0] = blobs[i];
+    const x = bx*W + Math.sin(simT*.07+i*2)*40, y = by*H + Math.cos(simT*.05+i)*30;
+    const r = r0*(1+0.08*Math.sin(simT*.2+i));
+    const rg = ctx.createRadialGradient(x,y,0,x,y,r);
+    rg.addColorStop(0,c+'55'); rg.addColorStop(1,c+'00');
+    ctx.fillStyle = rg; ctx.fillRect(x-r,y-r,r*2,r*2);
+  }
+  /* stars */
+  for (const s of stars){
+    const a = .25 + .3*Math.sin(simT*s[3] + s[2]);
+    ctx.fillStyle = 'rgba(220,235,255,'+a.toFixed(2)+')';
+    ctx.fillRect(s[0]*W, 40 + s[1]*H, 1.4, 1.4);
+  }
+  /* horizontal price grid */
+  ctx.font = '11px "Segoe UI", sans-serif'; ctx.textAlign='left';
+  const pTop = cam + (H*0.5-SKY_TOP)/PSCALE;
+  const step = 1;
+  for (let p = Math.floor(pTop); ; p -= step){
+    const y = mapY(p); if (y > SKY_BOT) break; if (y < SKY_TOP) continue;
+    ctx.strokeStyle = 'rgba(120,160,255,.07)';
+    ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke();
+    ctx.fillStyle = 'rgba(143,163,200,.55)'; ctx.fillText(p.toFixed(2), 8, y-4);
+  }
+  /* vertical time grid */
+  for (let x = (GATE_X) % 120; x < W; x += 120){
+    ctx.strokeStyle = 'rgba(120,160,255,.05)';
+    ctx.beginPath(); ctx.moveTo(x,SKY_TOP); ctx.lineTo(x,SKY_BOT); ctx.stroke();
+  }
+  /* ghost candles + volume strip from history */
+  const n = hist.length, CW = 16;
+  ctx.lineWidth = 1;
+  for (let i = n - CW*((n/CW)|0); i + CW <= n; i += CW){
+    const seg = hist.slice(i, i+CW);
+    const o = seg[0], c = seg[seg.length-1];
+    let hi=-1e9, lo=1e9, volSum=0;
+    for (let k=0;k<seg.length;k++){ const v=seg[k]; if(v>hi)hi=v; if(v<lo)lo=v; if(k)volSum+=Math.abs(v-seg[k-1]); }
+    const x = GATE_X - (n-1-i)*DX;
+    if (x < -CW*DX) continue;
+    const up = c >= o;
+    /* volume bar at the floor */
+    const vh = Math.min(74, volSum*150);
+    ctx.fillStyle = up ? 'rgba(54,230,200,.16)' : 'rgba(255,84,112,.16)';
+    ctx.fillRect(x+CW*0.45, SKY_BOT-vh, CW*1.1, vh);
+    ctx.strokeStyle = up ? 'rgba(54,230,200,.45)' : 'rgba(255,84,112,.45)';
+    ctx.fillStyle   = up ? 'rgba(54,230,200,.22)' : 'rgba(255,84,112,.22)';
+    const yo=mapY(o), yc=mapY(c), yh=mapY(hi), yl=mapY(lo);
+    ctx.beginPath(); ctx.moveTo(x+CW, yh); ctx.lineTo(x+CW, yl); ctx.stroke();
+    const t = Math.min(yo,yc), h2 = Math.max(2, Math.abs(yc-yo));
+    ctx.fillRect(x+CW*0.55, t, CW*0.9, h2); ctx.strokeRect(x+CW*0.55, t, CW*0.9, h2);
+  }
+  /* wind streaks (parallax sky motion) */
+  ctx.lineWidth = 1;
+  for (let i=0;i<26;i++){
+    const sy = SKY_TOP + ((i*73.7) % (SKY_BOT-SKY_TOP-20)) + 10;
+    const len = 50 + (i*37)%110;
+    const sx = W - (((simT*(46+(i*13)%70)) + i*331) % (W+len)) ;
+    ctx.strokeStyle = 'rgba(140,180,235,'+(0.045+(i%3)*0.02).toFixed(3)+')';
+    ctx.beginPath(); ctx.moveTo(sx,sy); ctx.lineTo(sx-len,sy+2); ctx.stroke();
+  }
+  /* area fill under price line */
+  if (n > 2){
+    ctx.beginPath();
+    ctx.moveTo(GATE_X-(n-1)*DX, SKY_BOT);
+    for (let i=0;i<n;i++) ctx.lineTo(GATE_X-(n-1-i)*DX, mapY(hist[i]));
+    ctx.lineTo(GATE_X, SKY_BOT); ctx.closePath();
+    const ag = ctx.createLinearGradient(0,SKY_TOP,0,SKY_BOT);
+    ag.addColorStop(0,'rgba(54,230,200,.10)'); ag.addColorStop(1,'rgba(54,230,200,0)');
+    ctx.fillStyle = ag; ctx.fill();
+  }
+  /* jetstream tube */
+  if (n > 2){
+    ctx.save();
+    ctx.beginPath();
+    for (let i=0;i<n;i++){ const x = GATE_X-(n-1-i)*DX, y = mapY(hist[i]); i?ctx.lineTo(x,y):ctx.moveTo(x,y); }
+    ctx.lineJoin='round'; ctx.lineCap='round';
+    ctx.strokeStyle='rgba(25,184,216,.10)'; ctx.lineWidth=BAND*2; ctx.stroke();
+    ctx.strokeStyle='rgba(54,230,200,.10)'; ctx.lineWidth=BAND*1.2; ctx.stroke();
+    ctx.strokeStyle='rgba(125,243,255,.16)'; ctx.lineWidth=BAND*0.5; ctx.stroke();
+    /* flow dashes */
+    ctx.setLineDash([16,30]); ctx.lineDashOffset = -simT*150;
+    ctx.strokeStyle='rgba(160,250,255,.35)'; ctx.lineWidth=1.6; ctx.stroke();
+    ctx.lineDashOffset = -simT*150-23;
+    ctx.strokeStyle='rgba(160,250,255,.18)'; ctx.lineWidth=1;
+    ctx.translate(0,-BAND*0.5); ctx.stroke(); ctx.translate(0,BAND); ctx.stroke();
+    ctx.restore();
+    /* bright price line */
+    ctx.save();
+    ctx.beginPath();
+    for (let i=0;i<n;i++){ const x = GATE_X-(n-1-i)*DX, y = mapY(hist[i]); i?ctx.lineTo(x,y):ctx.moveTo(x,y); }
+    ctx.shadowColor='#36e6c8'; ctx.shadowBlur=14;
+    ctx.strokeStyle='#5ef0d6'; ctx.lineWidth=2.2; ctx.lineJoin='round'; ctx.stroke();
+    ctx.restore();
+    /* leading dot */
+    const ly = mapY(hist[n-1]);
+    const pr = 5 + 2*Math.sin(simT*6);
+    ctx.fillStyle='#d9fff4'; ctx.shadowColor='#36e6c8'; ctx.shadowBlur=22;
+    ctx.beginPath(); ctx.arc(GATE_X, ly, pr, 0, 6.28); ctx.fill(); ctx.shadowBlur=0;
+  }
+  /* roost gate */
+  const [gt,gb] = gateBandY();
+  const gx = GATE_X;
+  /* dead-air funnel zone */
+  ctx.save();
+  ctx.strokeStyle='rgba(173,196,255,.22)'; ctx.lineWidth=1; ctx.setLineDash([5,7]);
+  ctx.beginPath(); ctx.moveTo(gx-150, SKY_TOP+6); ctx.lineTo(gx-150, SKY_BOT-2); ctx.stroke();
+  ctx.setLineDash([]);
+  const dz = ctx.createLinearGradient(gx-150,0,gx,0);
+  dz.addColorStop(0,'rgba(100,130,200,0)'); dz.addColorStop(1,'rgba(100,130,200,.07)');
+  ctx.fillStyle=dz; ctx.fillRect(gx-150, SKY_TOP, 150, SKY_BOT-SKY_TOP);
+  ctx.fillStyle='rgba(173,196,255,.5)'; ctx.font='9.5px "Segoe UI", sans-serif'; ctx.textAlign='left';
+  ctx.save(); ctx.translate(gx-141, SKY_TOP+88); ctx.rotate(Math.PI/2);
+  ctx.fillText('D E A D   A I R  —  P U S H   T H E M   H O M E', 0, 0); ctx.restore();
+  ctx.restore();
+  /* gate glow zone */
+  const zg = ctx.createLinearGradient(gx,0,W,0);
+  zg.addColorStop(0,'rgba(255,179,71,.05)'); zg.addColorStop(.3,'rgba(255,179,71,.14)'); zg.addColorStop(1,'rgba(255,138,61,.20)');
+  ctx.fillStyle = zg; ctx.fillRect(gx, gt, W-gx, gb-gt);
+  /* funnel chevrons */
+  ctx.strokeStyle='rgba(255,217,160,.55)'; ctx.lineWidth=2;
+  for (let k=0;k<3;k++){
+    const ph = ((simT*0.9 + k/3) % 1);
+    const cxx = gx - 14 - 60*(1-ph);
+    ctx.globalAlpha = ph*0.8;
+    ctx.beginPath(); ctx.moveTo(cxx, gt+18); ctx.lineTo(cxx+16, (gt+gb)/2); ctx.lineTo(cxx, gb-18); ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+  /* posts */
+  for (const px of [gx, W-12]){
+    ctx.fillStyle='rgba(255,179,71,.9)'; ctx.shadowColor='#ffb347'; ctx.shadowBlur=16;
+    ctx.fillRect(px-2.5, gt-12, 5, gb-gt+24); ctx.shadowBlur=0;
+    ctx.fillStyle='#ffe9c9';
+    ctx.beginPath(); ctx.arc(px, gt-14, 4.5, 0, 6.28); ctx.fill();
+    ctx.beginPath(); ctx.arc(px, gb+14, 4.5, 0, 6.28); ctx.fill();
+  }
+  /* wires */
+  ctx.strokeStyle='rgba(255,217,160,.4)'; ctx.lineWidth=1.2;
+  for (let r=0;r<5;r++){
+    const wy = gt + 30 + r*((gb-gt-58)/4);
+    ctx.beginPath(); ctx.moveTo(gx+6, wy+3);
+    ctx.quadraticCurveTo((gx+W)/2, wy+9, W-14, wy+3); ctx.stroke();
+  }
+  /* gate label + counter */
+  ctx.textAlign='center';
+  ctx.font='700 11px "Segoe UI", sans-serif'; ctx.fillStyle='rgba(255,217,160,.85)';
+  ctx.fillText('R O O S T', gx+(W-gx)/2, gt-26);
+  ctx.font='800 30px "Segoe UI", sans-serif'; ctx.fillStyle='#ffd9a0';
+  ctx.shadowColor='#ffb347'; ctx.shadowBlur=18;
+  ctx.fillText(String(birds.filter(b=>b.perched).length), gx+(W-gx)/2, gb+44); ctx.shadowBlur=0;
+  ctx.font='10px "Segoe UI", sans-serif'; ctx.fillStyle='rgba(255,217,160,.6)';
+  ctx.fillText('HOME', gx+(W-gx)/2, gb+58);
+  /* open-price tag */
+  ctx.textAlign='right'; ctx.font='10px "Segoe UI", sans-serif'; ctx.fillStyle='rgba(255,179,71,.7)';
+  ctx.fillText('open '+roundOpen.toFixed(2), gx-8, gt+4);
+
+  /* birds */
+  for (const b of birds){
+    if (b.perched){
+      const [px,py] = perchPos(b.slot);
+      const bob = Math.sin(simT*3 + b.bob)*1.5;
+      ctx.fillStyle='#ffc97e'; ctx.shadowColor='#ffb347'; ctx.shadowBlur=7;
+      ctx.beginPath(); ctx.ellipse(px, py+bob, 3.4, 4.4, 0, 0, 6.28); ctx.fill();
+      ctx.shadowBlur=0;
+      ctx.fillStyle='#ffe9c9'; ctx.fillRect(px-1, py+bob-6, 2, 3);
+      continue;
+    }
+    /* trail */
+    if (b.trail.length >= 4){
+      ctx.strokeStyle='rgba(125,220,255,.30)'; ctx.lineWidth=1.5;
+      ctx.beginPath(); ctx.moveTo(b.trail[0], b.trail[1]);
+      for (let i=2;i<b.trail.length;i+=2) ctx.lineTo(b.trail[i], b.trail[i+1]);
+      ctx.lineTo(b.x, b.y); ctx.stroke();
+    }
+    const a = Math.atan2(b.vy, b.vx);
+    const flap = Math.sin(b.tw)*0.45;
+    ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(a);
+    const inStream = Math.abs(b.y - lineYat(b.x)) < BAND;
+    ctx.fillStyle = inStream ? '#cdf6ff' : '#9db8e8';
+    ctx.shadowColor = inStream ? '#7df3ff' : '#6f8ec8'; ctx.shadowBlur = inStream?8:4;
+    ctx.beginPath();
+    ctx.moveTo(6.5,0); ctx.lineTo(-4.5,-4-flap*3.4); ctx.lineTo(-2.4,0); ctx.lineTo(-4.5,4+flap*3.4);
+    ctx.closePath(); ctx.fill();
+    ctx.restore(); ctx.shadowBlur=0;
+  }
+  /* pulses */
+  for (const p of pulses){
+    const age = (simT - p.t)/0.95; if (age>1) continue;
+    const r = 18 + age*160;
+    ctx.strokeStyle = 'rgba(125,243,255,'+(0.7*(1-age)).toFixed(2)+')';
+    ctx.lineWidth = 2.6*(1-age)+0.6;
+    ctx.beginPath(); ctx.arc(p.x,p.y,r,0,6.28); ctx.stroke();
+    ctx.strokeStyle = 'rgba(255,255,255,'+(0.35*(1-age)).toFixed(2)+')';
+    ctx.beginPath(); ctx.arc(p.x,p.y,r*0.6,0,6.28); ctx.stroke();
+    if (age < 0.3){
+      ctx.fillStyle='rgba(210,250,255,'+(0.8*(1-age/0.3)).toFixed(2)+')';
+      ctx.beginPath(); ctx.arc(p.x,p.y,6,0,6.28); ctx.fill();
+    }
+  }
+  /* whistle waves */
+  const wAge = simT - whistleT;
+  if (wAge < 1.5){
+    const [g2t,g2b] = gateBandY();
+    for (let k=0;k<4;k++){
+      const ph = (wAge*1.4 + k*0.25) % 1;
+      ctx.strokeStyle='rgba(255,179,71,'+(0.5*(1-ph)).toFixed(2)+')'; ctx.lineWidth=2;
+      ctx.beginPath();
+      ctx.arc(GATE_X+26, (g2t+g2b)/2, 30+ph*420, Math.PI*0.72, Math.PI*1.28);
+      ctx.stroke();
+    }
+  }
+  /* floaters */
+  ctx.textAlign='center'; ctx.font='700 13px "Segoe UI", sans-serif';
+  for (const f of floaters){
+    const a = 1-(simT-f.t)/1.2;
+    ctx.fillStyle='rgba(255,217,160,'+a.toFixed(2)+')';
+    ctx.fillText(f.txt, f.x, f.y - (simT-f.t)*26);
+  }
+  /* round progress ring (bottom center, above controls) */
+  if (state==='flight'){
+    const frac = stateT/ROUND_S;
+    ctx.strokeStyle='rgba(255,255,255,.1)'; ctx.lineWidth=3;
+    ctx.beginPath(); ctx.arc(W/2, H-110, 17, 0, 6.28); ctx.stroke();
+    ctx.strokeStyle = frac>0.82 ? '#ff7d96' : '#7df3ff';
+    ctx.beginPath(); ctx.arc(W/2, H-110, 17, -Math.PI/2, -Math.PI/2 + 6.283*(1-frac)); ctx.stroke();
+  }
+  /* vignette */
+  const v = ctx.createRadialGradient(W/2,H/2,H*0.35,W/2,H/2,H*0.85);
+  v.addColorStop(0,'rgba(0,0,0,0)'); v.addColorStop(1,'rgba(2,3,10,.55)');
+  ctx.fillStyle=v; ctx.fillRect(0,0,W,H);
+}
+
+/* ---------------- input ---------------- */
+cv.addEventListener('pointerdown', e=>{
+  const r = cv.getBoundingClientRect();
+  const x = (e.clientX-r.left)*(W/r.width), y = (e.clientY-r.top)*(H/r.height);
+  lastHumanT = simT;
+  firePulse(x,y);
+});
+document.getElementById('whistleBtn').addEventListener('click', ()=>{ lastHumanT=simT; fireWhistle(); });
+document.getElementById('stakeUp').addEventListener('click', ()=>{
+  const i = STAKES.indexOf(stake); if (i < STAKES.length-1) stake = STAKES[i+1]; updateBet();
+});
+document.getElementById('stakeDn').addEventListener('click', ()=>{
+  const i = STAKES.indexOf(stake); if (i>0) stake = STAKES[i-1]; updateBet();
+});
+document.getElementById('betBtn').addEventListener('click', ()=>{
+  if (balance < stake) return;
+  if (state==='flight' && !isDemo) return;
+  balance -= stake; renderBal();
+  pendingReal = true;
+  startRound(true);
+  pendingReal = false;
+  updateBet();
+});
+
+/* ---------------- boot ---------------- */
+resize();
+for (let i=0;i<histLen()+40;i++) stepMarket();   // prefill chart
+roundOpen = price;
+spawnFlock();
+renderPips(); renderBal(); updateBet();
+/* warm the demo so the very first frame is mid-flight and alive */
+for (let i=0;i<195;i++){ tick(false); }
+updateHUD(); render();
+setInterval(tick, 33);   // setInterval keeps the sim ticking in backgrounded tabs
+</script>
+</body>
+</html>
