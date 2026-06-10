@@ -32,3 +32,12 @@ One line per design: name — core mechanic — STATUS
 - SILKLINE — predict the full finishing order of N momentum-driven market runners; paid by rank-distance to the realized order — KEEPER
 - EMBERWELL — place a band and accrue heat by the time price dwells inside (leaking when outside); banked at the bell — KEEPER
 - SUMMIT FLAGS — call the price-and-time coordinate of the window high/low; paid by 2-D proximity to the realized extremum — KEEPER
+- CRUX [FABLE] — spend a fixed rack of irreversible pitons to ratchet-lock altitude floors on the price wall; settled by highest lock vs final through a convex curve plus unspent bonus — KEEPER
+- MURMUR [FABLE] — herd a price-driven starling swarm with rationed pressure pulses; paid by headcount tiers at the roost bell — KEEPER
+- WINDLEASE [FABLE] — lease future 5s time-windows at demand-inflated vol quotes; paid by realized travel inside owned windows — KEEPER
+- HOTHOUSE [FABLE] — plant market-fed flora typed to price-action character, graft mid-round with lossy shears; paid by nonlinear bloom-stage cliffs at the bell — KEEPER
+- CAUSTIC [FABLE] — aim three light cannons at the liquid-mirror price curve; paid by which odds-zones the multi-bounce reflections strike at the bell — KEEPER
+- RECOIL [FABLE] — anchor an elastic tether on the spread between two coupled runners; harvest squared-excursion energy per re-crossing, salvage on snap — KEEPER
+- GAVEL [FABLE] — sealed-bid first-price auctions vs three rival temperaments for lots whose value the next 15s of tape forges; settled realized value minus your winning bid — KEEPER
+- SYNDICATE [FABLE] — underwrite a six-trigger book of market-event insurance for upfront premiums with a priced claims cap; settled premiums minus claims, floored at the cap — KEEPER
+- SENTE [FABLE] — board duel vs the tape: candles print forced enemy stones, you pre-place nine; settled by custodial captures and engagement-gated chain tiers — KEEPER
