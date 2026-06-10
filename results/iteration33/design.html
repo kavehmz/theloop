@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WINDLEASE — Lease the Market's Next Minutes</title>
+<style>
+  :root{
+    --you:#37e6c8; --you-dim:rgba(55,230,200,.25);
+    --amber:#ffb648; --rose:#fb7185; --violet:#a78bfa; --lime:#a3e635;
+    --ink:#dfe9f5; --mut:#7f93ad;
+  }
+  *{box-sizing:border-box; margin:0; padding:0}
+  html,body{background:#04080f; color:var(--ink);
+    font-family:"Sora","Outfit",-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+  #stage{position:relative; width:1280px; height:800px; margin:0 auto; overflow:hidden;
+    background:#04080f; box-shadow:0 30px 80px rgba(0,0,0,.6);}
+  canvas{display:block}
+  /* ---------- top HUD ---------- */
+  #topbar{position:absolute; left:0; top:0; width:1280px; height:64px; z-index:5;
+    display:flex; align-items:center; gap:18px; padding:0 22px;
+    background:linear-gradient(180deg, rgba(5,12,22,.92), rgba(5,12,22,.55) 75%, transparent);
+    pointer-events:none;}
+  #topbar .logo{font-weight:800; font-size:24px; letter-spacing:3px;
+    background:linear-gradient(95deg,#7df5e0,#37e6c8 40%,#ffb648);
+    -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent;}
+  #topbar .tag{font-size:11px; letter-spacing:1.6px; color:var(--mut); text-transform:uppercase; margin-top:4px}
+  .pill{pointer-events:auto; display:flex; flex-direction:column; align-items:flex-start;
+    padding:7px 14px; border-radius:10px; background:rgba(13,26,44,.78);
+    border:1px solid rgba(120,160,210,.16); min-width:96px;}
+  .pill .k{font-size:9px; letter-spacing:1.4px; color:var(--mut); text-transform:uppercase}
+  .pill .v{font-size:17px; font-weight:700; font-variant-numeric:tabular-nums; margin-top:1px}
+  #pnl.up .v{color:#4ade80} #pnl.dn .v{color:#fb7185}
+  #regime .v{font-size:13px; letter-spacing:1px}
+  #spacer{flex:1}
+  #stakes{pointer-events:auto; display:flex; align-items:center; gap:7px}
+  #stakes .lbl{font-size:9px; letter-spacing:1.4px; color:var(--mut); margin-right:2px}
+  .chip{width:46px; height:34px; border-radius:9px; border:1px solid rgba(120,160,210,.25);
+    background:rgba(13,26,44,.85); color:var(--ink); font-weight:700; font-size:13px;
+    cursor:pointer; transition:all .15s; font-family:inherit;}
+  .chip:hover{border-color:var(--you); transform:translateY(-1px)}
+  .chip.on{background:linear-gradient(140deg,#0e3b34,#114d43); border-color:var(--you);
+    color:var(--you); box-shadow:0 0 14px rgba(55,230,200,.35)}
+  #autob{pointer-events:auto; padding:8px 13px; border-radius:9px; cursor:pointer;
+    border:1px solid rgba(255,182,72,.45); background:rgba(48,32,8,.7);
+    color:var(--amber); font-size:10px; letter-spacing:1.5px; font-weight:700; font-family:inherit;}
+  #autob.off{border-color:rgba(120,160,210,.25); background:rgba(13,26,44,.85); color:var(--mut)}
+  /* ---------- below the fold ---------- */
+  #below{width:1280px; margin:0 auto; padding:46px 60px 70px;
+    background:linear-gradient(180deg,#04080f,#060c16);}
+  #below h2{font-size:21px; letter-spacing:2px; margin-bottom:10px; color:#bfe9df}
+  #below p.lead{color:var(--mut); max-width:880px; line-height:1.65; font-size:14px}
+  .cols{display:flex; gap:26px; margin-top:30px}
+  .card{flex:1; background:rgba(13,26,44,.5); border:1px solid rgba(120,160,210,.13);
+    border-radius:14px; padding:22px}
+  .card b{color:var(--you); display:block; font-size:13px; letter-spacing:1.6px; margin-bottom:8px}
+  .card p{color:#9fb2c9; font-size:13px; line-height:1.6}
+  .formula{margin-top:30px; padding:18px 24px; border-radius:12px; font-size:13.5px;
+    background:rgba(8,20,18,.8); border:1px solid rgba(55,230,200,.22); color:#a8e8da;
+    font-family:ui-monospace,Menlo,monospace; letter-spacing:.4px}
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="cv" width="1280" height="800"></canvas>
+  <div id="topbar">
+    <div><div class="logo">WINDLEASE</div><div class="tag">own the market's next minutes</div></div>
+    <div class="pill" id="regime"><span class="k">Wind now</span><span class="v" id="regV">—</span></div>
+    <div class="pill" id="bal"><span class="k">Balance</span><span class="v" id="balV">$1,000</span></div>
+    <div class="pill" id="pnl"><span class="k">Session P/L</span><span class="v" id="pnlV">$0</span></div>
+    <div id="spacer"></div>
+    <div id="stakes"><span class="lbl">STAKE</span>
+      <button class="chip" data-s="5">$5</button>
+      <button class="chip on" data-s="10">$10</button>
+      <button class="chip" data-s="25">$25</button>
+      <button class="chip" data-s="50">$50</button>
+    </div>
+    <button id="autob">⚡ AUTOPILOT ON</button>
+  </div>
+</div>
+
+<section id="below">
+  <h2>HOW WINDLEASE WORKS</h2>
+  <p class="lead">The chart is a river of wind flowing toward the <b style="color:#ffb648">NOW</b> line.
+  Everything to its right is the future, cut into 5-second <b style="color:#37e6c8">lease windows</b>.
+  Every window carries a live <b>QUOTE</b> — the price travel the market is expected to realize inside it,
+  estimated from the forecast haze and pushed up by demand each time anyone leases it. Click a future window
+  to lease it at the quote of that instant. When the NOW line sweeps through your window, every tick of
+  movement — up <i>or</i> down — is harvested. Beat your locked quote and you profit; a dead-calm window pays dust.</p>
+  <div class="cols">
+    <div class="card"><b>1 · READ THE SKY</b><p>The teal haze over the future is the volatility forecast:
+      wide haze = storm expected = expensive quotes. The forecast is good but not perfect — your edge
+      is spotting the gust it underprices, or the lull it overprices.</p></div>
+    <div class="card"><b>2 · LEASE EARLY OR LATE</b><p>Quotes drift every tick: they re-anchor to live
+      conditions as a window approaches, and rival captains (Zephyr, Mistral, Halcyon) bid windows up by
+      +8% per lease. A cheap window rarely stays cheap — buying early locks the bargain, buying late buys certainty.</p></div>
+    <div class="card"><b>3 · HARVEST THE TRAVEL</b><p>While your window is live, a meter fills with realized
+      travel — every |tick move| counts, direction is irrelevant. At the window's end you're paid automatically.
+      No cash-out, no bust: pure realized motion versus the price you paid for it.</p></div>
+  </div>
+  <div class="formula">payout = stake × min( realized_travel / locked_quote , 5.0 ) × 0.96
+    &nbsp;&nbsp;·&nbsp;&nbsp; travel = Σ |tick-to-tick move| inside your window
+    &nbsp;&nbsp;·&nbsp;&nbsp; quote = forecast travel × demand (+8% per lease)</div>
+</section>
+
+<script>
+"use strict";
+/* ================= WINDLEASE — core sim ================= */
+const TICK_MS = 100, SLOT = 50;              // 50 ticks * 100ms = 5s windows
+const W=1280, H=800, NOWX=704, PXT=1.2, SLOTPX=SLOT*PXT;   // 60px per window
+const CH_T=96, CH_B=552;                      // chart band
+const LANE_T=558, LANE_B=642;                 // window-tag lane
+const LED_T=652, LED_B=792;                   // ledger strip
+const EDGE=0.96, CAP=5.0;
+const cv=document.getElementById('cv'), ctx=cv.getContext('2d');
+
+/* ---------- rng ---------- */
+function mulberry(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+const SEED=+((new URLSearchParams(location.search)).get('seed')||7);
+const srng=mulberry(20260610+SEED), prng=mulberry(SEED*7919+11);
+let _g2=null;
+function gauss(r){ r=r||prng; if(_g2!==null){const v=_g2;_g2=null;return v}
+  let u=0,v=0; while(!u)u=r(); v=r(); const m=Math.sqrt(-2*Math.log(u));
+  _g2=m*Math.sin(6.2831853*v); return m*Math.cos(6.2831853*v); }
+
+/* ---------- regime schedule (true vol per window) ---------- */
+const volArr=[], fcArr=[], biasArr=[]; let ou=0;
+function trueVol(i){ while(volArr.length<=i){
+    ou=ou*0.86+gauss(srng)*0.42; const o=Math.max(-1.1,Math.min(1.7,ou));
+    volArr.push(0.62*Math.exp(o));
+    fcArr.push(Math.exp(gauss(srng)*0.30));          // forecast noise factor
+    biasArr.push(gauss(srng)*0.10); }
+  return volArr[i]; }
+function fcVol(i){ trueVol(i); return volArr[i]*fcArr[i]; }
+function slotBias(i){ trueVol(i); return biasArr[i]; }
+
+/* ---------- market state ---------- */
+let t=0, price=1000, prev=1000, ewmaAbs=0.5, histStart=0;
+const hist=[price];
+function priceAt(k){ const j=k-histStart; return hist[Math.max(0,Math.min(hist.length-1,j))]; }
+
+/* ---------- windows / leases ---------- */
+const slots=new Map();
+function expTravel(v){ return SLOT*v*0.8; }
+function getSlot(i){ let s=slots.get(i); if(!s){
+    s={i, demand:1, jit:1, quote:expTravel(fcVol(i)), pos:[], travel:0, settled:false, mult:null};
+    slots.set(i,s);} return s; }
+function curSlotIdx(){ return Math.floor(t/SLOT); }
+function refreshQuote(s){
+  const lead=s.i-curSlotIdx();                      // windows away
+  const wBlend=Math.max(0, 0.55-0.11*lead);         // near windows anchor to live conditions
+  const v=fcVol(s.i)*(1-wBlend)+ewmaAbs*1.05*wBlend;
+  s.jit=Math.max(.86,Math.min(1.16, s.jit+(Math.random()-.5)*0.012));
+  s.quote=Math.max(1.2, expTravel(v)*s.demand*s.jit);
+}
+
+/* ---------- players ---------- */
+let stake=10, balance=1000, plBase=1000, auto=true;
+const BOTS=[{n:'ZEPHYR',c:'#a3e635',next:30},{n:'MISTRAL',c:'#fb7185',next:70},{n:'HALCYON',c:'#a78bfa',next:110}];
+const YOUC='#37e6c8';
+const ledger=[]; const floats=[];
+function addFloat(x,y,txt,col,big){ floats.push({x,y,txt,col,age:0,big:!!big}); }
+
+function lease(i, owner, st, col){
+  const s=getSlot(i); if(s.i<=curSlotIdx()||s.settled) return false;
+  if(owner==='YOU'){ if(balance<st) return false; balance-=st; }
+  s.pos.push({owner, stake:st, lock:s.quote, col});
+  s.demand*=1.08;
+  addFloat(xOfTick(i*SLOT+SLOT/2), LANE_T-12, owner==='YOU'?('LEASED $'+st):(owner+' leased'), col, owner==='YOU');
+  return true;
+}
+function settle(i){
+  const s=slots.get(i); if(!s||s.settled) return; s.settled=true;
+  let best=null;
+  for(const p of s.pos){
+    const mult=Math.min(CAP, s.travel/p.lock)*EDGE;
+    const gain=p.stake*mult;
+    if(p.owner==='YOU'){ balance+=gain; const net=gain-p.stake;
+      addFloat(xOfTick(i*SLOT+SLOT/2), CH_T+150, (net>=0?'+$':'−$')+Math.abs(net).toFixed(2)+'  ×'+mult.toFixed(2),
+               mult>=1?'#4ade80':'#fb7185', true); }
+    p.mult=mult; p.gain=gain;
+    if(!best||p.owner==='YOU') best=p;
+    ledger.unshift({w:i, owner:p.owner, col:p.col, stake:p.stake, mult, gain, travel:s.travel, lock:p.lock});
+  }
+  if(s.pos.length) s.mult=best.mult; else s.mult=null;
+  if(ledger.length>40) ledger.length=40;
+}
+
+/* ---------- autopilot & bots ---------- */
+let autoNext=40;
+function botBrain(buyer){
+  const c=curSlotIdx(); let bi=-1,bv=0;
+  for(let i=c+1;i<=c+8;i++){ const s=getSlot(i);
+    const val=(ewmaAbs*SLOT*0.8)/s.quote * (1+Math.random()*0.3);
+    if(val>bv){bv=val;bi=i;} }
+  if(bi<0) return;
+  if(buyer==='YOU'){ if(bv>0.88) lease(bi,'YOU',[10,15,20,25][Math.floor(Math.random()*4)],YOUC); }
+  else lease(bi, buyer.n, 10+Math.floor(Math.random()*30), buyer.c);
+}
+
+/* ---------- tick ---------- */
+function tick(){
+  t++;
+  const si=curSlotIdx();
+  prev=price;
+  price += gauss()*trueVol(si) + slotBias(si);
+  hist.push(price);
+  if(hist.length>820){ hist.splice(0,hist.length-820); histStart=t-hist.length+1; }
+  const d=Math.abs(price-prev);
+  ewmaAbs=ewmaAbs*0.955+d*0.045;
+  getSlot(si).travel+=d;
+  if(t%SLOT===0) settle(si-1);
+  for(let i=si+1;i<=si+11;i++) refreshQuote(getSlot(i));
+  for(const b of BOTS){ if(t>=b.next){ botBrain(b); b.next=t+25+Math.floor(Math.random()*60);} }
+  if(auto && t>=autoNext){ botBrain('YOU'); autoNext=t+38+Math.floor(Math.random()*45); }
+  for(let k=floats.length-1;k>=0;k--){ if(++floats[k].age>46) floats.splice(k,1); }
+  spawnParticles();
+  hudDirty=true;
+}
+
+/* ---------- particles (wind stream) ---------- */
+const parts=[];
+function spawnParticles(){
+  const v=Math.min(1,Math.abs(price-prev)/1.6);
+  const n=1+Math.round(v*3);
+  for(let k=0;k<n;k++) parts.push({tt:t, oy:(Math.random()-.5)*14, vy:(Math.random()-.5)*.5, a:0.5+v*0.5, age:0, sz:1+Math.random()*1.8});
+  for(let k=parts.length-1;k>=0;k--){ const p=parts[k]; p.age++; p.oy+=p.vy; if(p.age>110||parts.length>260&&k===0) parts.splice(k,1); }
+}
+
+/* ---------- y scale ---------- */
+let yLo=995,yHi=1005;
+function fitY(){
+  let lo=1e9,hi=-1e9;
+  const from=Math.max(histStart, t-Math.floor(NOWX/PXT));
+  for(let k=from;k<=t;k++){ const p=priceAt(k); if(p<lo)lo=p; if(p>hi)hi=p; }
+  const haze=expTravel(fcVol(curSlotIdx()+2))*0.5;
+  lo=Math.min(lo,price-haze*1.2); hi=Math.max(hi,price+haze*1.2);
+  const pad=(hi-lo)*0.18+1.5; lo-=pad; hi+=pad;
+  yLo+=(lo-yLo)*0.05; yHi+=(hi-yHi)*0.05;
+}
+function yOf(p){ return CH_T+(yHi-p)/(yHi-yLo)*(CH_B-CH_T); }
+function xOfTick(k){ return NOWX+(k-t)*PXT; }
+
+/* ================= RENDER ================= */
+const starR=mulberry(7); const stars=[];
+for(let i=0;i<160;i++) stars.push({x:starR()*W,y:starR()*620,r:starR()*1.3+0.3,tw:starR()*6.28});
+let mouseX=-1,mouseY=-1, frame=0;
+
+function roundRect(x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r);
+  ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
+
+function drawBG(){
+  const g=ctx.createLinearGradient(0,0,0,H);
+  g.addColorStop(0,'#050d1a'); g.addColorStop(.45,'#071425'); g.addColorStop(.8,'#04101e'); g.addColorStop(1,'#030a14');
+  ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+  // aurora blobs
+  const a1x=W*0.32+Math.sin(frame*0.0021)*120, a2x=W*0.78+Math.cos(frame*0.0016)*100;
+  let rg=ctx.createRadialGradient(a1x,210,0,a1x,210,430);
+  rg.addColorStop(0,'rgba(34,120,110,0.16)'); rg.addColorStop(1,'rgba(34,120,110,0)');
+  ctx.fillStyle=rg; ctx.fillRect(0,0,W,640);
+  rg=ctx.createRadialGradient(a2x,150,0,a2x,150,380);
+  rg.addColorStop(0,'rgba(150,110,40,0.12)'); rg.addColorStop(1,'rgba(150,110,40,0)');
+  ctx.fillStyle=rg; ctx.fillRect(0,0,W,600);
+  // stars
+  for(const s of stars){ const a=0.25+0.55*Math.abs(Math.sin(frame*0.012+s.tw));
+    ctx.fillStyle='rgba(190,225,255,'+(a*0.55).toFixed(3)+')';
+    ctx.fillRect(s.x,s.y,s.r,s.r); }
+  // hills silhouette
+  ctx.fillStyle='rgba(6,18,28,0.9)'; ctx.beginPath(); ctx.moveTo(0,CH_B+4);
+  for(let x=0;x<=W;x+=16) ctx.lineTo(x, CH_B-2-10*Math.abs(Math.sin(x*0.008+1.4))-5*Math.sin(x*0.021));
+  ctx.lineTo(W,CH_B+8); ctx.closePath(); ctx.fill();
+}
+
+function drawGrid(){
+  // horizontal price lines
+  ctx.font='10px ui-monospace,Menlo,monospace'; ctx.textAlign='left';
+  const step=niceStep((yHi-yLo)/5);
+  for(let p=Math.ceil(yLo/step)*step; p<yHi; p+=step){
+    const y=yOf(p);
+    ctx.strokeStyle='rgba(110,150,200,0.07)'; ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke();
+    ctx.fillStyle='rgba(130,165,205,0.42)'; ctx.fillText(p.toFixed(1),6,y-3);
+  }
+  // vertical window boundaries
+  const c=curSlotIdx();
+  for(let i=c-12;i<=c+11;i++){
+    const x=xOfTick(i*SLOT); if(x<-5||x>W+5) continue;
+    const fut=i>c;
+    ctx.strokeStyle=fut?'rgba(55,230,200,0.10)':'rgba(110,150,200,0.06)';
+    ctx.beginPath(); ctx.moveTo(x,CH_T-6); ctx.lineTo(x,LANE_B); ctx.stroke();
+  }
+}
+function niceStep(r){ const p=Math.pow(10,Math.floor(Math.log10(r))); const n=r/p;
+  return (n<1.5?1:n<3.5?2:n<7.5?5:10)*p; }
+
+function drawHaze(){
+  // forecast volatility ribbon over future
+  const c=curSlotIdx();
+  const pts=[];
+  pts.push({x:NOWX, h:Math.max(4, expTravel(ewmaAbs*1.05)*0.5/(yHi-yLo)*(CH_B-CH_T))});
+  for(let i=c+1;i<=c+11;i++){
+    const s=getSlot(i);
+    const hpx=Math.max(4, (s.quote/s.demand/s.jit)*0.55/(yHi-yLo)*(CH_B-CH_T));
+    pts.push({x:xOfTick(i*SLOT+SLOT/2), h:hpx});
+  }
+  const yC=yOf(price);
+  ctx.save(); ctx.beginPath(); ctx.rect(NOWX,CH_T-10,W-NOWX,CH_B-CH_T+20); ctx.clip();
+  for(const layer of [[1.6,0.05],[1.0,0.10],[0.55,0.16]]){
+    ctx.beginPath(); ctx.moveTo(pts[0].x, yC-pts[0].h*layer[0]);
+    for(let k=1;k<pts.length;k++){ const a=pts[k-1],b=pts[k];
+      ctx.bezierCurveTo((a.x+b.x)/2, yC-a.h*layer[0], (a.x+b.x)/2, yC-b.h*layer[0], b.x, yC-b.h*layer[0]); }
+    for(let k=pts.length-1;k>=0;k--){ const b=pts[k],a=pts[Math.max(0,k-1)];
+      if(k===pts.length-1) ctx.lineTo(b.x, yC+b.h*layer[0]);
+      ctx.bezierCurveTo((a.x+b.x)/2, yC+b.h*layer[0], (a.x+b.x)/2, yC+a.h*layer[0], a.x, yC+a.h*layer[0]); }
+    ctx.closePath();
+    ctx.fillStyle='rgba(45,200,180,'+layer[1]+')'; ctx.fill();
+  }
+  // center guide
+  ctx.strokeStyle='rgba(120,230,210,0.22)'; ctx.setLineDash([3,7]); ctx.beginPath();
+  ctx.moveTo(NOWX,yC); ctx.lineTo(W,yC); ctx.stroke(); ctx.setLineDash([]);
+  ctx.restore();
+}
+
+function drawPriceLine(){
+  const from=Math.max(histStart, t-Math.floor(NOWX/PXT)-2);
+  // glow underlay + fill
+  ctx.save();
+  const grad=ctx.createLinearGradient(0,CH_T,0,CH_B);
+  grad.addColorStop(0,'rgba(55,230,200,0.20)'); grad.addColorStop(1,'rgba(55,230,200,0.0)');
+  ctx.beginPath(); ctx.moveTo(xOfTick(from), CH_B);
+  for(let k=from;k<=t;k++) ctx.lineTo(xOfTick(k), yOf(priceAt(k)));
+  ctx.lineTo(NOWX,CH_B); ctx.closePath(); ctx.fillStyle=grad; ctx.fill();
+  for(const pass of [[7,'rgba(55,230,200,0.10)'],[3.2,'rgba(95,245,220,0.35)'],[1.6,'rgba(225,255,250,0.95)']]){
+    ctx.beginPath();
+    for(let k=from;k<=t;k++){ const x=xOfTick(k),y=yOf(priceAt(k)); k===from?ctx.moveTo(x,y):ctx.lineTo(x,y); }
+    ctx.lineWidth=pass[0]; ctx.strokeStyle=pass[1]; ctx.lineJoin='round'; ctx.stroke();
+  }
+  // wind particles
+  for(const p of parts){
+    const x=xOfTick(p.tt)-2, y=yOf(priceAt(p.tt))+p.oy;
+    if(x<0) continue;
+    const a=p.a*(1-p.age/110)*0.7;
+    ctx.fillStyle='rgba(160,245,225,'+a.toFixed(3)+')';
+    ctx.fillRect(x,y,p.sz,1.1);
+  }
+  // comet head
+  const hx=NOWX, hy=yOf(price);
+  const rg=ctx.createRadialGradient(hx,hy,0,hx,hy,26);
+  rg.addColorStop(0,'rgba(190,255,240,0.9)'); rg.addColorStop(0.25,'rgba(70,235,205,0.45)'); rg.addColorStop(1,'rgba(70,235,205,0)');
+  ctx.fillStyle=rg; ctx.beginPath(); ctx.arc(hx,hy,26,0,6.2832); ctx.fill();
+  ctx.fillStyle='#eafffa'; ctx.beginPath(); ctx.arc(hx,hy,3.6,0,6.2832); ctx.fill();
+  // price tag
+  ctx.font='700 12px ui-monospace,Menlo,monospace';
+  const txt=price.toFixed(1); const tw=ctx.measureText(txt).width;
+  ctx.fillStyle='rgba(8,24,22,0.92)'; roundRect(hx+12, hy-11, tw+14, 21, 5); ctx.fill();
+  ctx.strokeStyle='rgba(55,230,200,0.5)'; ctx.stroke();
+  ctx.fillStyle='#7df5e0'; ctx.textAlign='left'; ctx.fillText(txt, hx+19, hy+4);
+  ctx.restore();
+}
+
+function drawNowLine(){
+  const g=ctx.createLinearGradient(0,CH_T-20,0,LANE_B);
+  g.addColorStop(0,'rgba(255,182,72,0)'); g.addColorStop(0.12,'rgba(255,182,72,0.85)');
+  g.addColorStop(0.9,'rgba(255,182,72,0.55)'); g.addColorStop(1,'rgba(255,182,72,0)');
+  ctx.fillStyle=g; ctx.fillRect(NOWX-1, CH_T-20, 2, LANE_B-CH_T+20);
+  ctx.font='700 10px Sora,Segoe UI,sans-serif'; ctx.textAlign='center';
+  ctx.fillStyle='#ffb648'; ctx.fillText('NOW', NOWX, CH_T-26);
+  // past / future labels
+  ctx.font='600 9px Sora,Segoe UI,sans-serif';
+  ctx.fillStyle='rgba(140,170,205,0.4)'; ctx.fillText('◀ REALIZED', NOWX-60, CH_T-26);
+  ctx.fillStyle='rgba(55,230,200,0.55)'; ctx.fillText('LEASE THE FUTURE ▶', NOWX+86, CH_T-26);
+}
+
+function drawTurbine(x,y,r,spd,col,ph){
+  ctx.save(); ctx.translate(x,y);
+  ctx.strokeStyle=col; ctx.lineWidth=1.6; ctx.lineCap='round';
+  const a0=frame*spd+ph;
+  for(let b=0;b<3;b++){ const a=a0+b*2.0944;
+    ctx.beginPath(); ctx.moveTo(0,0);
+    ctx.quadraticCurveTo(Math.cos(a)*r*0.5+Math.cos(a+0.9)*r*0.18, Math.sin(a)*r*0.5+Math.sin(a+0.9)*r*0.18,
+                         Math.cos(a)*r, Math.sin(a)*r);
+    ctx.stroke(); }
+  ctx.fillStyle=col; ctx.beginPath(); ctx.arc(0,0,2,0,6.2832); ctx.fill();
+  ctx.restore();
+}
+
+function drawLane(){
+  const c=curSlotIdx();
+  ctx.font='600 9px Sora,Segoe UI,sans-serif'; ctx.textAlign='center';
+  for(let i=c-11;i<=c+10;i++){
+    const x0=xOfTick(i*SLOT), x1=x0+SLOTPX;
+    if(x1<0||x0>W) continue;
+    const s=getSlot(i);
+    const mid=(x0+x1)/2;
+    const isFut=i>c, isAct=i===c;
+    const hov=isFut && mouseX>=x0 && mouseX<x1 && mouseY>CH_T && mouseY<LANE_B;
+    // card
+    const cy=LANE_T+4, chh=LANE_B-LANE_T-8;
+    if(isAct){
+      // active window: chart highlight + harvest meter
+      ctx.fillStyle='rgba(255,182,72,0.05)'; ctx.fillRect(x0,CH_T,SLOTPX,CH_B-CH_T);
+      ctx.fillStyle='rgba(255,182,72,0.10)'; roundRect(x0+2,cy,SLOTPX-4,chh,7); ctx.fill();
+      ctx.strokeStyle='rgba(255,182,72,0.6)'; roundRect(x0+2,cy,SLOTPX-4,chh,7); ctx.stroke();
+      ctx.fillStyle='#ffd9a0'; ctx.fillText('LIVE', mid, cy+13);
+      // meter: travel vs avg lock (or quote)
+      const ref=s.pos.length? s.pos.reduce((a,p)=>a+p.lock,0)/s.pos.length : s.quote;
+      const fr=Math.min(1.6, s.travel/ref);
+      ctx.fillStyle='rgba(10,20,32,0.8)'; roundRect(x0+7,cy+20,SLOTPX-14,9,4); ctx.fill();
+      ctx.fillStyle=fr>=1?'#4ade80':'#ffb648';
+      roundRect(x0+7,cy+20,(SLOTPX-14)*Math.min(1,fr/1.6),9,4); ctx.fill();
+      ctx.fillStyle='#cdd9e8'; ctx.fillText(s.travel.toFixed(1)+' / '+ref.toFixed(1), mid, cy+44);
+      if(s.pos.length){ let k=0; for(const p of s.pos){
+        drawTurbine(x0+12+k*15, cy+60, 7, 0.02+Math.min(0.5,Math.abs(price-prev)*0.25), p.col, k); k++; if(k>3)break; } }
+    } else if(isFut){
+      ctx.fillStyle=hov?'rgba(55,230,200,0.16)':'rgba(13,30,46,0.65)';
+      roundRect(x0+2,cy,SLOTPX-4,chh,7); ctx.fill();
+      ctx.strokeStyle=hov?'rgba(55,230,200,0.9)':(s.pos.some(p=>p.owner==='YOU')?'rgba(55,230,200,0.55)':'rgba(110,150,200,0.18)');
+      roundRect(x0+2,cy,SLOTPX-4,chh,7); ctx.stroke();
+      if(hov){ ctx.fillStyle='rgba(55,230,200,0.06)'; ctx.fillRect(x0,CH_T,SLOTPX,CH_B-CH_T); }
+      ctx.fillStyle='rgba(140,170,205,0.75)'; ctx.fillText('W+'+(i-c), mid, cy+13);
+      // quote (big)
+      ctx.font='700 13px ui-monospace,Menlo,monospace';
+      const heat=Math.min(1,(s.quote/expTravel(0.62)-0.6)/2.2);
+      ctx.fillStyle='rgb('+Math.round(140+heat*115)+','+Math.round(225-heat*90)+','+Math.round(205-heat*120)+')';
+      ctx.fillText(s.quote.toFixed(1), mid, cy+32);
+      ctx.font='600 8px Sora,Segoe UI,sans-serif';
+      ctx.fillStyle='rgba(127,147,173,0.8)'; ctx.fillText('PTS QUOTE', mid, cy+43);
+      ctx.font='600 9px Sora,Segoe UI,sans-serif';
+      // owner turbines / flags
+      let k=0; for(const p of s.pos){ drawTurbine(x0+12+k*15, cy+60, 7, p.owner==='YOU'?0.06:0.035, p.col, k); k++; if(k>3)break; }
+      if(s.demand>1.01){ ctx.fillStyle='rgba(255,182,72,0.8)'; ctx.font='600 8px Sora';
+        ctx.fillText('▲'+Math.round((s.demand-1)*100)+'%', x1-16, cy+13); ctx.font='600 9px Sora,Segoe UI,sans-serif'; }
+    } else {
+      // settled
+      if(s.pos.length){
+        const win=s.mult>=1;
+        ctx.fillStyle=win?'rgba(28,80,55,0.35)':'rgba(85,32,42,0.30)';
+        roundRect(x0+2,cy,SLOTPX-4,chh,7); ctx.fill();
+        ctx.strokeStyle=win?'rgba(74,222,128,0.35)':'rgba(251,113,133,0.3)';
+        roundRect(x0+2,cy,SLOTPX-4,chh,7); ctx.stroke();
+        ctx.font='700 14px ui-monospace,Menlo,monospace';
+        ctx.fillStyle=win?'#4ade80':'#fb7185'; ctx.fillText('×'+s.mult.toFixed(2), mid, cy+28);
+        ctx.font='600 8px Sora,Segoe UI,sans-serif'; ctx.fillStyle='rgba(140,170,205,0.6)';
+        ctx.fillText(s.travel.toFixed(1)+' pts', mid, cy+42);
+        let k=0; for(const p of s.pos){ ctx.fillStyle=p.col; ctx.beginPath();
+          ctx.arc(x0+12+k*12, cy+58, 3,0,6.2832); ctx.fill(); k++; if(k>4)break; }
+        ctx.font='600 9px Sora,Segoe UI,sans-serif';
+      } else {
+        ctx.fillStyle='rgba(13,26,40,0.3)'; roundRect(x0+2,cy,SLOTPX-4,chh,7); ctx.fill();
+        ctx.fillStyle='rgba(127,147,173,0.35)';
+        ctx.font='700 11px ui-monospace,Menlo,monospace'; ctx.fillText(s.travel.toFixed(1), mid, cy+30);
+        ctx.font='600 8px Sora,Segoe UI,sans-serif'; ctx.fillStyle='rgba(127,147,173,0.3)';
+        ctx.fillText('unleased', mid, cy+43); ctx.font='600 9px Sora,Segoe UI,sans-serif';
+      }
+    }
+  }
+}
+
+function drawLedger(){
+  ctx.fillStyle='rgba(7,15,26,0.88)'; ctx.fillRect(0,LED_T-6,W,H-LED_T+6);
+  ctx.strokeStyle='rgba(120,160,210,0.12)'; ctx.beginPath(); ctx.moveTo(0,LED_T-6); ctx.lineTo(W,LED_T-6); ctx.stroke();
+  // ---- left: your active leases ----
+  ctx.textAlign='left'; ctx.font='700 10px Sora,Segoe UI,sans-serif';
+  ctx.fillStyle='rgba(127,147,173,0.9)'; ctx.fillText('YOUR ACTIVE LEASES', 22, LED_T+14);
+  const c=curSlotIdx(); const mine=[];
+  for(let i=c;i<=c+11;i++){ const s=slots.get(i); if(!s) continue;
+    for(const p of s.pos) if(p.owner==='YOU') mine.push({s,p}); }
+  let x=22;
+  if(!mine.length){ ctx.fillStyle='rgba(127,147,173,0.45)'; ctx.font='600 11px Sora,Segoe UI,sans-serif';
+    ctx.fillText('Click any future window above to lease it.', 22, LED_T+44); }
+  for(const m of mine.slice(0,6)){
+    const live=m.s.i===c;
+    ctx.fillStyle=live?'rgba(60,40,14,0.75)':'rgba(12,34,32,0.75)';
+    roundRect(x,LED_T+22,116,52,8); ctx.fill();
+    ctx.strokeStyle=live?'rgba(255,182,72,0.55)':'rgba(55,230,200,0.4)';
+    roundRect(x,LED_T+22,116,52,8); ctx.stroke();
+    ctx.font='700 10px Sora,Segoe UI,sans-serif';
+    ctx.fillStyle=live?'#ffb648':'#37e6c8';
+    ctx.fillText(live?'● LIVE':'W+'+(m.s.i-c), x+9, LED_T+37);
+    ctx.fillStyle='#cdd9e8'; ctx.font='600 10px ui-monospace,Menlo,monospace';
+    ctx.fillText('$'+m.p.stake+' @ '+m.p.lock.toFixed(1), x+9, LED_T+51);
+    const proj=live? Math.min(CAP,m.s.travel/m.p.lock)*EDGE : null;
+    ctx.fillStyle=live?(proj>=1?'#4ade80':'#fb8a9e'):'rgba(140,170,205,0.7)';
+    ctx.fillText(live?('now ×'+proj.toFixed(2)):('in '+(((m.s.i-c)*SLOT-(t%SLOT))/10).toFixed(0)+'s'), x+9, LED_T+65);
+    x+=126;
+  }
+  // ---- right: harvest log ----
+  ctx.textAlign='left'; ctx.font='700 10px Sora,Segoe UI,sans-serif';
+  ctx.fillStyle='rgba(127,147,173,0.9)'; ctx.fillText('HARVEST LOG', 836, LED_T+14);
+  ctx.font='600 10.5px ui-monospace,Menlo,monospace';
+  let y=LED_T+32;
+  for(const e of ledger.slice(0,6)){
+    ctx.fillStyle=e.col; ctx.beginPath(); ctx.arc(842,y-3.5,3,0,6.2832); ctx.fill();
+    ctx.fillStyle='rgba(160,180,205,0.85)';
+    ctx.fillText((e.owner==='YOU'?'YOU    ':e.owner.padEnd(7))+' $'+String(e.stake).padEnd(3)+' travel '+e.travel.toFixed(1).padStart(5)+' / '+e.lock.toFixed(1).padStart(5), 852, y);
+    ctx.fillStyle=e.mult>=1?'#4ade80':'#fb7185';
+    const nt=e.gain-e.stake;
+    ctx.fillText(('×'+e.mult.toFixed(2)).padStart(6)+'  '+(nt>=0?'+$':'−$')+Math.abs(nt).toFixed(2), 1130, y);
+    y+=18;
+  }
+}
+
+function drawFloats(){
+  ctx.textAlign='center';
+  for(const f of floats){
+    const a=1-f.age/46;
+    ctx.font=(f.big?'800 17px':'600 11px')+' Sora,Segoe UI,sans-serif';
+    ctx.globalAlpha=a;
+    ctx.fillStyle=f.col;
+    ctx.shadowColor=f.col; ctx.shadowBlur=f.big?12:0;
+    ctx.fillText(f.txt, f.x, f.y-f.age*0.8);
+    ctx.shadowBlur=0; ctx.globalAlpha=1;
+  }
+}
+
+function drawTooltip(){
+  if(mouseX<0||mouseY<CH_T||mouseY>LANE_B) return;
+  const c=curSlotIdx();
+  const i= mouseX>=NOWX ? Math.floor(((mouseX-NOWX)/PXT + t)/SLOT) : -999;
+  if(i<=c||i>c+9) return;
+  const s=getSlot(i);
+  const eta=((i-c)*SLOT-(t%SLOT))/10;
+  const lines=['LEASE WINDOW  W+'+(i-c)+'  ·  opens in '+eta.toFixed(0)+'s',
+    'quote '+s.quote.toFixed(1)+' pts  ·  stake $'+stake,
+    'break-even travel '+(s.quote/EDGE*1).toFixed(1)+' pts  ·  max ×'+CAP.toFixed(1)];
+  ctx.font='600 11px ui-monospace,Menlo,monospace';
+  const w=Math.max(...lines.map(l=>ctx.measureText(l).width))+24;
+  let tx=Math.min(W-w-8, mouseX+14), ty=Math.max(CH_T+6, mouseY-78);
+  ctx.fillStyle='rgba(7,20,24,0.94)'; roundRect(tx,ty,w,62,8); ctx.fill();
+  ctx.strokeStyle='rgba(55,230,200,0.55)'; roundRect(tx,ty,w,62,8); ctx.stroke();
+  ctx.textAlign='left';
+  lines.forEach((l,k)=>{ ctx.fillStyle=k===0?'#7df5e0':'#b8c8da'; ctx.fillText(l,tx+12,ty+20+k*17); });
+}
+
+function render(){
+  frame++;
+  fitY();
+  drawBG();
+  drawGrid();
+  drawHaze();
+  drawLane();
+  drawPriceLine();
+  drawNowLine();
+  drawFloats();
+  drawTooltip();
+  drawLedger();
+  if(hudDirty) updateHUD();
+  requestAnimationFrame(render);
+}
+
+/* ---------- HUD ---------- */
+let hudDirty=true;
+const balV=document.getElementById('balV'), pnlV=document.getElementById('pnlV'),
+      pnlP=document.getElementById('pnl'), regV=document.getElementById('regV'),
+      autob=document.getElementById('autob');
+function updateHUD(){
+  hudDirty=false;
+  balV.textContent='$'+balance.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',');
+  const pl=balance-plBase;
+  pnlV.textContent=(pl>=0?'+':'−')+'$'+Math.abs(pl).toFixed(2);
+  pnlP.className='pill '+(pl>=0?'up':'dn');
+  const w=ewmaAbs;
+  regV.textContent = w<0.45?'🍃 BREEZE': w<0.95?'🌬 GUSTY':'🌪 STORM';
+}
+
+/* ---------- input ---------- */
+cv.addEventListener('mousemove',e=>{ const r=cv.getBoundingClientRect(); mouseX=e.clientX-r.left; mouseY=e.clientY-r.top; });
+cv.addEventListener('mouseleave',()=>{mouseX=-1;});
+cv.addEventListener('click',e=>{
+  const r=cv.getBoundingClientRect(); const mx=e.clientX-r.left, my=e.clientY-r.top;
+  if(my<CH_T||my>LANE_B||mx<NOWX) return;
+  const c=curSlotIdx(); const i=Math.floor(((mx-NOWX)/PXT + t)/SLOT);
+  if(i<=c||i>c+9) return;
+  if(auto){ auto=false; autob.className='off'; autob.textContent='⚡ AUTOPILOT OFF'; }
+  if(!lease(i,'YOU',stake,YOUC))
+    addFloat(mx,my,'insufficient balance','#fb7185',false);
+  hudDirty=true;
+});
+document.querySelectorAll('.chip').forEach(ch=>ch.addEventListener('click',()=>{
+  document.querySelectorAll('.chip').forEach(c=>c.classList.remove('on'));
+  ch.classList.add('on'); stake=+ch.dataset.s;
+}));
+autob.addEventListener('click',()=>{ auto=!auto;
+  autob.className=auto?'':'off';
+  autob.textContent=auto?'⚡ AUTOPILOT ON':'⚡ AUTOPILOT OFF'; });
+
+/* ---------- boot: prefill so the first frame is alive ---------- */
+for(let k=0;k<700;k++) tick();
+balance=1000;
+lease(curSlotIdx()+2,'YOU',15,YOUC);    // demo seats so the hero shows live positions
+lease(curSlotIdx()+5,'YOU',25,YOUC);
+plBase=balance;                          // session P/L starts clean at load
+{ // snap y-scale
+  let lo=1e9,hi=-1e9; const from=Math.max(histStart,t-Math.floor(NOWX/PXT));
+  for(let k=from;k<=t;k++){const p=priceAt(k); if(p<lo)lo=p; if(p>hi)hi=p;}
+  const pad=(hi-lo)*0.18+1.5; yLo=lo-pad; yHi=hi+pad;
+}
+setInterval(tick, TICK_MS);            // sim survives backgrounded tabs
+requestAnimationFrame(render);
+</script>
+</body>
+</html>
