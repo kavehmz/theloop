@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1280, initial-scale=1">
+<title>SENTE — Duel the Tape | Deriv</title>
+<style>
+  :root{
+    --bg:#060a14; --panel:rgba(13,20,38,.72); --edge:rgba(102,232,249,.14);
+    --cyan:#22d3ee; --cyan2:#67e8f9; --mag:#ff3d6e; --gold:#fbbf24;
+    --txt:#dbe7f4; --dim:#7b8aa5; --mono:"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
+    --sans:-apple-system,"Inter","Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:var(--bg);color:var(--txt);font-family:var(--sans);overflow-x:hidden}
+  #hero{position:relative;width:1280px;height:800px;margin:0 auto;background:var(--bg);overflow:hidden}
+  #cv{position:absolute;inset:0;display:block;cursor:crosshair}
+  /* ---------- top bar ---------- */
+  #topbar{position:absolute;top:0;left:0;right:0;height:58px;display:flex;align-items:center;
+    padding:0 20px;gap:18px;pointer-events:none;z-index:5;
+    background:linear-gradient(180deg,rgba(5,8,16,.85),rgba(5,8,16,0));}
+  #logo{display:flex;align-items:baseline;gap:10px}
+  #logo .name{font-size:25px;font-weight:800;letter-spacing:.22em;
+    background:linear-gradient(90deg,#67e8f9,#fff 55%,#fbbf24);-webkit-background-clip:text;background-clip:text;color:transparent}
+  #logo .tag{font-size:11px;letter-spacing:.18em;color:var(--dim);text-transform:uppercase}
+  #roundinfo{margin-left:auto;display:flex;align-items:center;gap:16px;font-family:var(--mono)}
+  .chip{background:rgba(15,24,44,.8);border:1px solid var(--edge);border-radius:8px;
+    padding:5px 12px;font-size:12px;letter-spacing:.06em;color:var(--dim)}
+  .chip b{color:var(--txt);font-weight:600}
+  #balchip b{color:var(--gold)}
+  #timerwrap{width:170px;height:6px;border-radius:3px;background:rgba(255,255,255,.08);overflow:hidden}
+  #timerbar{height:100%;width:0%;border-radius:3px;background:linear-gradient(90deg,var(--cyan),var(--gold));
+    transition:width .2s linear}
+  /* ---------- right HUD ---------- */
+  #hud{position:absolute;top:64px;right:14px;bottom:14px;width:298px;display:flex;
+    flex-direction:column;gap:9px;z-index:6}
+  .card{background:var(--panel);border:1px solid var(--edge);border-radius:13px;padding:11px 14px;
+    backdrop-filter:blur(8px);box-shadow:0 8px 28px rgba(0,0,0,.45)}
+  .card h4{font-size:10px;letter-spacing:.22em;color:var(--dim);text-transform:uppercase;
+    font-weight:600;margin-bottom:7px}
+  /* stake */
+  #stakerow{display:flex;align-items:center;gap:8px}
+  #stakeval{flex:1;text-align:center;font-family:var(--mono);font-size:23px;font-weight:700;color:#fff}
+  .sbtn{width:34px;height:34px;border-radius:9px;border:1px solid var(--edge);cursor:pointer;
+    background:rgba(34,211,238,.1);color:var(--cyan2);font-size:19px;font-weight:700;line-height:1;
+    transition:all .15s}
+  .sbtn:hover{background:rgba(34,211,238,.28);transform:translateY(-1px)}
+  /* supply pips */
+  #pips{display:flex;gap:6px;margin-top:2px}
+  .pip{width:20px;height:20px;border-radius:50%;background:radial-gradient(circle at 34% 30%,#a5f3fc,#0891b2);
+    box-shadow:0 0 8px rgba(34,211,238,.55);transition:all .3s}
+  .pip.used{background:rgba(255,255,255,.06);box-shadow:none;border:1px dashed rgba(255,255,255,.14)}
+  /* duel meters */
+  .duelrow{display:flex;justify-content:space-between;align-items:baseline;font-family:var(--mono)}
+  .duelrow .big{font-size:31px;font-weight:800;line-height:1}
+  .duelrow .lbl{font-size:10px;color:var(--dim);letter-spacing:.14em}
+  #chainval{color:var(--cyan2);text-shadow:0 0 16px rgba(34,211,238,.6)}
+  #capval{color:var(--gold);text-shadow:0 0 16px rgba(251,191,36,.5)}
+  #lossval{color:var(--mag)}
+  /* projected payout */
+  #payout{font-family:var(--mono);font-size:33px;font-weight:800;text-align:center;
+    color:#fff;text-shadow:0 0 22px rgba(34,211,238,.45);line-height:1.05}
+  #payoutsub{text-align:center;font-family:var(--mono);font-size:11px;color:var(--dim);margin-top:4px}
+  /* ladder */
+  #ladder{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;font-family:var(--mono)}
+  .rung{text-align:center;border-radius:7px;padding:4px 0 3px;border:1px solid rgba(255,255,255,.06);
+    background:rgba(255,255,255,.03)}
+  .rung .c{font-size:10px;color:var(--dim)}
+  .rung .m{font-size:12px;font-weight:700;color:var(--txt)}
+  .rung.active{border-color:var(--cyan);background:rgba(34,211,238,.16);
+    box-shadow:0 0 12px rgba(34,211,238,.35)}
+  .rung.active .m{color:var(--cyan2)}
+  /* log */
+  #log{flex:1;overflow:hidden;display:flex;flex-direction:column;gap:4px;font-family:var(--mono);
+    font-size:10.5px;line-height:1.45}
+  #log .e{color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;animation:lin .4s ease}
+  #log .e.good{color:#7ef0c2}#log .e.bad{color:#ff7d9c}#log .e.gold{color:var(--gold)}
+  @keyframes lin{from{opacity:0;transform:translateY(-5px)}to{opacity:1}}
+  /* action buttons */
+  #actions{display:flex;gap:8px}
+  .abtn{flex:1;padding:10px 0;border-radius:10px;border:1px solid var(--edge);cursor:pointer;
+    font-family:var(--sans);font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
+    background:rgba(255,255,255,.05);color:var(--dim);transition:all .15s}
+  .abtn:hover{transform:translateY(-1px);color:#fff}
+  .abtn.on{background:linear-gradient(135deg,rgba(34,211,238,.25),rgba(251,191,36,.18));
+    color:#fff;border-color:rgba(34,211,238,.5);box-shadow:0 0 16px rgba(34,211,238,.25)}
+  /* ---------- settlement overlay ---------- */
+  #settle{position:absolute;inset:0;display:none;align-items:center;justify-content:center;
+    background:rgba(4,7,14,.62);backdrop-filter:blur(5px);z-index:20}
+  #settle.show{display:flex}
+  #scard{width:480px;background:linear-gradient(165deg,rgba(18,28,52,.97),rgba(9,14,28,.97));
+    border:1px solid rgba(102,232,249,.3);border-radius:20px;padding:30px 36px;text-align:center;
+    box-shadow:0 30px 90px rgba(0,0,0,.7),0 0 60px rgba(34,211,238,.12);animation:pop .45s cubic-bezier(.2,1.6,.4,1)}
+  @keyframes pop{from{transform:scale(.8);opacity:0}to{transform:scale(1);opacity:1}}
+  #sverdict{font-size:15px;letter-spacing:.34em;font-weight:800;text-transform:uppercase;margin-bottom:6px}
+  #samount{font-family:var(--mono);font-size:52px;font-weight:800;margin:4px 0 14px}
+  .sline{display:flex;justify-content:space-between;font-family:var(--mono);font-size:13px;
+    color:var(--dim);padding:5px 2px;border-bottom:1px dashed rgba(255,255,255,.08)}
+  .sline b{color:var(--txt)}
+  #snext{margin-top:20px;padding:12px 34px;border-radius:11px;border:none;cursor:pointer;
+    font-size:13px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:#04212a;
+    background:linear-gradient(90deg,var(--cyan2),var(--gold));box-shadow:0 6px 24px rgba(34,211,238,.4)}
+  /* ---------- below the fold ---------- */
+  #below{max-width:1100px;margin:46px auto 80px;padding:0 28px}
+  #below h2{font-size:21px;letter-spacing:.18em;margin-bottom:18px;color:#fff}
+  .cols{display:grid;grid-template-columns:1fr 1fr 1fr;gap:22px}
+  .cols .b{background:var(--panel);border:1px solid var(--edge);border-radius:14px;padding:20px}
+  .cols h3{font-size:13px;letter-spacing:.14em;text-transform:uppercase;margin-bottom:10px;color:var(--cyan2)}
+  .cols p{font-size:13.5px;line-height:1.65;color:#a9b8cf}
+  .cols b{color:#fff}
+</style>
+</head>
+<body>
+<div id="hero">
+  <canvas id="cv" width="1280" height="800"></canvas>
+
+  <div id="topbar">
+    <div id="logo"><span class="name">SENTE</span><span class="tag">board duel vs the tape</span></div>
+    <div id="roundinfo">
+      <div class="chip">ROUND <b id="roundnum">1</b></div>
+      <div class="chip">BELL IN <b id="timetxt">—</b></div>
+      <div id="timerwrap"><div id="timerbar"></div></div>
+      <div class="chip" id="balchip">BALANCE <b id="balval">10,000.00</b></div>
+    </div>
+  </div>
+
+  <div id="hud">
+    <div class="card">
+      <h4>Stake</h4>
+      <div id="stakerow">
+        <button class="sbtn" id="stkm">−</button>
+        <div id="stakeval">100</div>
+        <button class="sbtn" id="stkp">+</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h4>Stones Remaining</h4>
+      <div id="pips"></div>
+    </div>
+
+    <div class="card">
+      <h4>Duel State</h4>
+      <div class="duelrow">
+        <div><div class="big" id="chainval">0</div><div class="lbl">ENGAGED CHAIN</div></div>
+        <div><div class="big" id="capval">0</div><div class="lbl">CAPTURED</div></div>
+        <div><div class="big" id="lossval">0</div><div class="lbl">LOST</div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h4>Projected Payout</h4>
+      <div id="payout">0.00×</div>
+      <div id="payoutsub">chain 0.00× &nbsp;+&nbsp; captures 0.00×</div>
+    </div>
+
+    <div class="card">
+      <h4>Chain Ladder &nbsp;·&nbsp; +0.30× per capture</h4>
+      <div id="ladder"></div>
+    </div>
+
+    <div class="card" style="flex:1;min-height:0;display:flex;flex-direction:column">
+      <h4>Tape</h4>
+      <div id="log"></div>
+    </div>
+
+    <div id="actions">
+      <button class="abtn on" id="autobtn">Autopilot</button>
+      <button class="abtn" id="newbtn">New Round</button>
+    </div>
+  </div>
+
+  <div id="settle">
+    <div id="scard">
+      <div id="sverdict">SETTLEMENT</div>
+      <div id="samount">+0.00</div>
+      <div class="sline"><span>Longest engaged chain</span><b id="sl1">—</b></div>
+      <div class="sline"><span>Chain multiplier</span><b id="sl2">—</b></div>
+      <div class="sline"><span>Stones captured from market</span><b id="sl3">—</b></div>
+      <div class="sline"><span>Capture bonus</span><b id="sl4">—</b></div>
+      <div class="sline"><span>Stones lost to market flanks</span><b id="sl5">—</b></div>
+      <div class="sline"><span>Total payout</span><b id="sl6">—</b></div>
+      <button id="snext">Next Round</button>
+    </div>
+  </div>
+</div>
+
+<div id="below">
+  <h2>HOW THE DUEL WORKS</h2>
+  <div class="cols">
+    <div class="b"><h3>The market moves first</h3>
+      <p>A 14×10 board hangs over the live price feed. Every <b>2.2 seconds</b> a candle closes and the
+      market is <b>forced to play</b>: it drops a crimson stone into every price-row its candle range touched
+      in that column. Calm tape prints thin walls; volatile tape prints thick ones. The chart isn't decoration —
+      it <b>is</b> your opponent's hand, and reading it is the whole game.</p></div>
+    <div class="b"><h3>You answer with 9 stones</h3>
+      <p>Between candles, click any empty cell in the <b>columns still ahead of the live one</b> to pre-place a
+      cyan stone — only 9 for the whole round, so every skip is a decision. Sandwich a line of market stones
+      between two of yours (any row, column or diagonal) and you <b>flank-capture</b> the whole run: it flips
+      gold and joins your side — whether you close the trap yourself or the tape <b>prints into an ambush</b>
+      you set in advance. But the market captures back: if its prints bracket your stone, it's gone.</p></div>
+    <div class="b"><h3>Settlement at the bell</h3>
+      <p>When column 14 closes, your <b>longest connected chain</b> (cyan + captured gold, diagonals count)
+      sets the multiplier — from 0.25× at chain&nbsp;2 up to <b>10× at chain 8+</b> — plus <b>0.30× for every
+      stone you flipped</b>. One rule keeps you honest: a stone only counts if it's <b>engaged</b> — touching
+      a crimson stone at the bell (captured golds always count). Hiding in empty corners scores zero; you must
+      fight where the tape fights, which is exactly where it can flank you back.</p></div>
+  </div>
+</div>
+
+<script>
+"use strict";
+window.onerror = function(m,s,l){ document.title = "JSERR:"+m+"@"+l; };
+
+/* ============================== CONSTANTS ============================== */
+const COLS=14, ROWS=10, TPC=20, TICK_MS=110;           // 20 ticks/col -> 2.2s per column
+const BX=20, BY=66, BW=926, BH=716;                    // board px
+const CW=BW/COLS, RH=BH/ROWS;
+const SUPPLY=9, CAP_BONUS=0.30;
+const TIERS=[0,0,0.25,0.7,1.3,2.2,3.5,6,10];              // index = chain size (>=8 -> 12)
+const DIRS8=[[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,-1],[1,-1],[-1,1]];
+const fmt=n=>n.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
+
+/* ============================== STATE ============================== */
+let balance=10000, stake=100, roundNum=0, lifeCaps=0, lifeLoss=0;
+let grid, candles, pts, liveCol, tickInCol, supply, captures, losses, phase, p, drift, vol;
+let p0, pMin, pMax, fx=[], hover=null, auto=true, settleTimer=null, lastChain=0;
+const logEl=document.getElementById("log");
+
+function rowOfPrice(pr){ return Math.max(0,Math.min(ROWS-1, Math.floor((pMax-pr)/((pMax-pMin)/ROWS)))); }
+function priceToY(pr){ return BY + (pMax-pr)/(pMax-pMin)*BH; }
+function cellCx(c){ return BX + (c+0.5)*CW; }
+function cellCy(r){ return BY + (r+0.5)*RH; }
+function inb(c,r){ return c>=0&&c<COLS&&r>=0&&r<ROWS; }
+let g1=null; function randn(){ if(g1!==null){const v=g1;g1=null;return v;}
+  let u=0,v=0; while(!u)u=Math.random(); while(!v)v=Math.random();
+  const m=Math.sqrt(-2*Math.log(u)); g1=m*Math.sin(2*Math.PI*v); return m*Math.cos(2*Math.PI*v); }
+
+function addLog(msg,cls){ const d=document.createElement("div"); d.className="e "+(cls||"");
+  d.textContent=msg; logEl.prepend(d); while(logEl.children.length>7) logEl.lastChild.remove(); }
+
+/* ============================== ROUND ============================== */
+function startRound(){
+  roundNum++; if(settleTimer){clearTimeout(settleTimer);settleTimer=null;}
+  document.getElementById("settle").classList.remove("show");
+  if(p===undefined){ p=1924.50; }
+  balance-=stake;
+  grid=Array.from({length:ROWS},()=>Array(COLS).fill(null));
+  candles=[]; pts=[]; fx=[]; liveCol=0; tickInCol=0;
+  supply=SUPPLY; captures=0; losses=0; lastChain=0; phase="live";
+  p0=p; const span=6.4; pMin=p0-span/2; pMax=p0+span/2;
+  drift=(Math.random()-0.5)*0.05; vol=0.135+Math.random()*0.05;
+  candles.push({o:p,h:p,l:p,c:p});
+  addLog("Round "+roundNum+" — bell in "+Math.round(COLS*TPC*TICK_MS/1000)+"s","");
+  document.getElementById("roundnum").textContent=roundNum;
+  buildPips(); refreshHUD();
+}
+
+/* ============================== SIM TICK (setInterval — bg-tab safe) ============================== */
+function simTick(){
+  if(phase!=="live") return;
+  // regime wander
+  if(Math.random()<0.025) drift=(Math.random()-0.5)*0.07;
+  if(Math.random()<0.02)  vol=0.11+Math.random()*0.10;
+  p+=drift+randn()*vol;
+  const cd=candles[candles.length-1];
+  cd.c=p; if(p>cd.h)cd.h=p; if(p<cd.l)cd.l=p;
+  pts.push({x:liveCol+tickInCol/TPC, p:p});
+  tickInCol++;
+  if(tickInCol>=TPC) closeColumn();
+  refreshHUD();
+}
+
+function closeColumn(){
+  const cd=candles[candles.length-1];
+  // --- MARKET'S MOVE: print stones over the candle's row span, bottom→top
+  const rTop=rowOfPrice(cd.h), rBot=rowOfPrice(cd.l);
+  const newM=[];
+  for(let r=rBot;r>=rTop;r--){
+    if(!grid[r][liveCol]){ grid[r][liveCol]={owner:"M",born:performance.now()}; newM.push([liveCol,r]); }
+  }
+  if(newM.length>=3) addLog("Volatile print — market drops "+newM.length+" stones in c"+(liveCol+1),"bad");
+  else addLog("Market prints "+newM.length+" @ "+cd.c.toFixed(2),"");
+  // market custodial captures (your stones flanked by its prints)
+  let lostNow=0;
+  for(const [c,r] of newM){
+    const caps=custodial(c,r,"M");
+    for(const [cc,rr] of caps){
+      grid[rr][cc]=null; lostNow++; losses++; lifeLoss++;
+      fx.push({t:"ring",x:cellCx(cc),y:cellCy(rr),col:"255,61,110",t0:performance.now()});
+    }
+  }
+  if(lostNow) addLog("Market flanked you — "+lostNow+" stone"+(lostNow>1?"s":"")+" lost","bad");
+  // --- AMBUSH: market prints into a sandwich you pre-set → the run flips gold
+  let snapN=0;
+  for(const [c,r] of newM){
+    if(!grid[r][c]||grid[r][c].owner!=="M") continue;
+    for(const run of snapCheck(c,r)){
+      for(const [cc,rr] of run){
+        if(grid[rr][cc]&&grid[rr][cc].owner==="M"){
+          grid[rr][cc]={owner:"P",converted:true,born:performance.now()};
+          captures++; snapN++; lifeCaps++;
+          fx.push({t:"ring",x:cellCx(cc),y:cellCy(rr),col:"251,191,36",t0:performance.now()});
+        }
+      }
+    }
+  }
+  if(snapN) addLog("AMBUSH! Tape walked into your trap — +"+snapN+" captured (+"+(snapN*CAP_BONUS).toFixed(2)+"×)","gold");
+  // --- advance
+  tickInCol=0; liveCol++;
+  if(liveCol>=COLS){ settle(); return; }
+  candles.push({o:p,h:p,l:p,c:p});
+  if(auto) aiPlace();
+}
+
+/* ambush scan: is the M-run through (c,r) bracketed by P stones on BOTH ends of an axis? */
+const AXES=[[[1,0],[-1,0]],[[0,1],[0,-1]],[[1,1],[-1,-1]],[[1,-1],[-1,1]]];
+function snapCheck(c,r){
+  const out=[];
+  for(const [d1,d2] of AXES){
+    const run=[[c,r]]; let ends=0;
+    for(const [dx,dy] of [d1,d2]){
+      let x=c+dx,y=r+dy;
+      while(inb(x,y)&&grid[y][x]&&grid[y][x].owner==="M"){ run.push([x,y]); x+=dx; y+=dy; }
+      if(inb(x,y)&&grid[y][x]&&grid[y][x].owner==="P") ends++;
+    }
+    if(ends===2) out.push(run);
+  }
+  return out;
+}
+
+/* custodial flank scan from a freshly placed stone */
+function custodial(c,r,owner){
+  const out=[];
+  for(const [dx,dy] of DIRS8){
+    const run=[]; let x=c+dx,y=r+dy;
+    while(inb(x,y)&&grid[y][x]&&grid[y][x].owner!==owner){ run.push([x,y]); x+=dx; y+=dy; }
+    if(run.length&&inb(x,y)&&grid[y][x]&&grid[y][x].owner===owner) out.push(...run);
+  }
+  return out;
+}
+
+/* ============================== PLAYER MOVE ============================== */
+function tryPlace(c,r,silent){
+  if(phase!=="live") return false;
+  if(!inb(c,r)||c<=liveCol||grid[r][c]||supply<=0) return false;
+  grid[r][c]={owner:"P",born:performance.now()};
+  supply--;
+  fx.push({t:"pop",x:cellCx(c),y:cellCy(r),col:"34,211,238",t0:performance.now()});
+  const caps=custodial(c,r,"P");
+  for(const [cc,rr] of caps){
+    grid[rr][cc]={owner:"P",converted:true,born:performance.now()};
+    captures++; lifeCaps++;
+    fx.push({t:"ring",x:cellCx(cc),y:cellCy(rr),col:"251,191,36",t0:performance.now()});
+  }
+  if(caps.length) addLog("FLANK! Flipped "+caps.length+" market stone"+(caps.length>1?"s":"")+" (+"+(caps.length*CAP_BONUS).toFixed(2)+"×)","gold");
+  else if(!silent) addLog("Stone placed at c"+(c+1)+" r"+(r+1),"good");
+  refreshHUD();
+  return true;
+}
+
+/* ============================== AI AUTOPILOT (demo) ============================== */
+function aiPlace(){
+  if(supply<=0) return;
+  const colsLeft=COLS-liveCol;
+  if(supply<colsLeft-2 && Math.random()<0.25) return;     // sometimes hold
+  // trend estimate from last closes
+  let dr=0; const n=candles.length;
+  if(n>=3) dr=(candles[n-2].c-candles[Math.max(0,n-4)].c)/2;
+  const curR=rowOfPrice(p), predR=rowOfPrice(p+dr*TPC*0.6);
+  let best=null,bs=-1e9;
+  for(let c=liveCol+1;c<Math.min(COLS,liveCol+4);c++){
+    for(let r=0;r<ROWS;r++){
+      if(grid[r][c]) continue;
+      let s=Math.random()*0.6;
+      const capN=custodial(c,r,"P").length; // works as a what-if: scan ignores the empty origin
+      s+=capN*3.2;
+      for(const [dx,dy] of DIRS8){ const x=c+dx,y=r+dy;
+        if(inb(x,y)&&grid[y][x]){ if(grid[y][x].owner==="P")s+=1.5; else s+=0.55; } }
+      const pathDist=Math.abs(r-predR)-(c-liveCol-1)*0.6;
+      if(pathDist<=0.5) s-=2.4;                            // don't sit in the likely path
+      else if(pathDist<=2) s+=0.9;                         // hug the path edges
+      s-=Math.abs(r-curR)*0.12;
+      // vertical ambush: pair with an own stone 2-4 rows away, predicted path inside the gap
+      for(const k of [2,3,4,-2,-3,-4]){ const rr2=r+k;
+        if(inb(c,rr2)&&grid[rr2][c]&&grid[rr2][c].owner==="P"){
+          const lo=Math.min(r,rr2),hi=Math.max(r,rr2);
+          let clear=true; for(let m=lo+1;m<hi;m++) if(grid[m][c]) clear=false;
+          if(clear&&predR>lo&&predR<hi) s+=(Math.abs(k)>=3?5.0:2.5);
+        } }
+      // horizontal ambush: own stone two columns back on this row, gap empty, path through it
+      if(c>=2&&grid[r][c-2]&&grid[r][c-2].owner==="P"&&!grid[r][c-1]&&Math.abs(predR-r)<=1) s+=4.0;
+      if(s>bs){bs=s;best=[c,r];}
+    }
+  }
+  if(best) tryPlace(best[0],best[1],true);
+}
+
+/* ============================== SCORING ============================== */
+function isEngaged(c,r){
+  const st=grid[r][c];
+  if(st.converted) return true;
+  for(const [dx,dy] of DIRS8){ const x=c+dx,y=r+dy;
+    if(inb(x,y)&&grid[y][x]&&grid[y][x].owner==="M") return true; }
+  return false;
+}
+function chainStats(){
+  const seen=Array.from({length:ROWS},()=>Array(COLS).fill(false));
+  let bestEng=0,bestSz=0,bestSet=[],bestEngSet=[];
+  for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
+    if(seen[r][c]||!grid[r][c]||grid[r][c].owner!=="P") continue;
+    const comp=[],q=[[c,r]]; seen[r][c]=true;
+    while(q.length){ const [x,y]=q.pop(); comp.push([x,y]);
+      for(const [dx,dy] of DIRS8){ const nx=x+dx,ny=y+dy;
+        if(inb(nx,ny)&&!seen[ny][nx]&&grid[ny][nx]&&grid[ny][nx].owner==="P"){seen[ny][nx]=true;q.push([nx,ny]);} } }
+    const engSet=comp.filter(([x,y])=>isEngaged(x,y));
+    if(engSet.length>bestEng||(engSet.length===bestEng&&comp.length>bestSz)){
+      bestEng=engSet.length;bestSz=comp.length;bestSet=comp;bestEngSet=engSet;}
+  }
+  return {size:bestEng,raw:bestSz,set:bestSet,engSet:bestEngSet};
+}
+const tierMult=sz=>sz>=8?10:TIERS[sz];
+
+function settle(){
+  phase="settled";
+  const cs=chainStats();
+  const cm=tierMult(cs.size), cb=captures*CAP_BONUS, tot=cm+cb;
+  const pay=stake*tot; balance+=pay;
+  const net=pay-stake;
+  const sv=document.getElementById("sverdict"), sa=document.getElementById("samount");
+  sv.textContent = net>=0 ? "DUEL WON — THE BELL" : "DUEL LOST — THE BELL";
+  sv.style.color = net>=0 ? "#7ef0c2" : "#ff7d9c";
+  sa.textContent = (net>=0?"+":"")+fmt(net);
+  sa.style.color = net>=0 ? "#7ef0c2" : "#ff7d9c";
+  document.getElementById("sl1").textContent=cs.size+" engaged (of "+cs.raw+" linked)";
+  document.getElementById("sl2").textContent=cm.toFixed(2)+"×";
+  document.getElementById("sl3").textContent=captures;
+  document.getElementById("sl4").textContent="+"+cb.toFixed(2)+"×";
+  document.getElementById("sl5").textContent=losses;
+  document.getElementById("sl6").textContent=fmt(pay)+"  ("+tot.toFixed(2)+"×)";
+  document.getElementById("settle").classList.add("show");
+  addLog("Bell. Chain "+cs.size+" + "+captures+" caps → "+tot.toFixed(2)+"× ("+(net>=0?"+":"")+fmt(net)+")",net>=0?"good":"bad");
+  refreshHUD();
+  settleTimer=setTimeout(()=>{ if(phase==="settled") startRound(); },6000);
+}
+
+/* ============================== HUD ============================== */
+function buildPips(){ const w=document.getElementById("pips"); w.innerHTML="";
+  for(let i=0;i<SUPPLY;i++){const d=document.createElement("div");d.className="pip";w.appendChild(d);} }
+function buildLadder(){ const w=document.getElementById("ladder"); w.innerHTML="";
+  for(let s=2;s<=8;s++){ const d=document.createElement("div"); d.className="rung"; d.id="rung"+s;
+    d.innerHTML='<div class="c">'+(s===8?"8+":s)+'</div><div class="m">'+(s>=8?10:TIERS[s])+"×</div>"; w.appendChild(d);} }
+function refreshHUD(){
+  document.body.dataset.caps=lifeCaps; document.body.dataset.loss=lifeLoss;
+  document.body.dataset.round=roundNum; document.body.dataset.bal=balance.toFixed(0);
+  document.getElementById("balval").textContent=fmt(balance);
+  document.getElementById("stakeval").textContent=stake;
+  const pips=document.getElementById("pips").children;
+  for(let i=0;i<pips.length;i++) pips[i].className="pip"+(i<SUPPLY-supply?" used":"");
+  const cs=chainStats(); lastChain=cs.size;
+  document.getElementById("chainval").textContent=cs.size;
+  document.getElementById("capval").textContent=captures;
+  document.getElementById("lossval").textContent=losses;
+  const cm=tierMult(cs.size), cb=captures*CAP_BONUS;
+  document.getElementById("payout").textContent=(cm+cb).toFixed(2)+"×";
+  document.getElementById("payoutsub").textContent="chain "+cm.toFixed(2)+"× + captures "+cb.toFixed(2)+"×";
+  for(let s=2;s<=8;s++){ const r=document.getElementById("rung"+s);
+    r.className="rung"+((s===8?cs.size>=8:cs.size===s)?" active":""); }
+  const prog=(liveCol+tickInCol/TPC)/COLS;
+  document.getElementById("timerbar").style.width=(Math.min(1,prog)*100)+"%";
+  const remain=Math.max(0,Math.ceil((COLS*TPC-(liveCol*TPC+tickInCol))*TICK_MS/1000));
+  document.getElementById("timetxt").textContent=phase==="live"?remain+"s":"—";
+}
+
+/* ============================== INPUT ============================== */
+const cv=document.getElementById("cv");
+cv.addEventListener("mousemove",e=>{
+  const r=cv.getBoundingClientRect();
+  const mx=(e.clientX-r.left)*(1280/r.width), my=(e.clientY-r.top)*(800/r.height);
+  const c=Math.floor((mx-BX)/CW), rr=Math.floor((my-BY)/RH);
+  hover=inb(c,rr)?{c:c,r:rr}:null;
+});
+cv.addEventListener("mouseleave",()=>hover=null);
+cv.addEventListener("click",()=>{
+  if(!hover) return;
+  if(auto){ auto=false; document.getElementById("autobtn").classList.remove("on"); addLog("Manual control — your move","gold"); }
+  tryPlace(hover.c,hover.r,false);
+});
+document.getElementById("stkm").onclick=()=>{ stake=Math.max(25,stake-25); refreshHUD(); };
+document.getElementById("stkp").onclick=()=>{ stake=Math.min(1000,stake+25); refreshHUD(); };
+document.getElementById("autobtn").onclick=function(){ auto=!auto; this.classList.toggle("on",auto);
+  addLog(auto?"Autopilot engaged":"Autopilot off — you're live",auto?"":"gold"); };
+document.getElementById("newbtn").onclick=()=>{ if(phase==="settled"||confirm("Forfeit this round?")) startRound(); };
+document.getElementById("snext").onclick=()=>startRound();
+
+/* ============================== PAINT (rAF) ============================== */
+const ctx=cv.getContext("2d");
+const MONO=getComputedStyle(document.body).getPropertyValue("--mono");
+const SANS=getComputedStyle(document.body).getPropertyValue("--sans");
+const dpr=Math.min(2,window.devicePixelRatio||1);
+cv.width=1280*dpr; cv.height=800*dpr; cv.style.width="1280px"; cv.style.height="800px";
+ctx.scale(dpr,dpr);
+
+const stars=[]; for(let i=0;i<70;i++) stars.push({x:Math.random()*1280,y:Math.random()*800,
+  s:Math.random()*1.6+0.4,v:Math.random()*8+3,tw:Math.random()*6.28});
+
+function paint(now){
+  requestAnimationFrame(paint);
+  const t=now/1000;
+  /* --- background --- */
+  ctx.fillStyle="#060a14"; ctx.fillRect(0,0,1280,800);
+  let g=ctx.createRadialGradient(1100,80,40,1100,80,900);
+  g.addColorStop(0,"rgba(255,61,110,0.10)"); g.addColorStop(1,"rgba(255,61,110,0)");
+  ctx.fillStyle=g; ctx.fillRect(0,0,1280,800);
+  g=ctx.createRadialGradient(120,760,40,120,760,900);
+  g.addColorStop(0,"rgba(34,211,238,0.10)"); g.addColorStop(1,"rgba(34,211,238,0)");
+  ctx.fillStyle=g; ctx.fillRect(0,0,1280,800);
+  for(const s of stars){ const y=(s.y - t*s.v)%800, yy=y<0?y+800:y;
+    ctx.globalAlpha=0.25+0.25*Math.sin(t*2+s.tw);
+    ctx.fillStyle="#9bd8ff"; ctx.fillRect(s.x,yy,s.s,s.s); }
+  ctx.globalAlpha=1;
+
+  /* --- board panel --- */
+  ctx.save();
+  roundRect(BX-10,BY-10,BW+20,BH+20,16);
+  ctx.fillStyle="rgba(10,16,32,0.78)"; ctx.fill();
+  ctx.strokeStyle="rgba(102,232,249,0.16)"; ctx.lineWidth=1.5; ctx.stroke();
+  ctx.restore();
+
+  /* row stripes + price labels */
+  ctx.font="10px "+MONO;
+  for(let r=0;r<ROWS;r++){
+    if(r%2===0){ ctx.fillStyle="rgba(255,255,255,0.022)"; ctx.fillRect(BX,BY+r*RH,BW,RH); }
+    if(r>0){ ctx.fillStyle="rgba(123,138,165,0.75)"; ctx.textAlign="right";
+      ctx.fillText((pMax-r*(pMax-pMin)/ROWS).toFixed(2),BX+BW-6,BY+r*RH+3); }
+  }
+  /* grid lines */
+  ctx.strokeStyle="rgba(120,160,220,0.10)"; ctx.lineWidth=1; ctx.beginPath();
+  for(let c=0;c<=COLS;c++){ ctx.moveTo(BX+c*CW,BY); ctx.lineTo(BX+c*CW,BY+BH); }
+  for(let r=0;r<=ROWS;r++){ ctx.moveTo(BX,BY+r*RH); ctx.lineTo(BX+BW,BY+r*RH); }
+  ctx.stroke();
+
+  /* past column shade + future hint */
+  if(phase==="live"){
+    ctx.fillStyle="rgba(8,12,24,0.35)";
+    ctx.fillRect(BX,BY,liveCol*CW,BH);
+    // live column glow
+    const lx=BX+liveCol*CW;
+    g=ctx.createLinearGradient(lx,0,lx+CW,0);
+    const pulse=0.10+0.05*Math.sin(t*5);
+    g.addColorStop(0,"rgba(34,211,238,0)"); g.addColorStop(0.5,"rgba(34,211,238,"+pulse+")"); g.addColorStop(1,"rgba(34,211,238,0)");
+    ctx.fillStyle=g; ctx.fillRect(lx,BY,CW,BH);
+    ctx.fillStyle="rgba(103,232,249,0.9)"; ctx.font="700 9px "+SANS;
+    ctx.textAlign="center"; ctx.fillText("LIVE",lx+CW/2,BY-2+10);
+    // bell column marker
+    ctx.fillStyle="rgba(251,191,36,0.8)"; ctx.fillText("BELL",BX+(COLS-0.5)*CW,BY+BH-7);
+    ctx.strokeStyle="rgba(251,191,36,0.25)"; ctx.setLineDash([4,5]); ctx.beginPath();
+    ctx.moveTo(BX+(COLS-1)*CW,BY); ctx.lineTo(BX+(COLS-1)*CW,BY+BH); ctx.stroke(); ctx.setLineDash([]);
+  }
+
+  /* projection cone — where the opponent is likely to print next */
+  if(phase==="live" && pts.length>1){
+    const lp=pts[pts.length-1], px0=BX+lp.x*CW, py0=priceToY(lp.p);
+    let dr=0; const n=candles.length;
+    if(n>=2) dr=(candles[n-1].c-candles[Math.max(0,n-3)].c)/Math.min(2,n-1);
+    const colsAhead=COLS-lp.x, exPx=CW*colsAhead;
+    const endY=priceToY(lp.p+dr*colsAhead*0.7);
+    const spread=Math.min(BH*0.55,(vol*Math.sqrt(TPC*colsAhead))/(pMax-pMin)*BH*1.15);
+    g=ctx.createLinearGradient(px0,0,px0+exPx,0);
+    g.addColorStop(0,"rgba(140,225,255,0.10)"); g.addColorStop(1,"rgba(140,225,255,0)");
+    ctx.fillStyle=g; ctx.beginPath();
+    ctx.moveTo(px0,py0);
+    ctx.quadraticCurveTo(px0+exPx*0.45,(py0+endY)/2-spread*0.5,px0+exPx,endY-spread);
+    ctx.lineTo(px0+exPx,endY+spread);
+    ctx.quadraticCurveTo(px0+exPx*0.45,(py0+endY)/2+spread*0.5,px0,py0);
+    ctx.closePath(); ctx.fill();
+    ctx.strokeStyle="rgba(140,225,255,0.12)"; ctx.lineWidth=1; ctx.setLineDash([3,6]);
+    ctx.beginPath(); ctx.moveTo(px0,py0); ctx.lineTo(px0+exPx,endY); ctx.stroke(); ctx.setLineDash([]);
+  }
+
+  /* instrument chip */
+  ctx.textAlign="left"; ctx.font="600 10px "+MONO;
+  ctx.fillStyle="rgba(123,138,165,0.9)";
+  ctx.fillText("VOLATILITY 75 INDEX · SYNTH FEED 110ms",BX+26,BY+17);
+  ctx.fillStyle="rgba(110,231,183,"+(0.6+0.4*Math.sin(t*4))+")";
+  ctx.beginPath(); ctx.arc(BX+14,BY+13,3.4,0,6.2832); ctx.fill();
+
+  /* candle wicks behind stones */
+  for(let i=0;i<candles.length;i++){
+    const cd=candles[i], x=BX+(i+0.5)*CW;
+    const up=cd.c>=cd.o;
+    ctx.strokeStyle=up?"rgba(110,231,183,0.33)":"rgba(255,113,150,0.33)"; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.moveTo(x,priceToY(cd.h)); ctx.lineTo(x,priceToY(cd.l)); ctx.stroke();
+    ctx.fillStyle=up?"rgba(110,231,183,0.16)":"rgba(255,113,150,0.16)";
+    const yo=priceToY(cd.o), yc=priceToY(cd.c);
+    ctx.fillRect(x-CW*0.22,Math.min(yo,yc),CW*0.44,Math.max(2,Math.abs(yc-yo)));
+  }
+
+  /* live-column forming threat zone */
+  if(phase==="live" && candles.length){
+    const cd=candles[candles.length-1];
+    const rT=rowOfPrice(cd.h), rB=rowOfPrice(cd.l), lx=BX+liveCol*CW;
+    ctx.fillStyle="rgba(255,61,110,"+(0.10+0.04*Math.sin(t*6))+")";
+    ctx.fillRect(lx,BY+rT*RH,CW,(rB-rT+1)*RH);
+    ctx.strokeStyle="rgba(255,61,110,0.5)"; ctx.lineWidth=1; ctx.setLineDash([3,4]);
+    ctx.strokeRect(lx+1,BY+rT*RH+1,CW-2,(rB-rT+1)*RH-2); ctx.setLineDash([]);
+  }
+
+  /* chain links (under stones) */
+  const cs=chainStats();
+  if(cs.size>=2){
+    const inSet=new Set(cs.set.map(([c,r])=>c+","+r));
+    ctx.lineWidth=5; ctx.lineCap="round";
+    ctx.strokeStyle="rgba(34,211,238,"+(0.22+0.10*Math.sin(t*4))+")";
+    ctx.shadowColor="rgba(34,211,238,0.8)"; ctx.shadowBlur=10;
+    ctx.beginPath();
+    for(const [c,r] of cs.set) for(const [dx,dy] of [[1,0],[0,1],[1,1],[1,-1]]){
+      if(inSet.has((c+dx)+","+(r+dy))){ ctx.moveTo(cellCx(c),cellCy(r)); ctx.lineTo(cellCx(c+dx),cellCy(r+dy)); } }
+    ctx.stroke(); ctx.shadowBlur=0;
+  }
+
+  /* stones */
+  for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
+    const st=grid[r][c]; if(!st) continue;
+    const age=Math.max(0.02,Math.min(1,(now-st.born)/280));
+    const ease=1-Math.pow(1-age,3);
+    const R=Math.min(CW,RH)*0.335*ease;
+    const x=cellCx(c),y=cellCy(r);
+    if(st.owner==="M"){
+      ctx.shadowColor="rgba(255,61,110,0.7)"; ctx.shadowBlur=12;
+      g=ctx.createRadialGradient(x-R*0.35,y-R*0.4,R*0.1,x,y,R);
+      g.addColorStop(0,"#ff7a9b"); g.addColorStop(0.55,"#e8265b"); g.addColorStop(1,"#7e0f33");
+      ctx.fillStyle=g; ctx.beginPath(); ctx.arc(x,y,R,0,6.2832); ctx.fill();
+      ctx.shadowBlur=0;
+      ctx.strokeStyle="rgba(255,170,195,0.35)"; ctx.lineWidth=1; ctx.stroke();
+    } else {
+      const conv=st.converted;
+      ctx.shadowColor=conv?"rgba(251,191,36,0.85)":"rgba(34,211,238,0.85)"; ctx.shadowBlur=14;
+      g=ctx.createRadialGradient(x-R*0.35,y-R*0.4,R*0.1,x,y,R);
+      if(conv){ g.addColorStop(0,"#fde68a"); g.addColorStop(0.55,"#f1a40b"); g.addColorStop(1,"#8a5a06"); }
+      else    { g.addColorStop(0,"#bdf3ff"); g.addColorStop(0.55,"#23c4e8"); g.addColorStop(1,"#085e74"); }
+      ctx.fillStyle=g; ctx.beginPath(); ctx.arc(x,y,R,0,6.2832); ctx.fill();
+      ctx.shadowBlur=0;
+      ctx.strokeStyle=conv?"rgba(34,211,238,0.9)":"rgba(255,255,255,0.35)"; ctx.lineWidth=conv?2:1; ctx.stroke();
+      ctx.fillStyle="rgba(255,255,255,0.75)"; ctx.beginPath(); ctx.arc(x-R*0.32,y-R*0.36,R*0.16,0,6.2832); ctx.fill();
+      if(isEngaged(c,r)){ /* engaged = scoring: pulsing halo */
+        ctx.strokeStyle="rgba("+(conv?"251,191,36":"103,232,249")+","+(0.35+0.2*Math.sin(t*5+c))+")";
+        ctx.lineWidth=1.5; ctx.beginPath(); ctx.arc(x,y,R+4.5,0,6.2832); ctx.stroke();
+      }
+    }
+  }
+
+  /* price polyline (the opponent's hand) */
+  if(pts.length>1){
+    ctx.lineJoin="round"; ctx.lineCap="round";
+    ctx.lineWidth=6; ctx.strokeStyle="rgba(125,240,255,0.16)";
+    tracePts(); ctx.stroke();
+    ctx.lineWidth=2.2;
+    g=ctx.createLinearGradient(BX,0,BX+BW,0);
+    g.addColorStop(0,"#3ea8c9"); g.addColorStop(0.8,"#aef3ff"); g.addColorStop(1,"#ffffff");
+    ctx.strokeStyle=g; ctx.shadowColor="rgba(140,240,255,0.9)"; ctx.shadowBlur=8;
+    tracePts(); ctx.stroke(); ctx.shadowBlur=0;
+    /* live price marker */
+    const lp=pts[pts.length-1], lx=BX+lp.x*CW, ly=priceToY(lp.p);
+    ctx.strokeStyle="rgba(180,240,255,0.25)"; ctx.setLineDash([5,6]); ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(lx,ly); ctx.lineTo(BX+BW,ly); ctx.stroke(); ctx.setLineDash([]);
+    const pr=4.5+1.6*Math.sin(t*7);
+    ctx.fillStyle="#eaffff"; ctx.shadowColor="#9becff"; ctx.shadowBlur=16;
+    ctx.beginPath(); ctx.arc(lx,ly,pr,0,6.2832); ctx.fill(); ctx.shadowBlur=0;
+    /* price tag */
+    const tag=lp.p.toFixed(2);
+    ctx.font="700 11px "+MONO;
+    const tw=ctx.measureText(tag).width+14;
+    roundRect(BX+BW-tw-4,ly-10,tw,20,5);
+    ctx.fillStyle="rgba(10,20,38,0.92)"; ctx.fill();
+    ctx.strokeStyle="rgba(140,240,255,0.5)"; ctx.lineWidth=1; ctx.stroke();
+    ctx.fillStyle="#bdf3ff"; ctx.textAlign="center"; ctx.fillText(tag,BX+BW-tw/2-4,ly+4);
+  }
+
+  /* hover ghost */
+  if(hover && phase==="live"){
+    const ok=hover.c>liveCol && !grid[hover.r][hover.c] && supply>0;
+    const x=BX+hover.c*CW, y=BY+hover.r*RH;
+    ctx.fillStyle=ok?"rgba(34,211,238,0.13)":"rgba(255,61,110,0.10)";
+    ctx.fillRect(x,y,CW,RH);
+    ctx.strokeStyle=ok?"rgba(34,211,238,0.65)":"rgba(255,61,110,0.5)"; ctx.lineWidth=1.5;
+    ctx.strokeRect(x+1,y+1,CW-2,RH-2);
+    if(ok){ ctx.globalAlpha=0.45;
+      ctx.fillStyle="#23c4e8"; ctx.beginPath();
+      ctx.arc(x+CW/2,y+RH/2,Math.min(CW,RH)*0.335,0,6.2832); ctx.fill(); ctx.globalAlpha=1; }
+  }
+
+  /* fx */
+  const keep=[];
+  for(const f of fx){
+    const a=Math.max(0,(now-f.t0)/650); if(a>1) continue; keep.push(f);
+    if(f.t==="ring"){
+      ctx.strokeStyle="rgba("+f.col+","+(1-a)+")"; ctx.lineWidth=3*(1-a)+1;
+      ctx.beginPath(); ctx.arc(f.x,f.y,8+a*40,0,6.2832); ctx.stroke();
+    } else {
+      ctx.fillStyle="rgba("+f.col+","+(0.5*(1-a))+")";
+      ctx.beginPath(); ctx.arc(f.x,f.y,6+a*22,0,6.2832); ctx.fill();
+    }
+  }
+  fx=keep;
+}
+function tracePts(){
+  ctx.beginPath();
+  for(let i=0;i<pts.length;i++){
+    const x=BX+pts[i].x*CW, y=priceToY(pts[i].p);
+    if(i===0)ctx.moveTo(x,y); else ctx.lineTo(x,y);
+  }
+}
+function roundRect(x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath();
+}
+
+/* ============================== BOOT ============================== */
+buildLadder();
+startRound();
+/* warm-start so the first frame is already a mid-game battlefield */
+for(let i=0;i<TPC*8+6;i++) simTick();
+setInterval(simTick,TICK_MS);
+requestAnimationFrame(paint);
+</script>
+</body>
+</html>
