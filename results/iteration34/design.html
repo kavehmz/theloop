@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>HOTHOUSE — grow the market's weather | Deriv</title>
+<style>
+  :root{
+    --ink:#dfe9f5; --dim:#8aa0b8; --acc:#29e3a4; --gold:#ffd34d;
+    --bull:#5ad26b; --umbra:#b988ef; --storm:#3fd6e8; --moon:#cfd8ff;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:#04070f;color:var(--ink);font-family:"Avenir Next","Segoe UI",system-ui,sans-serif}
+  #stage{position:relative;width:1280px;height:800px;margin:0 auto;overflow:hidden;background:#04070f}
+  canvas{display:block;cursor:pointer}
+  /* ---------- overlay controls ---------- */
+  #plantbar{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);
+    display:flex;align-items:center;gap:14px;padding:10px 18px;border-radius:14px;
+    background:rgba(8,18,30,.82);border:1px solid rgba(64,220,170,.35);
+    box-shadow:0 6px 30px rgba(0,0,0,.6),0 0 22px rgba(41,227,164,.12);backdrop-filter:blur(6px);z-index:5}
+  #plantbar.hidden{display:none}
+  .stk{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--dim);letter-spacing:.08em}
+  .stk b{font-size:20px;color:var(--gold);font-variant-numeric:tabular-nums;min-width:74px;text-align:center}
+  .bt{cursor:pointer;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06);
+    color:var(--ink);width:30px;height:30px;border-radius:8px;font-size:17px;line-height:1}
+  .bt:hover{background:rgba(255,255,255,.14)}
+  #go{cursor:pointer;border:none;border-radius:10px;padding:11px 26px;font-size:15px;font-weight:700;
+    letter-spacing:.12em;color:#03130c;background:linear-gradient(180deg,#3df0b2,#17b87f);
+    box-shadow:0 0 24px rgba(41,227,164,.45);transition:transform .1s}
+  #go:hover{transform:scale(1.04)}
+  #go:disabled{opacity:.4;cursor:default;transform:none}
+  #replant{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);z-index:5;
+    cursor:pointer;border:none;border-radius:10px;padding:12px 30px;font-size:15px;font-weight:700;
+    letter-spacing:.14em;color:#1a1206;background:linear-gradient(180deg,#ffe28a,#f0b429);
+    box-shadow:0 0 28px rgba(255,211,77,.45)}
+  #replant.hidden{display:none}
+  /* ---------- below the fold ---------- */
+  #lore{max-width:1100px;margin:46px auto 90px;padding:0 28px}
+  #lore h2{font-size:26px;letter-spacing:.14em;color:var(--acc);margin-bottom:6px}
+  #lore .sub{color:var(--dim);margin-bottom:30px;font-size:15px}
+  .cards{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin:26px 0 34px}
+  .card{border:1px solid rgba(255,255,255,.09);border-radius:14px;padding:18px;background:rgba(255,255,255,.025)}
+  .card h3{font-size:15px;letter-spacing:.1em;margin-bottom:8px}
+  .card p{font-size:13px;line-height:1.55;color:var(--dim)}
+  .c-bull h3{color:var(--bull)} .c-umbra h3{color:var(--umbra)}
+  .c-storm h3{color:var(--storm)} .c-moon h3{color:var(--moon)}
+  .how{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:34px}
+  .how div{border-left:3px solid var(--acc);padding:4px 0 4px 14px;font-size:14px;line-height:1.6;color:var(--dim)}
+  .how b{color:var(--ink)}
+  table{border-collapse:collapse;font-size:14px}
+  td,th{padding:7px 22px 7px 0;text-align:left;color:var(--dim)}
+  th{color:var(--ink);letter-spacing:.08em;font-size:12px;text-transform:uppercase}
+  .px{color:var(--gold);font-weight:700}
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="cv" width="1280" height="800"></canvas>
+  <div id="plantbar" class="hidden">
+    <span style="font-size:12px;letter-spacing:.14em;color:var(--acc)">CLICK PLOTS TO SOW · THEN</span>
+    <div class="stk"><span>STAKE</span>
+      <button class="bt" id="dn">−</button><b id="stakeV">100</b><button class="bt" id="up">+</button>
+    </div>
+    <button id="go">PLANT &amp; GROW ▶</button>
+  </div>
+  <button id="replant" class="hidden">REPLANT ✦ NEW ROUND</button>
+</div>
+
+<div id="lore">
+  <h2>HOTHOUSE</h2>
+  <div class="sub">A living greenhouse over a live market. Plants don't drink water — they drink the <b>character</b> of price action. Read the weather, sow, prune, graft, and only what blooms by the bell pays.</div>
+  <div class="cards">
+    <div class="card c-bull"><h3>🜚 BULLVINE</h3><p>Feeds on sustained <b>up-trend</b>. Measured from the live trend of returns — rallies pour sap up its stem. Starves in chop and sell-offs.</p></div>
+    <div class="card c-umbra"><h3>☾ UMBRA FERN</h3><p>Feeds on sustained <b>down-trend</b>. Unfurls its violet fronds while the index slides. A bet that the bleeding continues.</p></div>
+    <div class="card c-storm"><h3>⛈ STORMCAP</h3><p>Feeds on <b>high realized volatility</b> — direction irrelevant. Wild two-sided chop makes its bioluminescent caps swell.</p></div>
+    <div class="card c-moon"><h3>✶ MOONPETAL</h3><p>Feeds on <b>calm</b> — abnormally low volatility. The quietest tape opens its petals. Dies the moment the storm hits.</p></div>
+  </div>
+  <div class="how">
+    <div><b>1 · SOW.</b> Click any of 6 plots to cycle its seed; your stake splits across planted plots. Concentration vs diversification is itself a bet on regime persistence.</div>
+    <div><b>2 · GRAFT.</b> 40 s of live growth. You carry <b>3 shears</b>: click a living plant, then another — the donor is cut to a stump and <b>65%</b> of its growth flows into the target (35% lost as sap). Cut the plant whose weather has died; feed the one whose weather is coming.</div>
+    <div><b>3 · THE BELL.</b> Each plot settles by the stage it reached. The thresholds are cliffs — a plant one tick short of Bloom pays like a Bud. Photo-finish blooms are everything.</div>
+  </div>
+  <table>
+    <tr><th>Stage</th><th>Growth</th><th>Payout / plot stake</th></tr>
+    <tr><td>Sprout</td><td>&lt; 30</td><td class="px">0×</td></tr>
+    <tr><td>Bud</td><td>≥ 30</td><td class="px">0.4×</td></tr>
+    <tr><td>Bloom</td><td>≥ 62</td><td class="px">1.5×</td></tr>
+    <tr><td>Prime Bloom</td><td>≥ 92</td><td class="px">3.5×</td></tr>
+  </table>
+</div>
+
+<script>
+"use strict";
+/* ================= HOTHOUSE ================= */
+const W=1280,H=800;
+const cv=document.getElementById('cv'),x=cv.getContext('2d');
+window.addEventListener('error',e=>{document.body.dataset.jserr=(document.body.dataset.jserr||'')+e.message+';';});
+
+/* ---------- constants ---------- */
+const SPECIES=['bull','umbra','storm','moon'];
+const SP={
+  bull :{name:'BULLVINE', glyph:'🜚', col:'#5ad26b', col2:'#ffd34d'},
+  umbra:{name:'UMBRA FERN',glyph:'☾', col:'#b988ef', col2:'#7b4dc9'},
+  storm:{name:'STORMCAP', glyph:'⛈', col:'#3fd6e8', col2:'#9af3ff'},
+  moon :{name:'MOONPETAL',glyph:'✶', col:'#cfd8ff', col2:'#ffffff'},
+};
+const STAGES=[{n:'SPROUT',g:0,m:0},{n:'BUD',g:30,m:0.4},{n:'BLOOM',g:62,m:1.5},{n:'PRIME',g:92,m:3.5}];
+const PLOT_X=[160,350,540,730,920,1110], POT_Y=712;
+const ROUND_S=40, TICK_MS=100, SHEARS_MAX=3;
+const CHART_TOP=120, CHART_BOT=560;
+
+/* ---------- state ---------- */
+let balance=2500, stake=100, shears=SHEARS_MAX;
+let phase='plant';            // plant | grow | settle
+let demo=true;                // auto-pilot until the user touches anything
+let tLeft=ROUND_S, simT=0;
+let selected=-1;              // graft donor index
+let settleInfo=null, settleT=0;
+let plots=[];                 // {sp,growth,stage,alive,stump,sway, fedGlow}
+for(let i=0;i<6;i++)plots.push(freshPlot());
+function freshPlot(){return{sp:null,growth:0,stage:0,alive:false,stump:false,fed:0,wob:Math.random()*9};}
+
+/* ---------- market: hidden regime engine ---------- */
+const REG={rally:{d:+0.45,v:0.25},slide:{d:-0.45,v:0.25},storm:{d:0,v:1.40},calm:{d:+0.02,v:0.06}};
+let regime='rally',regT=0,regDwell=6;
+let price=1000, hist=[], trend=0, vol=0.4;
+function gauss(){let s=0;for(let i=0;i<4;i++)s+=Math.random();return (s-2)/0.816;}
+function pickRegime(){
+  const ks=Object.keys(REG).filter(k=>k!==regime);
+  regime=ks[(Math.random()*ks.length)|0]; regT=0; regDwell=4+Math.random()*5;
+}
+function marketTick(dt){
+  regT+=dt; if(regT>=regDwell)pickRegime();
+  const R=REG[regime];
+  const r=R.d+R.v*gauss();
+  price=Math.max(600,price+r);
+  trend+=(r-trend)*0.10;            // EMA of returns  → direction character
+  vol  +=(Math.abs(r)-vol)*0.08;    // EMA of |r|      → volatility character
+  hist.push(price); if(hist.length>520)hist.shift();
+}
+/* measured intensities — purely from the tape, never from the hidden label */
+function intensities(){
+  return{
+    bull : Math.min(1.25,Math.max(0,trend)/0.42),
+    umbra: Math.min(1.25,Math.max(0,-trend)/0.42),
+    storm: Math.min(1.25,Math.max(0,(vol-0.70))/0.45),
+    moon : Math.min(1.25,Math.max(0,(0.30-vol))/0.24),
+  };
+}
+function weatherWord(){
+  const I=intensities();
+  let best='DRIFT',bv=0.28;
+  if(I.bull >bv){best='RALLY';bv=I.bull}
+  if(I.umbra>bv){best='SLIDE';bv=I.umbra}
+  if(I.storm>bv){best='STORM';bv=I.storm}
+  if(I.moon >bv){best='CALM' ;bv=I.moon}
+  return best;
+}
+
+/* ---------- growth ---------- */
+const GROW_RATE=3.8;      // /s at intensity 1
+const WILT_RATE=0.28;     // /s when starved
+function growthTick(dt){
+  const I=intensities();
+  for(const p of plots){
+    if(!p.alive)continue;
+    const f=I[p.sp];
+    if(f>0.06){p.growth=Math.min(118,p.growth+GROW_RATE*f*dt);p.fed=Math.min(1,p.fed+dt*2);}
+    else      {p.growth=Math.max(0,p.growth-WILT_RATE*dt);     p.fed=Math.max(0,p.fed-dt*1.5);}
+    const ns=stageOf(p.growth);
+    if(ns>p.stage){p.stage=ns;burst(plotX(p),plantTopY(p),SP[p.sp].col2,ns*14+18);}
+    p.stage=ns;
+  }
+}
+function stageOf(g){let s=0;for(let i=0;i<STAGES.length;i++)if(g>=STAGES[i].g)s=i;return s;}
+function plotX(p){return PLOT_X[plots.indexOf(p)];}
+function plantTopY(p){return POT_Y-70-p.growth*2.3;}
+
+/* ---------- graft ---------- */
+let orbs=[];   // flying sap
+function tryGraft(a,b){
+  if(a===b)return false;
+  const d=plots[a],t=plots[b];
+  if(!d.alive||!t.alive||shears<=0||d.growth<2)return false;
+  const sap=d.growth*0.65;
+  d.alive=false;d.stump=true;d.growth=0;d.stage=0;shears--;
+  orbs.push({x0:PLOT_X[a],y0:POT_Y-60,x1:PLOT_X[b],y1:POT_Y-70,t:0,amt:sap,sp:t.sp});
+  burst(PLOT_X[a],POT_Y-50,'#9a7b52',16);
+  return true;
+}
+function orbTick(dt){
+  for(const o of orbs){o.t+=dt*1.6;
+    if(o.t>=1&&!o.done){o.done=true;
+      const t=plots[PLOT_X.indexOf(o.x1)];
+      t.growth=Math.min(118,t.growth+o.amt);
+      const ns=stageOf(t.growth);
+      if(ns>t.stage){t.stage=ns;}
+      burst(o.x1,POT_Y-80,SP[o.sp].col2,30);
+    }}
+  orbs=orbs.filter(o=>o.t<1.15);
+}
+
+/* ---------- particles ---------- */
+let parts=[];
+function burst(bx,by,col,n){
+  for(let i=0;i<n;i++){const a=Math.random()*6.283,s=30+Math.random()*120;
+    parts.push({x:bx,y:by,vx:Math.cos(a)*s,vy:Math.sin(a)*s-40,life:0.7+Math.random()*0.6,t:0,col,r:1+Math.random()*2.4});}
+}
+let spores=[];
+for(let i=0;i<70;i++)spores.push({x:Math.random()*W,y:Math.random()*H,s:0.4+Math.random()*1.6,ph:Math.random()*9});
+let rain=[];
+for(let i=0;i<90;i++)rain.push({x:Math.random()*W,y:Math.random()*H,v:520+Math.random()*260});
+let sap=[];    // chart → plant feed motes
+function partTick(dt){
+  for(const p of parts){p.t+=dt;p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=160*dt;}
+  parts=parts.filter(p=>p.t<p.life);
+  const I=intensities();
+  if(phase==='grow')for(const pl of plots){
+    if(!pl.alive)continue;
+    const f=I[pl.sp];
+    if(f>0.3&&Math.random()<f*0.5){
+      const cy=priceY(hist[hist.length-1]||price);
+      const cxh=90+(hist.length-1)*(1100/519);
+      sap.push({x:cxh,y:cy,tx:plotX(pl)+(Math.random()*40-20),ty:plantTopY(pl)+20,t:0,col:SP[pl.sp].col});
+    }}
+  for(const s of sap)s.t+=dt*0.9;
+  sap=sap.filter(s=>s.t<1);
+}
+
+/* ---------- round flow ---------- */
+function startRound(){
+  let n=plots.filter(p=>p.sp).length;
+  if(n===0||stake>balance)return;
+  balance-=stake;
+  for(const p of plots){if(p.sp){p.alive=true;p.stump=false;p.growth=0;p.stage=0;p.fed=0;}}
+  shears=SHEARS_MAX;tLeft=ROUND_S;phase='grow';selected=-1;
+  ui();
+}
+function settle(){
+  phase='settle';settleT=0;selected=-1;
+  const planted=plots.filter(p=>p.sp);
+  const share=stake/planted.length;
+  let total=0,rows=[];
+  plots.forEach((p,i)=>{
+    if(!p.sp)return;
+    const st=p.stump?0:p.stage;
+    const pay=share*STAGES[st].m;
+    total+=pay;
+    rows.push({i,sp:p.sp,stage:st,stump:p.stump,g:p.growth,pay});
+  });
+  balance+=total;
+  settleInfo={rows,total,staked:stake};
+  if(settleInfo.total>settleInfo.staked)burst(W/2,300,'#ffd34d',80);
+  ui();
+}
+function clearField(){
+  for(let i=0;i<6;i++)plots[i]=freshPlot();
+  phase='plant';settleInfo=null;ui();
+}
+
+/* ---------- demo autopilot ---------- */
+let demoT=0;
+function demoTick(dt){
+  if(!demo)return;
+  demoT+=dt;
+  if(phase==='plant'&&demoT>1.2){
+    demoT=0;
+    const picks=[0,1,2,3,4,5].sort(()=>Math.random()-0.5).slice(0,5);
+    const mix=[...SPECIES,SPECIES[(Math.random()*4)|0]].sort(()=>Math.random()-0.5);
+    picks.forEach((pi,k)=>plots[pi].sp=mix[k]);
+    // bias one plot toward current weather
+    const w=weatherWord(), map={RALLY:'bull',SLIDE:'umbra',STORM:'storm',CALM:'moon'};
+    if(map[w])plots[picks[0]].sp=map[w];
+    startRound();
+  }else if(phase==='grow'&&tLeft<30&&demoT>3.5){
+    demoT=0;
+    const I=intensities();
+    let donor=-1,target=-1,worst=0.2,best=0.45;
+    plots.forEach((p,i)=>{
+      if(!p.alive)return;
+      if(I[p.sp]<worst&&p.growth>14&&p.growth<62){worst=I[p.sp];donor=i;}
+      if(I[p.sp]>best&&p.growth>20&&p.growth<92){best=I[p.sp];target=i;}
+    });
+    if(donor>=0&&target>=0&&donor!==target&&Math.random()<0.8)tryGraft(donor,target);
+  }else if(phase==='settle'&&settleT>4.6){
+    clearField();demoT=0.6;
+  }
+}
+
+/* ---------- sim loop (setInterval — survives background tabs) ---------- */
+function simStep(dt){
+  simT+=dt;
+  marketTick(dt);
+  if(phase==='grow'){
+    growthTick(dt);
+    tLeft-=dt;
+    if(tLeft<=0)settle();
+  }
+  if(phase==='settle')settleT+=dt;
+  orbTick(dt);partTick(dt);demoTick(dt);
+}
+setInterval(()=>simStep(TICK_MS/1000),TICK_MS);
+
+/* ---------- drawing ---------- */
+function priceY(p){
+  const lo=Math.min(...hist),hi=Math.max(...hist),pad=(hi-lo)*0.18+1;
+  return CHART_BOT-( (p-(lo-pad))/((hi+pad)-(lo-pad)) )*(CHART_BOT-CHART_TOP);
+}
+function draw(){
+  const t=simT, I=intensities(), w=weatherWord();
+  /* --- sky --- */
+  let g=x.createLinearGradient(0,0,0,H);
+  g.addColorStop(0,'#040a18');g.addColorStop(0.5,'#071626');g.addColorStop(1,'#04111c');
+  x.fillStyle=g;x.fillRect(0,0,W,H);
+  /* regime wash */
+  let wash=null;
+  if(w==='RALLY')wash='rgba(255,190,60,';
+  else if(w==='SLIDE')wash='rgba(255,70,90,';
+  else if(w==='STORM')wash='rgba(60,170,255,';
+  else if(w==='CALM')wash='rgba(170,150,255,';
+  if(wash){let rg=x.createRadialGradient(W/2,40,40,W/2,40,900);
+    rg.addColorStop(0,wash+'0.13)');rg.addColorStop(1,wash+'0)');
+    x.fillStyle=rg;x.fillRect(0,0,W,H);}
+  /* stars */
+  x.fillStyle='rgba(255,255,255,0.5)';
+  for(let i=0;i<60;i++){const sx=(i*211)%W,sy=(i*97)%330;
+    x.globalAlpha=0.18+0.3*Math.abs(Math.sin(t*0.7+i));x.fillRect(sx,sy,1.6,1.6);}
+  x.globalAlpha=1;
+  /* moon behind the glass */
+  let mg=x.createRadialGradient(1080,130,8,1080,130,150);
+  mg.addColorStop(0,'rgba(220,235,255,0.55)');mg.addColorStop(0.25,'rgba(190,215,255,0.16)');mg.addColorStop(1,'rgba(190,215,255,0)');
+  x.fillStyle=mg;x.beginPath();x.arc(1080,130,150,0,7);x.fill();
+  x.fillStyle='rgba(235,243,255,0.85)';x.beginPath();x.arc(1080,130,34,0,7);x.fill();
+  x.fillStyle='rgba(170,195,230,0.35)';
+  x.beginPath();x.arc(1070,122,8,0,7);x.fill();x.beginPath();x.arc(1092,140,5,0,7);x.fill();
+  /* aurora bands */
+  for(let b=0;b<3;b++){
+    x.beginPath();
+    for(let px=0;px<=W;px+=16){
+      const py=70+b*46+Math.sin(px*0.006+t*0.4+b*2)*22;
+      px===0?x.moveTo(px,py):x.lineTo(px,py);
+    }
+    x.strokeStyle=`rgba(${b===1?'120,255,200':'80,160,255'},${0.05+0.03*Math.sin(t+b)})`;
+    x.lineWidth=26;x.stroke();
+  }
+
+  /* --- chart --- */
+  if(hist.length>2){
+    const n=hist.length, step=1100/(520-1), x0=90;
+    /* grid */
+    x.strokeStyle='rgba(120,170,210,0.07)';x.lineWidth=1;
+    for(let gy=CHART_TOP;gy<=CHART_BOT;gy+=55){x.beginPath();x.moveTo(40,gy);x.lineTo(1240,gy);x.stroke();}
+    /* area */
+    x.beginPath();x.moveTo(x0,CHART_BOT+90);
+    for(let i=0;i<n;i++)x.lineTo(x0+i*step,priceY(hist[i]));
+    x.lineTo(x0+(n-1)*step,CHART_BOT+90);x.closePath();
+    let ag=x.createLinearGradient(0,CHART_TOP,0,CHART_BOT+90);
+    ag.addColorStop(0,'rgba(41,227,164,0.20)');ag.addColorStop(1,'rgba(41,227,164,0)');
+    x.fillStyle=ag;x.fill();
+    /* line */
+    x.beginPath();
+    for(let i=0;i<n;i++){const px=x0+i*step,py=priceY(hist[i]);i===0?x.moveTo(px,py):x.lineTo(px,py);}
+    x.shadowColor='#29e3a4';x.shadowBlur=18;
+    x.strokeStyle='#35f0b0';x.lineWidth=3;x.stroke();x.shadowBlur=0;
+    /* head dot */
+    const hx=x0+(n-1)*step,hy=priceY(hist[n-1]);
+    x.beginPath();x.arc(hx,hy,5+2*Math.sin(t*6),0,7);x.fillStyle='#bfffe8';x.fill();
+    x.beginPath();x.arc(hx,hy,12+5*Math.sin(t*6),0,7);x.strokeStyle='rgba(120,255,210,0.4)';x.lineWidth=1.5;x.stroke();
+    /* price tag */
+    x.fillStyle='rgba(8,22,30,0.85)';rr(hx-86,hy-32,76,20,5);x.fill();
+    x.fillStyle='#9ff5d4';x.font='600 12px Menlo,monospace';x.textAlign='center';
+    x.fillText(hist[n-1].toFixed(1),hx-48,hy-18);
+  }
+
+  /* --- greenhouse glass --- */
+  x.strokeStyle='rgba(150,210,235,0.10)';x.lineWidth=3;
+  for(let i=0;i<=8;i++){
+    const gx=40+i*150;
+    x.beginPath();x.moveTo(gx,H);x.quadraticCurveTo(gx+(640-gx)*0.12,140,640+(gx-640)*0.72,46);x.stroke();
+  }
+  x.beginPath();x.moveTo(20,46);x.quadraticCurveTo(640,-30,1260,46);x.lineWidth=5;
+  x.strokeStyle='rgba(170,225,245,0.16)';x.stroke();
+  for(const my of [200,360,520]){x.beginPath();x.moveTo(20,my);x.lineTo(1260,my);
+    x.strokeStyle='rgba(150,210,235,0.05)';x.lineWidth=2;x.stroke();}
+  /* hanging lanterns along the arch */
+  for(let i=0;i<5;i++){
+    const lx=190+i*230, anch=34+Math.abs(640-lx)*0.012;
+    const swl=Math.sin(t*0.9+i*1.7)*4, ly=anch+58+(i%2)*16;
+    x.strokeStyle='rgba(190,215,230,0.25)';x.lineWidth=1.4;
+    x.beginPath();x.moveTo(lx,anch);x.lineTo(lx+swl,ly);x.stroke();
+    let lg2=x.createRadialGradient(lx+swl,ly+8,2,lx+swl,ly+8,55);
+    lg2.addColorStop(0,'rgba(255,214,130,0.50)');lg2.addColorStop(1,'rgba(255,214,130,0)');
+    x.fillStyle=lg2;x.beginPath();x.arc(lx+swl,ly+8,55,0,7);x.fill();
+    x.fillStyle='#2c2418';rr(lx+swl-7,ly,14,18,4);x.fill();
+    x.fillStyle='rgba(255,226,150,'+(0.75+0.2*Math.sin(t*3+i))+')';
+    x.beginPath();x.arc(lx+swl,ly+9,4.5,0,7);x.fill();
+    x.fillStyle='#3a3020';rr(lx+swl-9,ly-3,18,4,2);x.fill();
+  }
+  /* hanging corner vines */
+  for(const side of [0,1]){
+    const sx0=side?W:0, dir=side?-1:1;
+    for(let v=0;v<4;v++){
+      const vx=sx0+dir*(18+v*34), len=120+((v*53)%90), ph=v*2.1+side*3;
+      x.strokeStyle='rgba(86,160,118,0.55)';x.lineWidth=2;
+      x.beginPath();x.moveTo(vx,0);
+      for(let k2=1;k2<=8;k2++){const f=k2/8;
+        x.lineTo(vx+Math.sin(f*4+t*0.8+ph)*8*f+dir*f*14,f*len);}
+      x.stroke();
+      for(let k2=2;k2<=8;k2+=2){const f=k2/8;
+        const lxv=vx+Math.sin(f*4+t*0.8+ph)*8*f+dir*f*14, lyv=f*len;
+        x.fillStyle='rgba(96,180,130,0.5)';
+        x.beginPath();x.ellipse(lxv+dir*7,lyv,8,3.4,dir*0.5,0,7);x.fill();
+      }
+    }
+  }
+  /* light shafts */
+  for(let i=0;i<3;i++){
+    const lx=240+i*360+Math.sin(t*0.2+i)*30;
+    let lg=x.createLinearGradient(lx,0,lx+170,H);
+    lg.addColorStop(0,'rgba(140,220,255,0.045)');lg.addColorStop(1,'rgba(140,220,255,0)');
+    x.fillStyle=lg;
+    x.beginPath();x.moveTo(lx,30);x.lineTo(lx+70,30);x.lineTo(lx+230,H);x.lineTo(lx+90,H);x.closePath();x.fill();
+  }
+
+  /* rain in storms */
+  if(w==='STORM'){
+    x.strokeStyle='rgba(140,200,255,0.30)';x.lineWidth=1;
+    for(const r of rain){r.y+=r.v*0.016;if(r.y>H){r.y=-20;r.x=Math.random()*W;}
+      x.beginPath();x.moveTo(r.x,r.y);x.lineTo(r.x-3,r.y+14);x.stroke();}
+  }
+
+  /* --- floor --- */
+  let fg=x.createLinearGradient(0,640,0,H);
+  fg.addColorStop(0,'rgba(16,26,24,0)');fg.addColorStop(0.4,'#0b1410');fg.addColorStop(1,'#060c09');
+  x.fillStyle=fg;x.fillRect(0,640,W,H-640);
+  x.strokeStyle='rgba(255,255,255,0.04)';x.lineWidth=1;
+  for(let i=0;i<8;i++){x.beginPath();x.moveTo(0,700+i*14);x.lineTo(W,696+i*15);x.stroke();}
+
+  /* --- spores --- */
+  for(const s of spores){
+    s.y-=s.s*0.35;s.x+=Math.sin(t*0.6+s.ph)*0.3;
+    if(s.y<-5){s.y=H+5;s.x=Math.random()*W;}
+    x.globalAlpha=0.12+0.12*Math.sin(t+s.ph);
+    x.fillStyle='#bfffdf';x.beginPath();x.arc(s.x,s.y,s.s,0,7);x.fill();
+  }
+  x.globalAlpha=1;
+
+  /* --- sap motes (market feeding plants) --- */
+  for(const s of sap){
+    const e=s.t*s.t*(3-2*s.t);
+    const mx=s.x+(s.tx-s.x)*e, my=s.y+(s.ty-s.y)*e - Math.sin(e*Math.PI)*60;
+    x.globalAlpha=0.8*(1-s.t*0.5);
+    x.fillStyle=s.col;x.beginPath();x.arc(mx,my,2.2,0,7);x.fill();
+  }
+  x.globalAlpha=1;
+
+  /* --- plots & plants --- */
+  plots.forEach((p,i)=>drawPlot(p,i,t));
+
+  /* --- graft orbs --- */
+  for(const o of orbs){
+    const e=Math.min(1,o.t), s=e*e*(3-2*e);
+    const ox=o.x0+(o.x1-o.x0)*s, oy=o.y0+(o.y1-o.y0)*s-Math.sin(s*Math.PI)*140;
+    x.shadowColor='#ffd34d';x.shadowBlur=16;
+    x.fillStyle='#ffe9a0';x.beginPath();x.arc(ox,oy,6,0,7);x.fill();x.shadowBlur=0;
+    x.strokeStyle='rgba(255,211,77,0.35)';x.lineWidth=2;
+    x.beginPath();x.arc(ox,oy,11+3*Math.sin(t*9),0,7);x.stroke();
+  }
+
+  /* --- particles --- */
+  for(const p of parts){
+    x.globalAlpha=Math.max(0,1-p.t/p.life);
+    x.fillStyle=p.col;x.beginPath();x.arc(p.x,p.y,p.r,0,7);x.fill();
+  }
+  x.globalAlpha=1;
+
+  drawHUD(t,I,w);
+  if(phase==='settle'&&settleInfo)drawSettle();
+  requestAnimationFrame(draw);
+}
+
+function rr(a,b,w2,h2,r){x.beginPath();x.moveTo(a+r,b);x.arcTo(a+w2,b,a+w2,b+h2,r);
+  x.arcTo(a+w2,b+h2,a,b+h2,r);x.arcTo(a,b+h2,a,b,r);x.arcTo(a,b,a+w2,b,r);x.closePath();}
+
+/* ---------- plot & plant rendering ---------- */
+function drawPlot(p,i,t){
+  const px=PLOT_X[i];
+  /* selection / hover ring */
+  if(selected===i){
+    x.strokeStyle='rgba(255,211,77,0.9)';x.lineWidth=2.5;
+    x.setLineDash([6,5]);x.beginPath();x.arc(px,POT_Y-30,72+4*Math.sin(t*5),0,7);x.stroke();x.setLineDash([]);
+  }
+  /* pot */
+  let pg=x.createLinearGradient(px-52,0,px+52,0);
+  pg.addColorStop(0,'#1d1827');pg.addColorStop(0.5,'#372c44');pg.addColorStop(1,'#171320');
+  x.fillStyle=pg;
+  x.beginPath();x.moveTo(px-52,POT_Y);x.lineTo(px+52,POT_Y);x.lineTo(px+40,POT_Y+52);x.lineTo(px-40,POT_Y+52);x.closePath();x.fill();
+  x.fillStyle='rgba(255,255,255,0.07)';rr(px-56,POT_Y-8,112,12,5);x.fill();
+  x.fillStyle='#241c12';x.beginPath();x.ellipse(px,POT_Y-4,46,7,0,0,7);x.fill();
+
+  if(p.stump){
+    x.fillStyle='#5d4426';rr(px-10,POT_Y-34,20,30,4);x.fill();
+    x.fillStyle='#8a6a3c';x.beginPath();x.ellipse(px,POT_Y-34,10,4,0,0,7);x.fill();
+  }else if(p.sp){
+    const c=SP[p.sp];
+    /* ground glow */
+    let gg=x.createRadialGradient(px,POT_Y+30,4,px,POT_Y+30,90);
+    gg.addColorStop(0,hexA(c.col,0.12+0.06*p.fed));gg.addColorStop(1,hexA(c.col,0));
+    x.fillStyle=gg;x.beginPath();x.ellipse(px,POT_Y+34,92,26,0,0,7);x.fill();
+    /* fed aura */
+    if(p.fed>0.1&&p.alive){
+      let ag=x.createRadialGradient(px,POT_Y-70,5,px,POT_Y-70,110);
+      ag.addColorStop(0,hexA(c.col,0.10*p.fed));ag.addColorStop(1,hexA(c.col,0));
+      x.fillStyle=ag;x.fillRect(px-115,POT_Y-185,230,190);
+    }
+    drawPlant(p,px,t,i);
+    /* growth meter */
+    const mw=86,mx0=px-mw/2,my0=POT_Y+60;
+    x.fillStyle='rgba(255,255,255,0.08)';rr(mx0,my0,mw,6,3);x.fill();
+    x.fillStyle=c.col;rr(mx0,my0,mw*Math.min(1,p.growth/100),6,3);x.fill();
+    /* threshold ticks */
+    for(const s of [30,62,92]){
+      x.fillStyle=p.growth>=s?'#ffd34d':'rgba(255,255,255,0.4)';
+      x.fillRect(mx0+mw*s/100-1,my0-3,2,12);
+    }
+    /* stage plate */
+    const st=STAGES[p.stage];
+    x.font='700 11px Menlo,monospace';x.textAlign='center';
+    x.fillStyle=p.stage>=2?'#ffd34d':(p.stage>=1?c.col:'rgba(200,215,230,0.55)');
+    x.fillText(st.n+(p.stage>0?' · '+STAGES[p.stage].m+'×':''),px,my0+22);
+  }else{
+    /* empty plot — sow hint */
+    x.strokeStyle='rgba(160,220,200,'+(0.18+0.12*Math.sin(t*2+i))+')';
+    x.setLineDash([4,5]);x.lineWidth=1.5;
+    x.beginPath();x.arc(px,POT_Y-40,26,0,7);x.stroke();x.setLineDash([]);
+    if(phase==='plant'){x.fillStyle='rgba(170,225,210,0.5)';x.font='600 11px Menlo,monospace';
+      x.textAlign='center';x.fillText('SOW',px,POT_Y-36);}
+  }
+}
+function hexA(hex,a){const n=parseInt(hex.slice(1),16);return`rgba(${n>>16},${(n>>8)&255},${n&255},${a})`;}
+
+function drawPlant(p,px,t,i){
+  const g=Math.min(p.growth,112), sw=Math.sin(t*1.3+p.wob)*(2+g*0.04);
+  const c=SP[p.sp];
+  x.save();x.translate(px,POT_Y-6);
+  if(p.sp==='bull')drawBull(g,t,sw,c,p);
+  else if(p.sp==='umbra')drawFern(g,t,sw,c,p);
+  else if(p.sp==='storm')drawCaps(g,t,sw,c,p);
+  else drawMoon(g,t,sw,c,p);
+  /* prime halo */
+  if(p.stage>=3){
+    x.globalAlpha=0.5+0.3*Math.sin(t*4);
+    x.strokeStyle=c.col2;x.lineWidth=1.5;
+    x.beginPath();x.arc(0,-66-g*2.0,46+7*Math.sin(t*3),0,7);x.stroke();
+    x.globalAlpha=1;
+  }
+  x.restore();
+}
+function drawBull(g,t,sw,c,p){
+  const h=52+g*2.5;
+  x.strokeStyle=c.col;x.lineWidth=5;x.lineCap='round';
+  x.beginPath();x.moveTo(0,0);
+  const N=14;
+  for(let k=1;k<=N;k++){const f=k/N,yy=-h*f,xx=Math.sin(f*5+t*1.1)*13*f+sw*f;x.lineTo(xx,yy);}
+  x.stroke();
+  /* leaves */
+  const leaves=Math.floor(3+g/8);
+  for(let l=0;l<leaves;l++){
+    const f=(l+1)/(leaves+1),yy=-h*f,xx=Math.sin(f*5+t*1.1)*13*f+sw*f,side=l%2?1:-1;
+    x.fillStyle=hexA(c.col,0.85);
+    x.beginPath();x.ellipse(xx+side*14,yy,14,5.5,side*0.5+Math.sin(t+l)*0.08,0,7);x.fill();
+  }
+  /* blossoms */
+  if(p.stage>=2){const bn=p.stage>=3?6:3;
+    for(let b=0;b<bn;b++){
+      const f=1-b*0.11,yy=-h*f,xx=Math.sin(f*5+t*1.1)*13*f+sw*f;
+      x.shadowColor=c.col2;x.shadowBlur=12;
+      x.fillStyle=c.col2;x.beginPath();x.arc(xx,yy,7-b*0.6,0,7);x.fill();x.shadowBlur=0;
+    }}
+}
+function drawFern(g,t,sw,c,p){
+  const fronds=Math.min(8,3+Math.floor(g/15)), L=40+g*1.5;
+  for(let f2=0;f2<fronds;f2++){
+    const a=-Math.PI/2+(f2-(fronds-1)/2)*0.30+sw*0.012;
+    const ex=Math.cos(a)*L,ey=Math.sin(a)*L;
+    x.strokeStyle=hexA(c.col,0.9);x.lineWidth=2.5;x.lineCap='round';
+    x.beginPath();x.moveTo(0,0);x.quadraticCurveTo(ex*0.4,ey*0.75,ex,ey);x.stroke();
+    const leaf=Math.floor(L/11);
+    for(let k=2;k<leaf;k++){
+      const f3=k/leaf, lx=ex*0.4*2*f3*(1-f3)+ex*f3*f3, ly=ey*0.75*2*f3*(1-f3)+ey*f3*f3;
+      const ll=(1-f3)*14+4;
+      x.strokeStyle=hexA(c.col,0.55);x.lineWidth=1.6;
+      x.beginPath();x.moveTo(lx,ly);x.lineTo(lx-ll*Math.cos(a-1.1),ly-ll*Math.sin(a-1.1));x.stroke();
+      x.beginPath();x.moveTo(lx,ly);x.lineTo(lx-ll*Math.cos(a+1.1),ly-ll*Math.sin(a+1.1));x.stroke();
+    }
+    if(p.stage>=2){x.shadowColor=c.col2;x.shadowBlur=8;
+      x.fillStyle=c.col2;x.beginPath();x.arc(ex,ey,3.5,0,7);x.fill();x.shadowBlur=0;}
+  }
+}
+function drawCaps(g,t,sw,c,p){
+  const n=Math.min(5,1+Math.floor(g/22));
+  for(let k=0;k<n;k++){
+    const off=(k-(n-1)/2)*36, hh=26+g*0.8-(k%2)*18, cr=13+g*0.26-(k%2)*5;
+    x.strokeStyle='#cfe8ea';x.lineWidth=4;x.lineCap='round';
+    x.beginPath();x.moveTo(off,0);x.quadraticCurveTo(off+sw*0.4,-hh*0.6,off+sw*0.7,-hh);x.stroke();
+    x.shadowColor=c.col;x.shadowBlur=p.fed>0.3?18:8;
+    let cg=x.createRadialGradient(off+sw*0.7,-hh-2,1,off+sw*0.7,-hh-2,cr*1.4);
+    cg.addColorStop(0,c.col2);cg.addColorStop(1,c.col);
+    x.fillStyle=cg;
+    x.beginPath();x.ellipse(off+sw*0.7,-hh,cr*1.35,cr,0,Math.PI,0);x.closePath();x.fill();
+    x.shadowBlur=0;
+    /* gill dots */
+    x.fillStyle='rgba(255,255,255,0.5)';
+    for(let d=0;d<3;d++){x.beginPath();x.arc(off+sw*0.7-cr*0.7+d*cr*0.7,-hh-cr*0.35,1.4,0,7);x.fill();}
+  }
+  if(p.stage>=3){ /* lightning between caps */
+    x.strokeStyle='rgba(180,245,255,'+(0.4+0.4*Math.random())+')';x.lineWidth=1.4;
+    x.beginPath();let lx=-(n-1)/2*36,ly=-30-g*0.7;
+    x.moveTo(lx,ly);
+    for(let s2=1;s2<=5;s2++)x.lineTo(lx+s2*((n-1)*36/5),ly+(Math.random()*18-9));
+    x.stroke();
+  }
+}
+function drawMoon(g,t,sw,c,p){
+  const h=36+g*1.35, open=Math.min(1,g/95);
+  x.strokeStyle='#9ab39a';x.lineWidth=4;x.lineCap='round';
+  x.beginPath();x.moveTo(0,0);x.quadraticCurveTo(sw,-h*0.6,sw*1.2,-h);x.stroke();
+  /* basal leaves */
+  for(const s2 of [-1,1]){x.fillStyle='rgba(140,170,140,0.6)';
+    x.beginPath();x.ellipse(s2*13,-10,15,5.5,s2*0.6,0,7);x.fill();}
+  const fx=sw*1.2,fy=-h;
+  const R=10+g*0.44;
+  if(p.stage>=2){x.shadowColor=c.col2;x.shadowBlur=16;}
+  for(let k=0;k<8;k++){
+    const a=k/8*6.283+t*0.15;
+    const pr=R*(0.35+0.75*open);
+    x.fillStyle=hexA(c.col,0.85);
+    x.beginPath();x.ellipse(fx+Math.cos(a)*pr*0.6,fy+Math.sin(a)*pr*0.6,pr*0.62,pr*0.30,a,0,7);x.fill();
+  }
+  x.shadowBlur=0;
+  x.fillStyle=c.col2;x.beginPath();x.arc(fx,fy,3.4+open*2.6,0,7);x.fill();
+  if(p.stage>=3){ /* rays */
+    x.strokeStyle=hexA(c.col2,0.5);x.lineWidth=1.2;
+    for(let k=0;k<10;k++){const a=k/10*6.283+t*0.4;
+      x.beginPath();x.moveTo(fx+Math.cos(a)*(R+4),fy+Math.sin(a)*(R+4));
+      x.lineTo(fx+Math.cos(a)*(R+13+3*Math.sin(t*5+k)),fy+Math.sin(a)*(R+13+3*Math.sin(t*5+k)));x.stroke();}
+  }
+}
+
+/* ---------- HUD ---------- */
+function drawHUD(t,I,w){
+  /* top vignette */
+  let tg=x.createLinearGradient(0,0,0,96);
+  tg.addColorStop(0,'rgba(3,8,14,0.88)');tg.addColorStop(1,'rgba(3,8,14,0)');
+  x.fillStyle=tg;x.fillRect(0,0,W,96);
+
+  x.textAlign='left';
+  x.font='800 25px "Avenir Next","Segoe UI",sans-serif';
+  x.fillStyle='#eafff5';x.fillText('HOTHOUSE',26,38);
+  x.font='600 10.5px Menlo,monospace';x.fillStyle='#5e8a78';
+  x.fillText('THE MARKET-WEATHER GREENHOUSE · VOL-100 SYNTHETIC',26,56);
+
+  /* weather word + gauges (top center) */
+  const cx=440;
+  x.font='700 12px Menlo,monospace';x.textAlign='center';
+  const wc={RALLY:'#ffd34d',SLIDE:'#ff5d72',STORM:'#3fd6e8',CALM:'#cfd8ff',DRIFT:'#7d92a8'}[w];
+  x.fillStyle=wc;
+  x.fillText('WEATHER · '+w,cx+115,20);
+  /* trend gauge */
+  gauge(cx,40,'TREND',Math.max(-1,Math.min(1,trend/0.5)),'#5ad26b','#ff5d72',t);
+  /* vol gauge */
+  gauge(cx+230,40,'VOLATILITY',Math.max(-1,Math.min(1,(vol-0.55)/0.6)),'#3fd6e8','#cfd8ff',t,true);
+
+  /* shears + timer (right-center) */
+  x.textAlign='left';x.font='700 13px Menlo,monospace';
+  for(let s=0;s<SHEARS_MAX;s++){
+    x.globalAlpha=s<shears?1:0.18;
+    x.fillStyle='#ffd34d';x.fillText('✂',880+s*26,30);
+  }
+  x.globalAlpha=1;
+  x.fillStyle='#5e8a78';x.font='600 9.5px Menlo,monospace';x.fillText('SHEARS — CLICK PLANT, THEN TARGET',880,46);
+  if(phase==='grow'){
+    const f=tLeft/ROUND_S;
+    x.fillStyle='rgba(255,255,255,0.10)';rr(880,56,200,7,3);x.fill();
+    x.fillStyle=tLeft<8?'#ff5d72':'#29e3a4';rr(880,56,200*f,7,3);x.fill();
+    x.fillStyle='#9fb8cc';x.font='700 12px Menlo,monospace';
+    x.fillText(Math.ceil(tLeft)+'s',1090,65);
+  }else if(phase==='plant'){
+    x.fillStyle='#29e3a4';x.font='700 12px Menlo,monospace';
+    x.fillText(demo?'DEMO — CLICK ANYWHERE TO PLAY':'SOW YOUR PLOTS',880,62);
+  }
+
+  /* balance (top right) */
+  x.textAlign='right';
+  x.font='600 10.5px Menlo,monospace';x.fillStyle='#5e8a78';x.fillText('BALANCE',1254,20);
+  x.font='800 22px Menlo,monospace';x.fillStyle='#ffd34d';
+  x.fillText(balance.toFixed(0)+' ◈',1254,42);
+  if(phase==='grow'||phase==='settle'){
+    x.font='600 11px Menlo,monospace';x.fillStyle='#7d92a8';
+    x.fillText('STAKED '+stake,1254,60);
+  }
+  x.textAlign='left';
+}
+function gauge(gx,gy,label,v,cPos,cNeg,t,isVol){
+  x.strokeStyle='rgba(255,255,255,0.12)';x.lineWidth=7;
+  x.beginPath();x.arc(gx+90,gy+14,26,Math.PI,0);x.stroke();
+  /* colored arc from center to value */
+  const a0=-Math.PI/2, a1=a0+v*(Math.PI/2);
+  x.strokeStyle=v>=0?cPos:cNeg;
+  x.beginPath();x.arc(gx+90,gy+14,26,Math.min(a0,a1)-Math.PI/2+Math.PI/2,Math.max(a0,a1)-Math.PI/2+Math.PI/2);
+  x.stroke();
+  /* needle */
+  const na=-Math.PI/2+v*(Math.PI/2);
+  x.strokeStyle='#eafff5';x.lineWidth=2;
+  x.beginPath();x.moveTo(gx+90,gy+14);
+  x.lineTo(gx+90+Math.sin(na)*30,gy+14-Math.cos(na)*30);x.stroke();
+  x.font='600 9.5px Menlo,monospace';x.textAlign='center';
+  x.fillStyle='#5e8a78';x.fillText(label,gx+90,gy+30);
+  if(isVol){x.fillStyle='#cfd8ff';x.font='600 8px Menlo,monospace';
+    x.fillText('CALM',gx+52,gy+6);x.fillStyle='#3fd6e8';x.fillText('STORM',gx+130,gy+6);}
+}
+
+/* ---------- settlement overlay ---------- */
+function drawSettle(){
+  const a=Math.min(1,settleT*2.2);
+  x.fillStyle='rgba(3,9,14,'+0.62*a+')';x.fillRect(0,0,W,H);
+  const pw=560,ph=120+settleInfo.rows.length*38,px0=(W-pw)/2,py0=170;
+  x.globalAlpha=a;
+  x.fillStyle='rgba(10,24,32,0.95)';rr(px0,py0,pw,ph,16);x.fill();
+  x.strokeStyle='rgba(41,227,164,0.45)';x.lineWidth=1.5;rr(px0,py0,pw,ph,16);x.stroke();
+  x.textAlign='center';
+  x.font='800 21px "Avenir Next",sans-serif';x.fillStyle='#eafff5';
+  x.fillText('🔔 THE BELL — HARVEST',W/2,py0+38);
+  x.font='600 13px Menlo,monospace';
+  settleInfo.rows.forEach((r,k)=>{
+    const yy=py0+74+k*38, c=SP[r.sp];
+    x.textAlign='left';
+    x.fillStyle=c.col;x.fillText(c.glyph+' '+c.name,px0+36,yy);
+    x.fillStyle=r.stump?'#8a6a3c':(r.stage>=2?'#ffd34d':(r.stage>=1?'#9fb8cc':'#5b6c7c'));
+    x.fillText(r.stump?'GRAFTED ✂':STAGES[r.stage].n+' '+Math.round(Math.min(100,r.g)),px0+240,yy);
+    x.textAlign='right';
+    x.fillStyle=r.pay>0?'#29e3a4':'#5b6c7c';
+    x.fillText((r.pay>0?'+':'')+r.pay.toFixed(0)+' ◈',px0+pw-36,yy);
+  });
+  const net=settleInfo.total-settleInfo.staked;
+  x.textAlign='center';
+  x.font='800 26px Menlo,monospace';
+  x.fillStyle=net>=0?'#ffd34d':'#ff5d72';
+  x.fillText((net>=0?'+':'')+net.toFixed(0)+' ◈',W/2,py0+ph-24);
+  x.globalAlpha=1;x.textAlign='left';
+}
+
+/* ---------- input ---------- */
+const plantbar=document.getElementById('plantbar'),replantBtn=document.getElementById('replant');
+const stakeV=document.getElementById('stakeV');
+function ui(){
+  plantbar.classList.toggle('hidden',!(phase==='plant'&&!demo));
+  replantBtn.classList.toggle('hidden',!(phase==='settle'&&!demo&&settleT>1));
+  stakeV.textContent=stake;
+  document.getElementById('go').disabled=!plots.some(p=>p.sp)||stake>balance;
+}
+setInterval(ui,300);
+function takeOver(){if(demo){demo=false;ui();}}
+cv.addEventListener('pointerdown',e=>{
+  takeOver();
+  const r=cv.getBoundingClientRect();
+  const mx=(e.clientX-r.left)*(W/r.width), my=(e.clientY-r.top)*(H/r.height);
+  let hit=-1;
+  PLOT_X.forEach((px2,i)=>{if(Math.abs(mx-px2)<78&&my>340&&my<790)hit=i;});
+  if(hit<0){selected=-1;return;}
+  if(phase==='plant'){
+    const p=plots[hit];
+    const order=[null,...SPECIES];
+    p.sp=order[(order.indexOf(p.sp)+1)%order.length];
+    ui();
+  }else if(phase==='grow'){
+    const p=plots[hit];
+    if(selected<0){if(p.alive&&p.growth>2)selected=hit;}
+    else{if(tryGraft(selected,hit))selected=-1;else if(p.alive)selected=hit;else selected=-1;}
+  }
+});
+document.getElementById('up').onclick=()=>{takeOver();stake=Math.min(balance,stake+25);ui();};
+document.getElementById('dn').onclick=()=>{takeOver();stake=Math.max(25,stake-25);ui();};
+document.getElementById('go').onclick=()=>{takeOver();startRound();};
+replantBtn.onclick=()=>{clearField();};
+document.getElementById('lore').addEventListener('pointerdown',()=>{});
+
+/* prewarm so the very first painted frame is already alive (mid-round demo) */
+const PRE=parseInt((location.hash||'').slice(1))||230;   // #N for QA fast-forward
+for(let i=0;i<520;i++)marketTick(0.1);          // full chart history
+for(let i=0;i<PRE;i++)simStep(0.1);             // a demo round ~23s in
+/* guarantee a lush first frame: living plants get a healthy spread of growth */
+(function(){
+  const targets=[86,58,100,44,72,34];
+  plots.forEach((p,i)=>{
+    if(p.alive&&p.growth<targets[i]){p.growth=targets[i];p.stage=stageOf(p.growth);p.fed=0.8;}
+  });
+})();
+ui();
+requestAnimationFrame(draw);
+</script>
+</body>
+</html>
