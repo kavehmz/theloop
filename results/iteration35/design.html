@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CAUSTIC — Reflect the Market | Deriv</title>
+<style>
+  :root{
+    --bg0:#06070f; --bg1:#0b0d1d; --ink:#e8ecff; --dim:#8b93b8;
+    --gold:#ffc94d; --cyan:#4de8ff; --mag:#ff5fd0; --win:#3dffa8; --loss:#ff5d7a;
+    --glass:rgba(20,26,54,.55); --line:rgba(120,140,220,.22);
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{background:var(--bg0);color:var(--ink);font-family:"Inter","Segoe UI",-apple-system,BlinkMacSystemFont,Roboto,Helvetica,Arial,sans-serif;}
+  #hero{position:relative;width:100%;height:100vh;min-height:640px;overflow:hidden;background:radial-gradient(1200px 700px at 50% 18%, #131a3a 0%, #0a0d20 48%, #05060d 100%);}
+  #game{position:absolute;inset:0;width:100%;height:100%;display:block;cursor:crosshair;}
+
+  /* ---------- top bar ---------- */
+  #topbar{position:absolute;top:0;left:0;right:0;height:62px;display:flex;align-items:center;justify-content:space-between;padding:0 26px;z-index:5;pointer-events:none;background:linear-gradient(180deg, rgba(5,6,14,.85), rgba(5,6,14,0));}
+  .logo{display:flex;align-items:baseline;gap:12px}
+  .logo .mark{font-size:25px;font-weight:800;letter-spacing:.24em;background:linear-gradient(92deg,#ffd76e 0%,#7defff 55%,#ff7ada 100%);-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:0 0 28px rgba(120,200,255,.25);}
+  .logo .sub{font-size:11px;letter-spacing:.3em;color:var(--dim);text-transform:uppercase}
+  #phasewrap{display:flex;align-items:center;gap:12px}
+  #phasePill{font-size:12px;font-weight:700;letter-spacing:.22em;padding:7px 18px;border-radius:30px;border:1px solid var(--line);background:var(--glass);backdrop-filter:blur(6px);color:var(--cyan);text-transform:uppercase;transition:color .3s,border-color .3s}
+  #phasePill.flight{color:var(--gold)}
+  #phasePill.settle{color:var(--win)}
+  #phaseTime{font-variant-numeric:tabular-nums;font-size:21px;font-weight:700;min-width:62px;text-align:left;color:#fff}
+  .balwrap{text-align:right}
+  .balwrap .lbl{font-size:10px;letter-spacing:.28em;color:var(--dim);text-transform:uppercase}
+  #balance{font-size:21px;font-weight:800;font-variant-numeric:tabular-nums;color:#fff}
+  #balDelta{font-size:12px;font-weight:700;height:14px;font-variant-numeric:tabular-nums;color:var(--win);opacity:0;transition:opacity .4s}
+
+  /* ---------- bottom HUD ---------- */
+  #hud{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);z-index:6;display:flex;align-items:center;gap:22px;padding:11px 22px;border-radius:16px;border:1px solid var(--line);background:linear-gradient(180deg, rgba(16,21,46,.82), rgba(9,12,28,.88));backdrop-filter:blur(10px);box-shadow:0 12px 40px rgba(0,0,0,.5), inset 0 1px 0 rgba(160,180,255,.12);}
+  .hudblk{display:flex;flex-direction:column;align-items:center;gap:3px;min-width:84px}
+  .hudblk .k{font-size:9.5px;letter-spacing:.26em;color:var(--dim);text-transform:uppercase}
+  .stakerow{display:flex;align-items:center;gap:9px}
+  .stbtn{width:26px;height:26px;border-radius:8px;border:1px solid var(--line);background:rgba(80,100,200,.14);color:var(--ink);font-size:15px;font-weight:700;cursor:pointer;pointer-events:auto;line-height:1;transition:background .15s}
+  .stbtn:hover{background:rgba(110,140,255,.3)}
+  #stakeVal{font-size:19px;font-weight:800;font-variant-numeric:tabular-nums;min-width:56px;text-align:center}
+  #livePay{font-size:19px;font-weight:800;font-variant-numeric:tabular-nums;color:var(--gold);text-shadow:0 0 14px rgba(255,200,80,.5)}
+  #mode{font-size:11px;font-weight:700;letter-spacing:.16em;color:var(--mag)}
+  #mode.live{color:var(--cyan)}
+  .vdiv{width:1px;height:34px;background:var(--line)}
+  #hint{font-size:11px;color:var(--dim);max-width:230px;line-height:1.45;text-align:left}
+  #hint b{color:#cfd9ff}
+
+  /* ---------- settle card ---------- */
+  #settle{position:absolute;left:50%;top:46%;transform:translate(-50%,-50%) scale(.92);z-index:8;width:380px;padding:22px 26px 20px;border-radius:18px;border:1px solid rgba(150,170,255,.3);background:linear-gradient(165deg, rgba(22,28,60,.94), rgba(10,12,28,.96));box-shadow:0 30px 90px rgba(0,0,0,.65), 0 0 60px rgba(90,140,255,.18), inset 0 1px 0 rgba(180,200,255,.15);opacity:0;pointer-events:none;transition:opacity .25s, transform .3s cubic-bezier(.2,1.4,.4,1);}
+  #settle.show{opacity:1;transform:translate(-50%,-50%) scale(1)}
+  #settle h3{font-size:12px;letter-spacing:.3em;color:var(--dim);text-transform:uppercase;text-align:center;margin-bottom:12px}
+  .srow{display:flex;justify-content:space-between;align-items:center;font-size:14px;padding:5px 0;font-variant-numeric:tabular-nums}
+  .srow .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:9px;vertical-align:1px}
+  .srow .zn{color:var(--dim);font-size:12px;letter-spacing:.06em}
+  .srow .amt{font-weight:700}
+  #sBonus{font-size:12.5px;font-weight:700;color:var(--gold);text-align:center;letter-spacing:.14em;margin:7px 0 2px;min-height:16px}
+  #sTotal{display:flex;justify-content:space-between;border-top:1px solid var(--line);margin-top:9px;padding-top:11px;font-size:18px;font-weight:800;font-variant-numeric:tabular-nums}
+  #sTotal .v.win{color:var(--win);text-shadow:0 0 18px rgba(60,255,170,.45)} #sTotal .v.loss{color:var(--loss)}
+
+  /* ---------- below the fold ---------- */
+  #below{max-width:1080px;margin:0 auto;padding:72px 32px 90px}
+  #below h2{font-size:24px;font-weight:800;letter-spacing:.06em;margin-bottom:10px}
+  #below .lead{color:var(--dim);font-size:15px;line-height:1.7;max-width:760px;margin-bottom:42px}
+  .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-bottom:48px}
+  .card{border:1px solid var(--line);border-radius:14px;padding:22px;background:linear-gradient(170deg, rgba(18,23,50,.6), rgba(9,11,26,.6))}
+  .card .n{font-size:11px;letter-spacing:.3em;color:var(--gold);margin-bottom:9px;font-weight:700}
+  .card h4{font-size:16px;margin-bottom:8px}
+  .card p{font-size:13px;color:var(--dim);line-height:1.65}
+  table{width:100%;border-collapse:collapse;font-size:13.5px;margin-bottom:48px}
+  th,td{text-align:left;padding:9px 14px;border-bottom:1px solid rgba(120,140,220,.13)}
+  th{color:var(--dim);font-size:11px;letter-spacing:.2em;text-transform:uppercase}
+  td .mult{font-weight:800;color:var(--gold)}
+  footer{color:#555d7e;font-size:12px;letter-spacing:.08em;border-top:1px solid rgba(120,140,220,.12);padding-top:26px}
+</style>
+</head>
+<body>
+<div id="hero">
+  <canvas id="game"></canvas>
+
+  <div id="topbar">
+    <div class="logo"><span class="mark">CAUSTIC</span><span class="sub">light markets · deriv</span></div>
+    <div id="phasewrap"><span id="phasePill">Aim</span><span id="phaseTime">6.0s</span></div>
+    <div class="balwrap"><div class="lbl">Balance</div><div id="balance">$10,000.00</div><div id="balDelta"></div></div>
+  </div>
+
+  <div id="hud">
+    <div class="hudblk"><span class="k">Stake</span>
+      <div class="stakerow"><button class="stbtn" id="stDown">−</button><span id="stakeVal">$30</span><button class="stbtn" id="stUp">+</button></div>
+    </div>
+    <div class="vdiv"></div>
+    <div class="hudblk"><span class="k">If bell now</span><span id="livePay">—</span></div>
+    <div class="vdiv"></div>
+    <div class="hudblk"><span class="k">Mode</span><span id="mode">AUTO DEMO</span></div>
+    <div class="vdiv"></div>
+    <div id="hint"><b>Drag a cannon</b> to slide it · <b>drag its diamond</b> to aim. Beams reflect off the live price mirror — land them in the rich zones at the bell.</div>
+  </div>
+
+  <div id="settle">
+    <h3>Bell — Settlement</h3>
+    <div class="srow" id="sr0"><span><span class="dot" style="background:#ffc94d"></span><span class="zn"></span></span><span class="amt"></span></div>
+    <div class="srow" id="sr1"><span><span class="dot" style="background:#4de8ff"></span><span class="zn"></span></span><span class="amt"></span></div>
+    <div class="srow" id="sr2"><span><span class="dot" style="background:#ff5fd0"></span><span class="zn"></span></span><span class="amt"></span></div>
+    <div id="sBonus"></div>
+    <div id="sTotal"><span>RETURN</span><span class="v" id="sTotalV">$0.00</span></div>
+  </div>
+</div>
+
+<div id="below">
+  <h2>The market is your mirror.</h2>
+  <p class="lead">CAUSTIC turns the live price path into a liquid-mercury mirror. You command three light cannons on the rail above the chart: slide them, set their angle, and commit. For sixteen seconds the market keeps re-forging the mirror beneath your beams — every tick bends your light somewhere new. At the bell, you're paid by which odds-zones your reflected rays are illuminating.</p>
+  <div class="cards">
+    <div class="card"><div class="n">01 · AIM — 6s</div><h4>Place your light</h4><p>Drag each cannon along the rail and tilt its beam with the diamond handle. A live preview shows where each ray would land off the current curve — but the curve won't stay still.</p></div>
+    <div class="card"><div class="n">02 · FLIGHT — 16s</div><h4>The mirror deforms</h4><p>Beams are locked. The price keeps redrawing the surface: a steep candle under a strike point whips its reflection across half the board. The "IF BELL NOW" ticker breathes with every tick.</p></div>
+    <div class="card"><div class="n">03 · BELL</div><h4>Frozen light pays</h4><p>The frame freezes; each ray's landing zone pays its multiplier on a third of your stake. Two rays converging in one zone pay ×1.5; all three is a ×3 CAUSTIC FOCUS on everything.</p></div>
+  </div>
+  <table>
+    <tr><th>Zone</th><th>Where</th><th>Pays</th><th>How light gets there</th></tr>
+    <tr><td>Core</td><td>top centre</td><td><span class="mult">×1.2–1.4</span></td><td>Near-vertical returns off a calm, flat mirror.</td></tr>
+    <tr><td>Edge / Rim</td><td>top shoulders &amp; corners</td><td><span class="mult">×2–×4</span></td><td>Tilted facets in a trend fan light sideways.</td></tr>
+    <tr><td>Side rails</td><td>upper left / right walls</td><td><span class="mult">×3 / ×5</span></td><td>Steep slopes &amp; double-bounces fling rays clear off the board's top half.</td></tr>
+    <tr><td>PRIME</td><td>roams every round</td><td><span class="mult">×8</span></td><td>One zone each round runs hot. Chase it — or let it come to you.</td></tr>
+    <tr><td>Void</td><td>lower walls &amp; floor</td><td><span class="mult">×0</span></td><td>Flattened rays and shots past the mirror's frontier die dark.</td></tr>
+  </table>
+  <footer>CAUSTIC — a reflection-geometry market game concept for Deriv.com · prototype, simulated feed · stake split across three beams · fixed 22-second rounds</footer>
+</div>
+
+<script>
+"use strict";
+/* ============================================================
+   CAUSTIC — price path as a specular mirror.
+   Sim runs on setInterval (survives backgrounded tabs);
+   painting runs on requestAnimationFrame.
+   Design space fixed at 1280x800, scaled to canvas.
+============================================================ */
+const DW=1280, DH=800;
+const canvas=document.getElementById('game'), ctx=canvas.getContext('2d');
+let scaleX=1, scaleY=1;
+function resize(){
+  const r=canvas.getBoundingClientRect(), dpr=Math.min(window.devicePixelRatio||1,2);
+  canvas.width=Math.round(r.width*dpr); canvas.height=Math.round(r.height*dpr);
+  scaleX=canvas.width/DW; scaleY=canvas.height/DH;
+}
+window.addEventListener('resize',resize); resize();
+
+/* ---------- frame & layout (design coords) ---------- */
+const FX0=120, FX1=1160, FY0=132, FY1=688;
+const FRONT=FX0+0.78*(FX1-FX0);          // mirror frontier (live edge)
+const STEP=4;                            // px per price sample
+const NPTS=Math.floor((FRONT-FX0)/STEP)+1;
+
+/* ---------- zones ---------- */
+const zones=[];
+(function(){
+  const n=9, w=(FX1-FX0)/n, m=[4,2,1.4,1.2,1.2,1.2,1.4,2,4];
+  for(let i=0;i<n;i++) zones.push({edge:'T',a:FX0+i*w,b:FX0+(i+1)*w,mult:m[i]});
+  const midY=FY0+(FY1-FY0)*0.5;
+  zones.push({edge:'L',a:FY0,b:midY,mult:3});
+  zones.push({edge:'L',a:midY,b:FY1,mult:0});
+  zones.push({edge:'R',a:FY0,b:midY,mult:5});
+  zones.push({edge:'R',a:midY,b:FY1,mult:0});
+  zones.push({edge:'B',a:FX0,b:FX1,mult:0});
+})();
+let primeIdx=2;
+function zMult(i){ return i===primeIdx?8:zones[i].mult; }
+function zName(i){
+  const z=zones[i];
+  if(i===primeIdx) return 'PRIME ×8';
+  if(z.mult===0) return 'VOID ×0';
+  if(z.edge==='L') return 'WEST RAIL ×3';
+  if(z.edge==='R') return 'EAST RAIL ×5';
+  return (z.mult>=4?'RIM':z.mult>=2?'EDGE':z.mult>1.2?'SLOPE':'CORE')+' ×'+z.mult;
+}
+function zoneAt(edge,x,y){
+  const c=(edge==='T'||edge==='B')?x:y;
+  for(let i=0;i<zones.length;i++){
+    const z=zones[i];
+    if(z.edge===edge && c>=z.a-0.5 && c<=z.b+0.5) return i;
+  }
+  return zones.length-1;
+}
+
+/* ---------- market sim ---------- */
+let prices=[], regime={drift:0,vol:1,t:0}, pLo=-30, pHi=30;
+(function(){ let p=0; for(let i=0;i<NPTS;i++){ p+=(Math.random()-0.5)*2.6; prices.push(p);} })();
+function stepMarket(){
+  regime.t--;
+  if(regime.t<=0){
+    regime.drift=(Math.random()-0.5)*1.5;
+    regime.vol=0.45+Math.random()*1.9;
+    regime.t=25+Math.random()*110;
+  }
+  const last=prices[prices.length-1];
+  let p=last+regime.drift+(Math.random()-0.5)*2*regime.vol*2.0;
+  p+=-p*0.006;                      // gentle mean anchor
+  prices.push(p); prices.shift();
+}
+function updateScale(){
+  let lo=Infinity,hi=-Infinity;
+  for(const p of prices){ if(p<lo)lo=p; if(p>hi)hi=p; }
+  const pad=Math.max((hi-lo)*0.22, 6); lo-=pad; hi+=pad;
+  pLo+=(lo-pLo)*0.06; pHi+=(hi-pHi)*0.06;
+}
+const Y_TOP=FY0+86, Y_BOT=FY1-40;
+function mapY(p){ return Y_BOT-(p-pLo)/(pHi-pLo)*(Y_BOT-Y_TOP); }
+let pathPts=[];
+function buildPath(){
+  pathPts.length=0;
+  for(let i=0;i<NPTS;i++) pathPts.push({x:FX0+i*STEP, y:mapY(prices[i])});
+}
+
+/* ---------- ray casting ---------- */
+function raySeg(ox,oy,dx,dy,x1,y1,x2,y2){
+  const sx=x2-x1, sy=y2-y1, den=dx*sy-dy*sx;
+  if(Math.abs(den)<1e-9) return -1;
+  const t=((x1-ox)*sy-(y1-oy)*sx)/den;
+  const u=((x1-ox)*dy-(y1-oy)*dx)/den;
+  return (t>1e-4 && u>=0 && u<=1)?t:-1;
+}
+function frameExit(px,py,dx,dy){
+  let bt=Infinity, ex=null;
+  if(dy<0){ const t=(FY0-py)/dy; if(t>1e-4&&t<bt){const x=px+dx*t; if(x>=FX0-0.5&&x<=FX1+0.5){bt=t;ex={t,edge:'T',x,y:FY0};}}}
+  if(dy>0){ const t=(FY1-py)/dy; if(t>1e-4&&t<bt){const x=px+dx*t; if(x>=FX0-0.5&&x<=FX1+0.5){bt=t;ex={t,edge:'B',x,y:FY1};}}}
+  if(dx<0){ const t=(FX0-px)/dx; if(t>1e-4&&t<bt){const y=py+dy*t; if(y>=FY0-0.5&&y<=FY1+0.5){bt=t;ex={t,edge:'L',x:FX0,y};}}}
+  if(dx>0){ const t=(FX1-px)/dx; if(t>1e-4&&t<bt){const y=py+dy*t; if(y>=FY0-0.5&&y<=FY1+0.5){bt=t;ex={t,edge:'R',x:FX1,y};}}}
+  return ex;
+}
+function castRay(ox,oy,ang){
+  let dx=Math.cos(ang), dy=Math.sin(ang);
+  let px=ox, py=oy+1.5, lastSeg=-2;
+  const pts=[{x:ox,y:oy}];
+  let zone=-1, bounces=0;
+  for(let b=0;b<6;b++){
+    let bt=Infinity, bi=-1;
+    for(let i=0;i<pathPts.length-1;i++){
+      if(i===lastSeg) continue;
+      const t=raySeg(px,py,dx,dy,pathPts[i].x,pathPts[i].y,pathPts[i+1].x,pathPts[i+1].y);
+      if(t>0 && t<bt){bt=t;bi=i;}
+    }
+    const ex=frameExit(px,py,dx,dy);
+    if(bi>=0 && (!ex || bt<ex.t)){
+      const hx=px+dx*bt, hy=py+dy*bt;
+      pts.push({x:hx,y:hy});
+      const p1=pathPts[bi], p2=pathPts[bi+1];
+      let sx=p2.x-p1.x, sy=p2.y-p1.y; const L=Math.hypot(sx,sy); sx/=L; sy/=L;
+      const nx=-sy, ny=sx, dot=dx*nx+dy*ny;
+      dx-=2*dot*nx; dy-=2*dot*ny;
+      px=hx+dx*0.6; py=hy+dy*0.6;
+      lastSeg=bi; bounces++;
+    }else if(ex){
+      pts.push({x:ex.x,y:ex.y});
+      zone=zoneAt(ex.edge,ex.x,ex.y);
+      break;
+    }else break;
+  }
+  if(zone<0){ // bounce cap reached — flush out
+    const ex=frameExit(px,py,dx,dy);
+    if(ex){pts.push({x:ex.x,y:ex.y}); zone=zoneAt(ex.edge,ex.x,ex.y);}
+    else zone=zones.length-1;
+  }
+  return {pts,zone,bounces};
+}
+
+/* ---------- emitters ---------- */
+const COLS=['#ffc94d','#4de8ff','#ff5fd0'];
+const COLSG=['255,201,77','77,232,255','255,95,208'];
+const emitters=[
+  {x:FX0+260, ang:Math.PI*0.52},
+  {x:FX0+520, ang:Math.PI*0.46},
+  {x:FX0+780, ang:Math.PI*0.58},
+].map((e,i)=>({...e, tx:e.x, tang:e.ang, col:COLS[i]}));
+const ANG_MIN=Math.PI*25/180, ANG_MAX=Math.PI*155/180;
+const EX_MIN=FX0+26, EX_MAX=FX1-26;
+let rays=[null,null,null];
+function castAll(){ for(let i=0;i<3;i++) rays[i]=castRay(emitters[i].x,FY0,emitters[i].ang); }
+
+/* ---------- payout ---------- */
+function computePayout(stake){
+  const per=stake/3, counts={};
+  for(const r of rays) counts[r.zone]=(counts[r.zone]||0)+1;
+  let total=0; const rows=[];
+  const allSame=rays[0].zone===rays[1].zone&&rays[1].zone===rays[2].zone;
+  for(let i=0;i<3;i++){
+    const z=rays[i].zone, m=zMult(z);
+    let f=1;
+    if(allSame) f=3; else if(counts[z]===2) f=1.5;
+    const amt=per*m*f;
+    total+=amt; rows.push({zone:z,mult:m,conv:f,amt});
+  }
+  return {total,rows,allSame,pair:!allSame&&Object.values(counts).some(c=>c===2)};
+}
+
+/* ---------- game state ---------- */
+let balance=10000, stake=30, round=0;
+let phase='AIM', phaseT=6.0;
+const AIM_T=6.0, FLIGHT_T=16.0, SETTLE_T=3.4;
+let demo=true, lastUser=0;
+let settleData=null, flashT=0, bellRays=null;
+let demoLerp=0;
+
+function pickPrime(){
+  const live=zones.map((z,i)=>z.mult>0?i:-1).filter(i=>i>=0);
+  primeIdx=live[Math.floor(Math.random()*live.length)];
+}
+function startRound(){
+  round++; phase='AIM'; phaseT=AIM_T; settleData=null; bellRays=null;
+  pickPrime();
+  hideSettle();
+  if(demo){
+    for(const e of emitters){
+      e.tx=EX_MIN+60+Math.random()*(EX_MAX-EX_MIN-120);
+      e.tang=ANG_MIN+Math.PI*0.12+Math.random()*(ANG_MAX-ANG_MIN-Math.PI*0.24);
+    }
+    demoLerp=0;
+  }
+  if(balance<stake){ balance=10000; }
+}
+function toFlight(){
+  phase='FLIGHT'; phaseT=FLIGHT_T;
+  balance-=stake; updateBalance(0);
+}
+function bell(){
+  phase='SETTLE'; phaseT=SETTLE_T; flashT=1;
+  castAll();
+  bellRays=rays.map(r=>({pts:r.pts.map(p=>({...p})), zone:r.zone}));
+  settleData=computePayout(stake);
+  balance+=settleData.total;
+  updateBalance(settleData.total-stake);
+  showSettle();
+  for(const r of bellRays){
+    const p=r.pts[r.pts.length-1];
+    burst(p.x,p.y, zMult(r.zone)>0 ? (r.zone===primeIdx?'255,215,90':'140,220,255') : '255,90,110');
+  }
+}
+
+/* ---------- SIM LOOP — setInterval so it survives background tabs ---------- */
+const SIM_MS=100;
+setInterval(()=>{
+  if(phase!=='SETTLE'){ stepMarket(); }
+  updateScale(); buildPath();
+  phaseT-=SIM_MS/1000;
+  if(phase==='AIM'){
+    if(demo){
+      demoLerp=Math.min(1,demoLerp+0.045);
+      const k=0.5-0.5*Math.cos(Math.PI*demoLerp);
+      for(const e of emitters){ e.x+=(e.tx-e.x)*0.07; e.ang+=(e.tang-e.ang)*0.07; }
+    }
+    if(phaseT<=0) toFlight();
+  }else if(phase==='FLIGHT'){
+    if(phaseT<=0) bell();
+  }else if(phase==='SETTLE'){
+    if(phaseT<=0) startRound();
+  }
+  if(demo===false && performance.now()-lastUser>25000) { demo=true; setMode(); }
+},SIM_MS);
+
+/* ---------- particles ---------- */
+const sparks=[], dust=[];
+for(let i=0;i<70;i++) dust.push({x:Math.random()*DW,y:Math.random()*DH,r:0.6+Math.random()*1.6,s:0.08+Math.random()*0.3,ph:Math.random()*7});
+function burst(x,y,rgb){
+  for(let i=0;i<42;i++){
+    const a=Math.random()*Math.PI*2, v=1+Math.random()*4.5;
+    sparks.push({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,life:1,rgb,sz:1+Math.random()*2.4});
+  }
+}
+function spark(x,y,rgb){
+  if(sparks.length>420) return;
+  const a=Math.random()*Math.PI*2, v=0.4+Math.random()*1.6;
+  sparks.push({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v-0.5,life:0.8,rgb,sz:0.8+Math.random()*1.6});
+}
+
+/* ---------- input ---------- */
+let drag=null; // {i, kind:'pos'|'ang'}
+function toDesign(ev){
+  const r=canvas.getBoundingClientRect();
+  return {x:(ev.clientX-r.left)/r.width*DW, y:(ev.clientY-r.top)/r.height*DH};
+}
+function handlePos(e){ return {x:e.x+Math.cos(e.ang)*56, y:FY0+Math.sin(e.ang)*56}; }
+canvas.addEventListener('pointerdown',ev=>{
+  const p=toDesign(ev);
+  lastUser=performance.now();
+  if(demo){ demo=false; setMode(); }
+  if(phase!=='AIM') return;
+  for(let i=0;i<3;i++){
+    const h=handlePos(emitters[i]);
+    if(Math.hypot(p.x-h.x,p.y-h.y)<20){ drag={i,kind:'ang'}; canvas.setPointerCapture(ev.pointerId); return; }
+  }
+  for(let i=0;i<3;i++){
+    if(Math.hypot(p.x-emitters[i].x,p.y-FY0)<24){ drag={i,kind:'pos'}; canvas.setPointerCapture(ev.pointerId); return; }
+  }
+});
+canvas.addEventListener('pointermove',ev=>{
+  if(!drag || phase!=='AIM') return;
+  lastUser=performance.now();
+  const p=toDesign(ev), e=emitters[drag.i];
+  if(drag.kind==='pos'){ e.x=Math.max(EX_MIN,Math.min(EX_MAX,p.x)); e.tx=e.x; }
+  else{
+    let a=Math.atan2(Math.max(2,p.y-FY0), p.x-e.x);
+    a=Math.max(ANG_MIN,Math.min(ANG_MAX,a));
+    e.ang=a; e.tang=a;
+  }
+});
+window.addEventListener('pointerup',()=>{ drag=null; });
+
+/* ---------- DOM HUD ---------- */
+const $=id=>document.getElementById(id);
+const fmt=n=>'$'+n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+$('stUp').addEventListener('click',()=>{ stake=Math.min(500,stake+5); $('stakeVal').textContent='$'+stake; lastUser=performance.now(); });
+$('stDown').addEventListener('click',()=>{ stake=Math.max(5,stake-5); $('stakeVal').textContent='$'+stake; lastUser=performance.now(); });
+function setMode(){ const m=$('mode'); if(demo){m.textContent='AUTO DEMO';m.classList.remove('live');} else {m.textContent='YOU AIM';m.classList.add('live');} }
+function updateBalance(delta){
+  $('balance').textContent=fmt(balance);
+  if(delta!==0){
+    const d=$('balDelta');
+    d.textContent=(delta>0?'+':'')+fmt(delta).replace('$-','-$');
+    d.style.color=delta>0?'var(--win)':'var(--loss)';
+    d.style.opacity=1; setTimeout(()=>d.style.opacity=0,2200);
+  }
+}
+function showSettle(){
+  const s=settleData;
+  for(let i=0;i<3;i++){
+    const row=$('sr'+i);
+    row.querySelector('.zn').textContent=zName(s.rows[i].zone)+(s.rows[i].conv>1?'  ·  ×'+s.rows[i].conv+' conv':'');
+    const a=row.querySelector('.amt');
+    a.textContent=fmt(s.rows[i].amt); a.style.color=s.rows[i].amt>0?'#fff':'var(--loss)';
+  }
+  $('sBonus').textContent=s.allSame?'✦ CAUSTIC FOCUS — ALL BEAMS CONVERGED ×3 ✦':(s.pair?'TWIN CONVERGENCE ×1.5':'');
+  const tv=$('sTotalV'); tv.textContent=fmt(s.total);
+  tv.className='v '+(s.total>=stake?'win':'loss');
+  $('settle').classList.add('show');
+}
+function hideSettle(){ $('settle').classList.remove('show'); }
+
+/* ---------- PAINT LOOP — requestAnimationFrame ---------- */
+let T0=performance.now();
+function draw(){
+  const now=performance.now(), t=(now-T0)/1000;
+  ctx.setTransform(scaleX,0,0,scaleY,0,0);
+  /* background */
+  const bg=ctx.createLinearGradient(0,0,0,DH);
+  bg.addColorStop(0,'#0a0d20'); bg.addColorStop(0.5,'#070918'); bg.addColorStop(1,'#04050c');
+  ctx.fillStyle=bg; ctx.fillRect(0,0,DW,DH);
+  let g=ctx.createRadialGradient(DW*0.5,DH*0.32,40,DW*0.5,DH*0.32,640);
+  g.addColorStop(0,'rgba(70,95,210,0.16)'); g.addColorStop(1,'rgba(70,95,210,0)');
+  ctx.fillStyle=g; ctx.fillRect(0,0,DW,DH);
+  g=ctx.createRadialGradient(DW*0.16,DH*0.85,20,DW*0.16,DH*0.85,460);
+  g.addColorStop(0,'rgba(150,70,200,0.10)'); g.addColorStop(1,'rgba(150,70,200,0)');
+  ctx.fillStyle=g; ctx.fillRect(0,0,DW,DH);
+  g=ctx.createRadialGradient(DW*0.88,DH*0.78,20,DW*0.88,DH*0.78,420);
+  g.addColorStop(0,'rgba(40,160,200,0.10)'); g.addColorStop(1,'rgba(40,160,200,0)');
+  ctx.fillStyle=g; ctx.fillRect(0,0,DW,DH);
+  g=ctx.createRadialGradient(DW*0.5,DH+60,40,DW*0.5,DH+60,560);
+  g.addColorStop(0,'rgba(90,80,200,0.14)'); g.addColorStop(1,'rgba(90,80,200,0)');
+  ctx.fillStyle=g; ctx.fillRect(0,0,DW,DH);
+
+  /* grid */
+  ctx.strokeStyle='rgba(110,130,220,0.07)'; ctx.lineWidth=1;
+  ctx.beginPath();
+  for(let x=FX0;x<=FX1;x+=80){ ctx.moveTo(x,FY0); ctx.lineTo(x,FY1); }
+  for(let y=FY0;y<=FY1;y+=69.5){ ctx.moveTo(FX0,y); ctx.lineTo(FX1,y); }
+  ctx.stroke();
+  /* frontier line */
+  ctx.strokeStyle='rgba(140,170,255,0.14)'; ctx.setLineDash([3,7]);
+  ctx.beginPath(); ctx.moveTo(FRONT,FY0); ctx.lineTo(FRONT,FY1); ctx.stroke(); ctx.setLineDash([]);
+
+  /* dust */
+  for(const d of dust){
+    d.y-=d.s; if(d.y<-4){d.y=DH+4;d.x=Math.random()*DW;}
+    const a=0.10+0.10*Math.sin(t*1.3+d.ph);
+    ctx.fillStyle='rgba(170,190,255,'+a.toFixed(3)+')';
+    ctx.beginPath(); ctx.arc(d.x,d.y,d.r,0,7); ctx.fill();
+  }
+
+  /* live rays (compute) */
+  if(phase!=='SETTLE'){ castAll(); }
+  const showRays = phase==='SETTLE' && bellRays ? bellRays : rays;
+  const hitZones=new Set(showRays.map(r=>r.zone));
+
+  /* zone strips */
+  const TH=26;
+  for(let i=0;i<zones.length;i++){
+    const z=zones[i], isP=i===primeIdx, isV=z.mult===0&&!isP, hot=hitZones.has(i);
+    let x,y,w,h;
+    if(z.edge==='T'){ x=z.a+2; y=FY0-TH-6; w=z.b-z.a-4; h=TH; }
+    else if(z.edge==='B'){ x=z.a+2; y=FY1+6; w=z.b-z.a-4; h=TH; }
+    else if(z.edge==='L'){ x=FX0-TH-6; y=z.a+2; w=TH; h=z.b-z.a-4; }
+    else { x=FX1+6; y=z.a+2; w=TH; h=z.b-z.a-4; }
+    const pulse=isP?0.55+0.35*Math.sin(t*5):0;
+    ctx.save();
+    if(isP){ ctx.shadowColor='rgba(255,200,70,0.9)'; ctx.shadowBlur=18+10*pulse; }
+    else if(hot&&!isV){ ctx.shadowColor='rgba(120,210,255,0.8)'; ctx.shadowBlur=14; }
+    ctx.fillStyle=isP?`rgba(255,190,60,${0.30+0.22*pulse})`
+      : isV?'rgba(60,18,32,0.55)'
+      : hot?'rgba(90,160,255,0.34)':'rgba(46,60,120,0.30)';
+    roundRect(x,y,w,h,5); ctx.fill();
+    ctx.restore();
+    ctx.strokeStyle=isP?'rgba(255,210,110,0.9)': isV?'rgba(180,60,80,0.35)': hot?'rgba(140,200,255,0.8)':'rgba(120,140,220,0.30)';
+    ctx.lineWidth=1.2; roundRect(x,y,w,h,5); ctx.stroke();
+    /* label */
+    ctx.fillStyle=isP?'#ffe9b0': isV?'rgba(255,120,140,0.6)':'rgba(205,216,255,0.92)';
+    ctx.font=(isP?'800 12px':'700 11px')+' Inter,Segoe UI,sans-serif';
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    const lbl=isP?'×8 PRIME': isV?'VOID':'×'+z.mult;
+    if(z.edge==='T'||z.edge==='B'){ ctx.fillText(lbl,x+w/2,y+h/2+0.5); }
+    else{ ctx.save(); ctx.translate(x+w/2,y+h/2); ctx.rotate(z.edge==='L'?-Math.PI/2:Math.PI/2); ctx.fillText(lbl,0,0.5); ctx.restore(); }
+  }
+
+  /* frame */
+  ctx.strokeStyle='rgba(150,170,240,0.35)'; ctx.lineWidth=1.6;
+  roundRect(FX0,FY0,FX1-FX0,FY1-FY0,3); ctx.stroke();
+
+  /* mercury pool under path */
+  ctx.save();
+  ctx.beginPath(); ctx.rect(FX0,FY0,FX1-FX0,FY1-FY0); ctx.clip();
+  ctx.beginPath();
+  ctx.moveTo(pathPts[0].x,pathPts[0].y);
+  for(const p of pathPts) ctx.lineTo(p.x,p.y);
+  ctx.lineTo(pathPts[pathPts.length-1].x,FY1); ctx.lineTo(FX0,FY1); ctx.closePath();
+  const pg=ctx.createLinearGradient(0,Y_TOP,0,FY1);
+  pg.addColorStop(0,'rgba(150,175,235,0.22)'); pg.addColorStop(0.5,'rgba(95,115,185,0.10)'); pg.addColorStop(1,'rgba(60,70,130,0.03)');
+  ctx.fillStyle=pg; ctx.fill();
+  /* shimmer lines inside pool */
+  ctx.globalAlpha=0.10;
+  ctx.strokeStyle='#aebdf0'; ctx.lineWidth=1;
+  for(let k=1;k<=3;k++){
+    ctx.beginPath();
+    for(let i=0;i<pathPts.length;i+=2){
+      const p=pathPts[i], yy=p.y+k*16+3*Math.sin(t*1.8+i*0.12+k);
+      if(i===0) ctx.moveTo(p.x,yy); else ctx.lineTo(p.x,yy);
+    }
+    ctx.stroke();
+  }
+  ctx.globalAlpha=1;
+  ctx.restore();
+
+  /* price path — quicksilver */
+  ctx.save();
+  ctx.lineJoin='round'; ctx.lineCap='round';
+  ctx.strokeStyle='rgba(120,150,255,0.30)'; ctx.lineWidth=9; pathStroke();
+  ctx.shadowColor='rgba(140,170,255,0.9)'; ctx.shadowBlur=12;
+  ctx.strokeStyle='rgba(190,205,255,0.75)'; ctx.lineWidth=3.4; pathStroke();
+  ctx.shadowBlur=0;
+  ctx.strokeStyle='#eef2ff'; ctx.lineWidth=1.4; pathStroke();
+  ctx.restore();
+  /* frontier head */
+  const head=pathPts[pathPts.length-1];
+  const hp=0.5+0.5*Math.sin(t*6);
+  ctx.save();
+  ctx.shadowColor='rgba(190,215,255,1)'; ctx.shadowBlur=18;
+  ctx.fillStyle='#fff';
+  ctx.beginPath(); ctx.arc(head.x,head.y,4+2*hp,0,7); ctx.fill();
+  ctx.restore();
+
+  /* beams */
+  const aim=phase==='AIM';
+  for(let i=0;i<3;i++){
+    const r=showRays[i]; if(!r) continue;
+    const col=COLS[i], rgb=COLSG[i];
+    ctx.save();
+    ctx.lineJoin='round'; ctx.lineCap='round';
+    if(aim) ctx.setLineDash([9,11]), ctx.lineDashOffset=-t*40;
+    /* glow passes */
+    if(!aim){ ctx.strokeStyle=`rgba(${rgb},0.10)`; ctx.lineWidth=22; rayStroke(r); }
+    ctx.strokeStyle=`rgba(${rgb},${aim?0.16:0.30})`; ctx.lineWidth=aim?7:11; rayStroke(r);
+    ctx.shadowColor=col; ctx.shadowBlur=aim?8:16;
+    ctx.strokeStyle=`rgba(${rgb},${aim?0.55:0.95})`; ctx.lineWidth=aim?2:3; rayStroke(r);
+    ctx.shadowBlur=0;
+    if(!aim){
+      ctx.setLineDash([4,26]); ctx.lineDashOffset=-t*150;
+      ctx.strokeStyle='rgba(255,255,255,0.9)'; ctx.lineWidth=2.2; rayStroke(r);
+    }
+    ctx.restore();
+    /* strike sparks */
+    if(!aim && phase==='FLIGHT'){
+      for(let b=1;b<r.pts.length-1;b++) if(Math.random()<0.35) spark(r.pts[b].x,r.pts[b].y,rgb);
+      const lp=r.pts[r.pts.length-1];
+      if(Math.random()<0.5) spark(lp.x,lp.y,rgb);
+    }
+    /* landing marker */
+    const lp=r.pts[r.pts.length-1];
+    ctx.save();
+    ctx.shadowColor=col; ctx.shadowBlur=14;
+    ctx.fillStyle=col;
+    ctx.beginPath(); ctx.arc(lp.x,lp.y,aim?3:4.5,0,7); ctx.fill();
+    ctx.restore();
+  }
+
+  /* sparks */
+  for(let i=sparks.length-1;i>=0;i--){
+    const s=sparks[i];
+    s.x+=s.vx; s.y+=s.vy; s.vy+=0.05; s.vx*=0.98; s.vy*=0.98; s.life-=0.022;
+    if(s.life<=0){ sparks.splice(i,1); continue; }
+    ctx.fillStyle=`rgba(${s.rgb},${(s.life*0.9).toFixed(3)})`;
+    ctx.beginPath(); ctx.arc(s.x,s.y,s.sz*s.life+0.4,0,7); ctx.fill();
+  }
+
+  /* emitters */
+  for(let i=0;i<3;i++){
+    const e=emitters[i], col=COLS[i], rgb=COLSG[i];
+    const h=handlePos(e);
+    /* stick */
+    ctx.strokeStyle=`rgba(${rgb},0.6)`; ctx.lineWidth=1.6;
+    ctx.setLineDash([3,4]);
+    ctx.beginPath(); ctx.moveTo(e.x,FY0); ctx.lineTo(h.x,h.y); ctx.stroke();
+    ctx.setLineDash([]);
+    /* body */
+    ctx.save();
+    ctx.shadowColor=col; ctx.shadowBlur=18;
+    ctx.fillStyle='#0c1026';
+    ctx.beginPath(); ctx.arc(e.x,FY0,13,0,7); ctx.fill();
+    ctx.strokeStyle=col; ctx.lineWidth=2.4;
+    ctx.beginPath(); ctx.arc(e.x,FY0,13,0,7); ctx.stroke();
+    ctx.fillStyle=col;
+    ctx.beginPath(); ctx.arc(e.x,FY0,4.6,0,7); ctx.fill();
+    ctx.restore();
+    /* diamond handle */
+    ctx.save();
+    ctx.translate(h.x,h.y); ctx.rotate(Math.PI/4);
+    ctx.shadowColor=col; ctx.shadowBlur=10;
+    ctx.fillStyle=aim?col:'rgba(120,130,170,0.5)';
+    ctx.fillRect(-5.5,-5.5,11,11);
+    ctx.restore();
+  }
+
+  /* bell flash */
+  if(flashT>0){
+    flashT-=0.04;
+    if(flashT>0){
+      ctx.fillStyle=`rgba(235,242,255,${(flashT*0.55).toFixed(3)})`;
+      ctx.fillRect(FX0-36,FY0-36,FX1-FX0+72,FY1-FY0+72);
+    }
+  }
+
+  /* DOM updates */
+  $('phaseTime').textContent=Math.max(0,phaseT).toFixed(1)+'s';
+  const pill=$('phasePill');
+  if(phase==='AIM'){ pill.textContent='Aim'; pill.className=''; }
+  else if(phase==='FLIGHT'){ pill.textContent='Flight'; pill.className='flight'; }
+  else { pill.textContent='Bell'; pill.className='settle'; }
+  if(phase==='FLIGHT'){
+    const p=computePayout(stake);
+    const el=$('livePay'); el.textContent=fmt(p.total);
+    el.style.color=p.total>=stake?'var(--win)':(p.total>0?'var(--gold)':'var(--loss)');
+  }else if(phase==='AIM'){
+    const p=computePayout(stake);
+    const el=$('livePay'); el.textContent='≈ '+fmt(p.total); el.style.color='var(--dim)';
+  }
+
+  requestAnimationFrame(draw);
+}
+function pathStroke(){
+  ctx.beginPath();
+  ctx.moveTo(pathPts[0].x,pathPts[0].y);
+  for(const p of pathPts) ctx.lineTo(p.x,p.y);
+  ctx.stroke();
+}
+function rayStroke(r){
+  ctx.beginPath();
+  ctx.moveTo(r.pts[0].x,r.pts[0].y);
+  for(const p of r.pts) ctx.lineTo(p.x,p.y);
+  ctx.stroke();
+}
+function roundRect(x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);
+  ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r);
+  ctx.closePath();
+}
+
+updateScale(); buildPath(); startRound(); setMode();
+/* hot start — first paint shows blazing beams mid-flight, hero alive on load */
+const HOT=[[420,0.625],[645,0.50],[885,0.41]];
+for(let i=0;i<3;i++){
+  emitters[i].x=emitters[i].tx=HOT[i][0];
+  emitters[i].ang=emitters[i].tang=Math.PI*HOT[i][1];
+}
+toFlight(); phaseT=11.5;
+castAll();
+if(location.search.indexOf('bell')>=0) bell();
+for(const r of rays){ const lp=r.pts[r.pts.length-1]; burst(lp.x,lp.y,'150,210,255'); for(let b=1;b<r.pts.length;b++) burst(r.pts[b].x,r.pts[b].y,'190,205,255'); }
+requestAnimationFrame(draw);
+</script>
+</body>
+</html>
